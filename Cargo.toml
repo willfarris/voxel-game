@@ -8,3 +8,4 @@ edition = "2018"
 [dependencies]
 libvoxel = { path = "libvoxel" }
 glfw = "*"
+gl = "*"

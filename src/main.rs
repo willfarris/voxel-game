@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-
+use glfw::Context;
 use voxel::engine::core::ENGINE;
 
 const WIDTH: u32 = 800;
@@ -14,7 +14,7 @@ fn main() {
         glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
     }
 
-    let (mut window, events) = glfw.create_window(WIDTH, HEIGHT, "", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
+    let (mut window, _events) = glfw.create_window(WIDTH, HEIGHT, "", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
     
     //window.make_current();
     window.set_key_polling(true);
@@ -23,24 +23,30 @@ fn main() {
     window.set_cursor_pos(WIDTH as f64/2.0, HEIGHT as f64/2.0);
 
     unsafe {
-        if let Err(error) = ENGINE.gl_setup(WIDTH.try_into().unwrap(), HEIGHT.try_into().unwrap()) {
-            panic!("Could not load OpenGL!");
+        gl::load_with(|s| window.get_proc_address(s) as *const _);
+
+        if let Err(e) = ENGINE.gl_setup(WIDTH.try_into().unwrap(), HEIGHT.try_into().unwrap()) {
+            panic!("{}", e);
+        } else {
+            println!("Initialized OpenGL");
         }
         
-        if let Err(error) = ENGINE.start_engine() {
-            panic!("Could not start engine!");
+        if let Err(e) = ENGINE.initialize() {
+            panic!("{}", e);
+        } else {
+            println!("Initialized Engine");
         }
     }
 
     let start_time = glfw.get_time() as f32;
-    let mut previous_time = start_time;
     while !window.should_close() {
         let current_time = glfw.get_time() as f32;
-        let delta_time = (current_time - previous_time) as f32;
         let elapsed_time = current_time - start_time;
         
         unsafe {
             ENGINE.render(elapsed_time);
         }
+
+        window.swap_buffers();
     }
 }
