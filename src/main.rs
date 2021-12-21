@@ -14,7 +14,7 @@ fn main() {
         glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
     }
 
-    let (mut window, _events) = glfw.create_window(WIDTH, HEIGHT, "", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
+    let (mut window, events) = glfw.create_window(WIDTH, HEIGHT, "", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
     
     //window.make_current();
     window.set_key_polling(true);
@@ -48,5 +48,20 @@ fn main() {
         }
 
         window.swap_buffers();
+
+        glfw.poll_events();
+        for (_, event) in glfw::flush_messages(&events) {
+            match event {
+                glfw::WindowEvent::CursorPos(x, y) => {
+                    let delta = (x-WIDTH as f64/2.0, y-HEIGHT as f64/2.0);
+                    window.set_cursor_pos(WIDTH as f64/2.0, HEIGHT as f64/2.0);
+                    unsafe {
+                        ENGINE.player.as_mut().unwrap().camera.rotate_on_x_axis(0.001 * delta.1 as f32);
+                        ENGINE.player.as_mut().unwrap().camera.rotate_on_y_axis(0.001 * delta.0 as f32);
+                    }
+                },
+                _ => println!("{:?}", event),
+            }
+        }
     }
 }
