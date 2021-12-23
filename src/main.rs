@@ -62,7 +62,7 @@ fn main() {
                     }
                 },
                 glfw::WindowEvent::MouseButton(button, state, x) => {
-                    println!("Mouse button {:?} {:?} {:?}", button, state, x);
+                    println!("{:?} {:?} {:?}", button, state, x);
                     if state == glfw::Action::Press {unsafe {ENGINE.should_break_block = true}}
                 },
                 glfw::WindowEvent::Key(k, _, state, _) => {
@@ -75,13 +75,6 @@ fn main() {
                         glfw::Key::S => wasd_pressed[2] = pressed,
                         glfw::Key::D => wasd_pressed[3] = pressed,
                         glfw::Key::Space => if state == glfw::Action::Press {unsafe {ENGINE.player.as_mut().unwrap().jump()}},
-
-                        /*glfw::Key::W =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(0.0, 0.0, 1.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
-                        glfw::Key::S =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(0.0, 0.0, -1.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
-                        glfw::Key::D =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(1.0, 0.0, 0.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
-                        glfw::Key::A =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(-1.0, 0.0, 0.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
-                        glfw::Key::Space =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(0.0, 1.5, 0.0)) } else if released { /*player.stop_move_direction(cgmath::Vector3::new(0.0, 2.0, 0.0))*/ } },*/
-                        //glfw::Key::LeftShift =>  { if pressed { ENGINE.player.move_direction(cgmath::Vector3::new(0.0, -1.0, 0.0)) } else if released { ENGINE.player.stop_move_direction(cgmath::Vector3::new(0.0, -1.0, 0.0)) } },
                         _ => {
                             println!("{:?}", k);
                         }
