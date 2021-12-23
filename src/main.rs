@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 use glfw::Context;
 use voxel::engine::core::ENGINE;
+use voxel::physics::vectormath::q_rsqrt;
 
 const WIDTH: u32 = 800;
 const HEIGHT: u32 = 600;
@@ -37,9 +38,7 @@ fn main() {
             println!("Initialized Engine");
         }
     }
-
     let mut wasd_pressed = [false; 4];
-
     let start_time = glfw.get_time() as f32;
     while !window.should_close() {
         let current_time = glfw.get_time() as f32;
@@ -62,40 +61,50 @@ fn main() {
                         ENGINE.player.as_mut().unwrap().camera.rotate_on_y_axis(0.001 * delta.0 as f32);
                     }
                 },
+                glfw::WindowEvent::MouseButton(button, state, x) => {
+                    println!("Mouse button {:?} {:?} {:?}", button, state, x);
+                    if state == glfw::Action::Press {unsafe {ENGINE.should_break_block = true}}
+                },
                 glfw::WindowEvent::Key(k, _, state, _) => {
-                    let pressed = if state == glfw::Action::Press {true} else {false};
+                    let pressed = if state == glfw::Action::Release {false} else {true};
                     let released = if state == glfw::Action::Release {true} else {false};
-                    unsafe {
-                         match k {
-                            glfw::Key::Escape => window.set_should_close(true),
-                            glfw::Key::W => wasd_pressed[0] = pressed,
-                            glfw::Key::A => wasd_pressed[1] = pressed,
-                            glfw::Key::S => wasd_pressed[2] = pressed,
-                            glfw::Key::D => wasd_pressed[3] = pressed,
+                    match k {
+                        glfw::Key::Escape => window.set_should_close(true),
+                        glfw::Key::W => wasd_pressed[0] = pressed,
+                        glfw::Key::A => wasd_pressed[1] = pressed,
+                        glfw::Key::S => wasd_pressed[2] = pressed,
+                        glfw::Key::D => wasd_pressed[3] = pressed,
+                        glfw::Key::Space => if state == glfw::Action::Press {unsafe {ENGINE.player.as_mut().unwrap().jump()}},
 
-                            /*glfw::Key::W =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(0.0, 0.0, 1.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
-                            glfw::Key::S =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(0.0, 0.0, -1.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
-                            glfw::Key::D =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(1.0, 0.0, 0.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
-                            glfw::Key::A =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(-1.0, 0.0, 0.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
-                            glfw::Key::Space =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(0.0, 1.5, 0.0)) } else if released { /*player.stop_move_direction(cgmath::Vector3::new(0.0, 2.0, 0.0))*/ } },*/
-                            //glfw::Key::LeftShift =>  { if pressed { ENGINE.player.move_direction(cgmath::Vector3::new(0.0, -1.0, 0.0)) } else if released { ENGINE.player.stop_move_direction(cgmath::Vector3::new(0.0, -1.0, 0.0)) } },
-                            _ => {
-                                println!("{:?}", k);
-                            }
+                        /*glfw::Key::W =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(0.0, 0.0, 1.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
+                        glfw::Key::S =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(0.0, 0.0, -1.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
+                        glfw::Key::D =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(1.0, 0.0, 0.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
+                        glfw::Key::A =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(-1.0, 0.0, 0.0)) } else if released {  ENGINE.player.as_mut().unwrap().stop_move() } },
+                        glfw::Key::Space =>  { if pressed {  ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3::new(0.0, 1.5, 0.0)) } else if released { /*player.stop_move_direction(cgmath::Vector3::new(0.0, 2.0, 0.0))*/ } },*/
+                        //glfw::Key::LeftShift =>  { if pressed { ENGINE.player.move_direction(cgmath::Vector3::new(0.0, -1.0, 0.0)) } else if released { ENGINE.player.stop_move_direction(cgmath::Vector3::new(0.0, -1.0, 0.0)) } },
+                        _ => {
+                            println!("{:?}", k);
                         }
                     }
-                    
                 }
                 _ => println!("{:?}", event),
             }
         }
 
+        let mut move_direction = cgmath::Vector3 {
+            x: wasd_pressed[3] as i32 as f32 - wasd_pressed[1] as i32 as f32,
+            y: 0.0,
+            z: wasd_pressed[0] as i32 as f32 - wasd_pressed[2] as i32 as f32,
+        };
+        move_direction *= q_rsqrt(move_direction.x * move_direction.x + move_direction.z * move_direction.z);
+        
         unsafe {
-            ENGINE.player.as_mut().unwrap().move_direction(cgmath::Vector3 {
-                x: wasd_pressed[3] as i32 as f32 - wasd_pressed[1] as i32 as f32,
-                y: 0.0,
-                z: wasd_pressed[0] as i32 as f32 - wasd_pressed[2] as i32 as f32,
-            });
+            
+            if !wasd_pressed[0] && !wasd_pressed[1] && !wasd_pressed[2] && !wasd_pressed[3] {
+                ENGINE.player.as_mut().unwrap().stop_move();
+            } else {
+                ENGINE.player.as_mut().unwrap().move_direction(move_direction);
+            }
         }
     }
 }
