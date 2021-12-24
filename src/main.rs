@@ -22,6 +22,7 @@ fn main() {
     window.set_cursor_pos_polling(true);
     window.set_mouse_button_polling(true);
     window.set_cursor_pos(WIDTH as f64/2.0, HEIGHT as f64/2.0);
+    window.set_cursor_mode(glfw::CursorMode::Hidden);
 
     unsafe {
         gl::load_with(|s| window.get_proc_address(s) as *const _);
