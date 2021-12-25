@@ -24,6 +24,10 @@ fn main() {
     window.set_cursor_pos(WIDTH as f64/2.0, HEIGHT as f64/2.0);
     window.set_cursor_mode(glfw::CursorMode::Hidden);
 
+
+    let seed = 0xFF221234;
+    let world_radius = 2;
+
     unsafe {
         gl::load_with(|s| window.get_proc_address(s) as *const _);
 
@@ -33,7 +37,7 @@ fn main() {
             println!("Initialized OpenGL");
         }
         
-        if let Err(e) = ENGINE.initialize() {
+        if let Err(e) = ENGINE.initialize(seed, world_radius) {
             panic!("{}", e);
         } else {
             println!("Initialized Engine");
