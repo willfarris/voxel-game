@@ -25,8 +25,8 @@ fn main() {
     window.set_cursor_mode(glfw::CursorMode::Hidden);
 
 
-    let seed = 0xFF221234;
-    let world_radius = 2;
+    let seed = 4;
+    let world_radius = 4;
 
     unsafe {
         gl::load_with(|s| window.get_proc_address(s) as *const _);
@@ -67,8 +67,11 @@ fn main() {
                     }
                 },
                 glfw::WindowEvent::MouseButton(button, state, x) => {
+                    match button {
+                        _ =>  if state == glfw::Action::Press {unsafe {ENGINE.should_break_block = true}},
+                    }
                     println!("{:?} {:?} {:?}", button, state, x);
-                    if state == glfw::Action::Press {unsafe {ENGINE.should_break_block = true}}
+                   
                 },
                 glfw::WindowEvent::Key(k, _, state, _) => {
                     let pressed = if state == glfw::Action::Release {false} else {true};
