@@ -72,35 +72,37 @@ fn main() {
                             if state == glfw::Action::Press {unsafe {ENGINE.should_break_block = true}}
                         },
                         glfw::MouseButton::Button2 => {
-                            unsafe {
-                                let player = ENGINE.player.as_mut().unwrap();
-                                let world = ENGINE.world.as_mut().unwrap();
-                                if let Some(block_id) = player.inventory.consume_currently_selected() {
-                                    if let Some((intersect_position, world_index)) = voxel::physics::vectormath::dda(&world, &player.camera.position, &player.camera.forward, 6.0) {
-                                        let place_index = cgmath::Vector3 {
-                                            x: if intersect_position.x == world_index.x as f32 {
-                                                world_index.x - 1
-                                            } else if intersect_position.x-1.0 == world_index.x as f32 {
-                                                world_index.x + 1
-                                            } else {
-                                                world_index.x
-                                            },
-                                            y: if intersect_position.y== world_index.y as f32 {
-                                                world_index.y - 1
-                                            } else if intersect_position.y-1.0 == world_index.y as f32 {
-                                                world_index.y + 1
-                                            } else {
-                                                world_index.y
-                                            },
-                                            z: if intersect_position.z == world_index.z as f32 {
-                                                world_index.z - 1
-                                            } else if intersect_position.z-1.0 == world_index.z as f32 {
-                                                world_index.z + 1
-                                            } else {
-                                                world_index.z
-                                            },
-                                        };
-                                        world.place_at_global_pos(place_index, block_id);
+                            if state == glfw::Action::Release {
+                                unsafe {
+                                    let player = ENGINE.player.as_mut().unwrap();
+                                    let world = ENGINE.world.as_mut().unwrap();
+                                    if let Some(block_id) = player.inventory.consume_currently_selected() {
+                                        if let Some((intersect_position, world_index)) = voxel::physics::vectormath::dda(&world, &player.camera.position, &player.camera.forward, 6.0) {
+                                            let place_index = cgmath::Vector3 {
+                                                x: if intersect_position.x == world_index.x as f32 {
+                                                    world_index.x - 1
+                                                } else if intersect_position.x-1.0 == world_index.x as f32 {
+                                                    world_index.x + 1
+                                                } else {
+                                                    world_index.x
+                                                },
+                                                y: if intersect_position.y== world_index.y as f32 {
+                                                    world_index.y - 1
+                                                } else if intersect_position.y-1.0 == world_index.y as f32 {
+                                                    world_index.y + 1
+                                                } else {
+                                                    world_index.y
+                                                },
+                                                z: if intersect_position.z == world_index.z as f32 {
+                                                    world_index.z - 1
+                                                } else if intersect_position.z-1.0 == world_index.z as f32 {
+                                                    world_index.z + 1
+                                                } else {
+                                                    world_index.z
+                                                },
+                                            };
+                                            world.place_at_global_pos(place_index, block_id);
+                                        }
                                     }
                                 }
                             }
