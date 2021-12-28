@@ -3,8 +3,8 @@ use glfw::Context;
 use voxel::engine::core::ENGINE;
 use voxel::physics::vectormath::q_rsqrt;
 
-const WIDTH: u32 = 800;
-const HEIGHT: u32 = 600;
+const WIDTH: u32 = 1600;
+const HEIGHT: u32 = 900;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -25,7 +25,7 @@ fn main() {
     window.set_cursor_mode(glfw::CursorMode::Hidden);
 
 
-    let seed = 4;
+    let seed = 4;//0xFF221234;
     let world_radius = 4;
 
     unsafe {
@@ -68,21 +68,71 @@ fn main() {
                 },
                 glfw::WindowEvent::MouseButton(button, state, x) => {
                     match button {
-                        _ =>  if state == glfw::Action::Press {unsafe {ENGINE.should_break_block = true}},
+                        glfw::MouseButton::Button1 => {
+                            if state == glfw::Action::Press {unsafe {ENGINE.should_break_block = true}}
+                        },
+                        glfw::MouseButton::Button2 => {
+                            if state == glfw::Action::Release {
+                                unsafe {
+                                    let player = ENGINE.player.as_mut().unwrap();
+                                    let world = ENGINE.world.as_mut().unwrap();
+                                    if let Some(block_id) = player.inventory.consume_currently_selected() {
+                                        if let Some((intersect_position, world_index)) = voxel::physics::vectormath::dda(&world, &player.camera.position, &player.camera.forward, 6.0) {
+                                            let place_index = cgmath::Vector3 {
+                                                x: if intersect_position.x == world_index.x as f32 {
+                                                    world_index.x - 1
+                                                } else if intersect_position.x-1.0 == world_index.x as f32 {
+                                                    world_index.x + 1
+                                                } else {
+                                                    world_index.x
+                                                },
+                                                y: if intersect_position.y== world_index.y as f32 {
+                                                    world_index.y - 1
+                                                } else if intersect_position.y-1.0 == world_index.y as f32 {
+                                                    world_index.y + 1
+                                                } else {
+                                                    world_index.y
+                                                },
+                                                z: if intersect_position.z == world_index.z as f32 {
+                                                    world_index.z - 1
+                                                } else if intersect_position.z-1.0 == world_index.z as f32 {
+                                                    world_index.z + 1
+                                                } else {
+                                                    world_index.z
+                                                },
+                                            };
+                                            world.place_at_global_pos(place_index, block_id);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        glfw::MouseButton::Button3 => {
+                            if state == glfw::Action::Release {unsafe {ENGINE.should_interact = true}}
+                        }
+                        _ => println!("{:?} {:?} {:?}", button, state, x),
                     }
-                    println!("{:?} {:?} {:?}", button, state, x);
-                   
                 },
                 glfw::WindowEvent::Key(k, _, state, _) => {
-                    let pressed = if state == glfw::Action::Release {false} else {true};
-                    let released = if state == glfw::Action::Release {true} else {false};
+                    let pressed_or_held = if state == glfw::Action::Release {false} else {true};
                     match k {
                         glfw::Key::Escape => window.set_should_close(true),
-                        glfw::Key::W => wasd_pressed[0] = pressed,
-                        glfw::Key::A => wasd_pressed[1] = pressed,
-                        glfw::Key::S => wasd_pressed[2] = pressed,
-                        glfw::Key::D => wasd_pressed[3] = pressed,
+                        glfw::Key::W => wasd_pressed[0] = pressed_or_held,
+                        glfw::Key::A => wasd_pressed[1] = pressed_or_held,
+                        glfw::Key::S => wasd_pressed[2] = pressed_or_held,
+                        glfw::Key::D => wasd_pressed[3] = pressed_or_held,
                         glfw::Key::Space => if state == glfw::Action::Press {unsafe {ENGINE.player.as_mut().unwrap().jump()}},
+
+                        glfw::Key::Num1 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 0;}},
+                        glfw::Key::Num2 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 1;}},
+                        glfw::Key::Num3 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 2;}},
+                        glfw::Key::Num4 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 3;}},
+                        glfw::Key::Num5 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 4;}},
+                        glfw::Key::Num6 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 5;}},
+                        glfw::Key::Num7 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 6;}},
+                        glfw::Key::Num8 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 7;}},
+                        glfw::Key::Num9 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 8;}},
+
                         _ => {
                             println!("{:?}", k);
                         }
