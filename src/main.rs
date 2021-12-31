@@ -50,7 +50,7 @@ fn main() {
         let elapsed_time = current_time - start_time;
         
         unsafe {
-            ENGINE.render(elapsed_time);
+            ENGINE.update(elapsed_time);
         }
 
         window.swap_buffers();
