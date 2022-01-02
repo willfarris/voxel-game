@@ -123,6 +123,8 @@ fn main() {
                         glfw::Key::D => wasd_pressed[3] = pressed_or_held,
                         glfw::Key::Space => if state == glfw::Action::Press {unsafe {ENGINE.player.as_mut().unwrap().jump()}},
 
+                        glfw::Key::P => if state == glfw::Action::Release {unsafe {ENGINE.state = if ENGINE.state == voxel::engine::core::EngineState::Running {voxel::engine::core::EngineState::Paused } else {voxel::engine::core::EngineState::Running }}},
+
                         glfw::Key::Num1 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 0;}},
                         glfw::Key::Num2 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 1;}},
                         glfw::Key::Num3 => unsafe {if state == glfw::Action::Press {ENGINE.player.as_mut().unwrap().inventory.selected = 2;}},
