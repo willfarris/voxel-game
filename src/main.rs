@@ -15,7 +15,7 @@ fn main() {
         glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
     }
 
-    let (mut window, events) = glfw.create_window(WIDTH, HEIGHT, "", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
+    let (mut window, events) = glfw.create_window(WIDTH, HEIGHT, "VoxelGame", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
     
     //window.make_current();
     window.set_key_polling(true);
@@ -43,11 +43,29 @@ fn main() {
             println!("Initialized Engine");
         }
     }
+
+    const NUM_AVG_FRAMES: usize = 60;
+    let mut averages = [0f32; NUM_AVG_FRAMES];
+    let mut i = 0;
+
     let mut wasd_pressed = [false; 4];
     let start_time = glfw.get_time() as f32;
+    let mut last_time = start_time;
     while !window.should_close() {
         let current_time = glfw.get_time() as f32;
         let elapsed_time = current_time - start_time;
+        averages[i] = 1.0 / (current_time - last_time);
+        i = if i < (NUM_AVG_FRAMES - 1) { i + 1 } else {
+            let mut average_fps = 0.0;
+            for n in 0..NUM_AVG_FRAMES {
+                average_fps += averages[n];
+            }
+            average_fps /= NUM_AVG_FRAMES as f32;
+            window.set_title(format!("Voxel Game - {} FPS", average_fps).as_str());
+            0
+        };
+        last_time = current_time;
+
         
         unsafe {
             ENGINE.update(elapsed_time);
