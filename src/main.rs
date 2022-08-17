@@ -1,20 +1,20 @@
 
 
 use glfw::Context;
-use voxel::engine::engine::{PlayerInteraction, Engine};
+use voxel::engine::engine::{PlayerInteraction, PlayerMovement, Engine};
 use voxel::physics::vectormath::q_rsqrt;
 
-const WIDTH: i32 = 1600;
+const WIDTH: i32 = 1920;
 const HEIGHT: i32 = 900;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
-    #[cfg(target_arch = "aarch64")] {
+    //#[cfg(target_arch = "aarch64")] {
         glfw.window_hint(glfw::WindowHint::ContextVersion(3, 1));
         glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::OpenGlEs));
         glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
-    }
+    //}
 
     let (mut window, events) = glfw.create_window(WIDTH as u32, HEIGHT as u32, "VoxelGame", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
 
@@ -69,12 +69,8 @@ fn main() {
             match event {
                 glfw::WindowEvent::CursorPos(x, y) => {
                     let delta = (x-WIDTH as f64/2.0, y-HEIGHT as f64/2.0);
-
                     window.set_cursor_pos(WIDTH as f64/2.0, HEIGHT as f64/2.0);
-                    
-                    engine.player.camera.rotate_on_x_axis(0.001 * delta.1 as f32);
-                    engine.player.camera.rotate_on_y_axis(0.001 * delta.0 as f32);
-                    
+                    engine.player_movement(PlayerMovement::Look(0.001 * delta.1 as f32, 0.001 * delta.0 as f32));             
                 },
                 glfw::WindowEvent::MouseButton(button, state, x) => {
                     match button {
@@ -85,7 +81,7 @@ fn main() {
                         },
                         glfw::MouseButton::Button2 => {
                             if state == glfw::Action::Release {
-                                if let Some(block_id) = &engine.player.inventory.consume_currently_selected() {
+                                /*if let Some(block_id) = &engine.player.inventory.consume_currently_selected() {
                                     if let Some((intersect_position, world_index)) = voxel::physics::vectormath::dda(
                                         &engine.terrain, 
                                         &engine.player.camera.position, 
@@ -117,7 +113,7 @@ fn main() {
                                         engine.terrain.place_at_global_pos(place_index, *block_id);
                                     }
                                 }
-                                
+                                */
                             }
                         }
                         glfw::MouseButton::Button3 => {
@@ -139,26 +135,26 @@ fn main() {
                         glfw::Key::S => wasd_pressed[2] = pressed_or_held,
                         glfw::Key::D => wasd_pressed[3] = pressed_or_held,
                         glfw::Key::Space => if state == glfw::Action::Press {
-                            engine.player.jump()
+                            engine.player_movement(PlayerMovement::Jump);
                         },
 
                         glfw::Key::P => if state == glfw::Action::Release {
-                            engine.play_state = if engine.play_state == voxel::engine::engine::PlayState::Running {
-                                voxel::engine::engine::PlayState::Paused
+                            if engine.play_state == voxel::engine::engine::PlayState::Running {
+                                engine.pause();
                             } else {
-                                voxel::engine::engine::PlayState::Running
+                                engine.resume();
                             }
                         },
 
-                        glfw::Key::Num1 => if state == glfw::Action::Press {engine.player.inventory.selected = 0;},
-                        glfw::Key::Num2 => if state == glfw::Action::Press {engine.player.inventory.selected = 1;},
-                        glfw::Key::Num3 => if state == glfw::Action::Press {engine.player.inventory.selected = 2;},
-                        glfw::Key::Num4 => if state == glfw::Action::Press {engine.player.inventory.selected = 3;},
-                        glfw::Key::Num5 => if state == glfw::Action::Press {engine.player.inventory.selected = 4;},
-                        glfw::Key::Num6 => if state == glfw::Action::Press {engine.player.inventory.selected = 5;},
-                        glfw::Key::Num7 => if state == glfw::Action::Press {engine.player.inventory.selected = 6;},
-                        glfw::Key::Num8 => if state == glfw::Action::Press {engine.player.inventory.selected = 7;},
-                        glfw::Key::Num9 => if state == glfw::Action::Press {engine.player.inventory.selected = 8;},
+                        glfw::Key::Num1 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(0));},
+                        glfw::Key::Num2 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(1));},
+                        glfw::Key::Num3 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(2));},
+                        glfw::Key::Num4 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(3));},
+                        glfw::Key::Num5 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(4));},
+                        glfw::Key::Num6 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(5));},
+                        glfw::Key::Num7 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(6));},
+                        glfw::Key::Num8 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(7));},
+                        glfw::Key::Num9 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(8));},
 
                         _ => {
                             println!("{:?}", k);
@@ -177,10 +173,10 @@ fn main() {
         move_direction *= q_rsqrt(move_direction.x * move_direction.x + move_direction.z * move_direction.z);
         if !wasd_pressed[0] && !wasd_pressed[1] && !wasd_pressed[2] && !wasd_pressed[3] {
             //todo!("Stop player movement")
-            engine.player.stop_move();
+            engine.player_movement(PlayerMovement::Stop);
         } else {
             //todo!("Update player velocity")
-            engine.player.move_direction(move_direction);
+            engine.player_movement(PlayerMovement::Walk(move_direction.x, move_direction.y, move_direction.z));
         }
         
     }
