@@ -1,7 +1,7 @@
 
 
 use glfw::Context;
-use voxel::engine::engine::{PlayerInteraction, PlayerMovement, Engine};
+use voxel::engine::engine::{PlayerMovement, Engine};
 use voxel::physics::vectormath::q_rsqrt;
 
 const WIDTH: i32 = 1920;
@@ -76,44 +76,12 @@ fn main() {
                     match button {
                         glfw::MouseButton::Button1 => {
                             if state == glfw::Action::Press {
-                                engine.player_interaction = PlayerInteraction::RightHand;
+                                engine.player_movement(PlayerMovement::Interact(false, true));
                             }
                         },
                         glfw::MouseButton::Button2 => {
-                            if state == glfw::Action::Release {
-                                /*if let Some(block_id) = &engine.player.inventory.consume_currently_selected() {
-                                    if let Some((intersect_position, world_index)) = voxel::physics::vectormath::dda(
-                                        &engine.terrain, 
-                                        &engine.player.camera.position, 
-                                        &engine.player.camera.forward,
-                                        6.0) {
-                                        let place_index = cgmath::Vector3 {
-                                            x: if intersect_position.x == world_index.x as f32 {
-                                                world_index.x - 1
-                                            } else if intersect_position.x-1.0 == world_index.x as f32 {
-                                                world_index.x + 1
-                                            } else {
-                                                world_index.x
-                                            },
-                                            y: if intersect_position.y== world_index.y as f32 {
-                                                world_index.y - 1
-                                            } else if intersect_position.y-1.0 == world_index.y as f32 {
-                                                world_index.y + 1
-                                            } else {
-                                                world_index.y
-                                            },
-                                            z: if intersect_position.z == world_index.z as f32 {
-                                                world_index.z - 1
-                                            } else if intersect_position.z-1.0 == world_index.z as f32 {
-                                                world_index.z + 1
-                                            } else {
-                                                world_index.z
-                                            },
-                                        };
-                                        engine.terrain.place_at_global_pos(place_index, *block_id);
-                                    }
-                                }
-                                */
+                            if state == glfw::Action::Press {
+                                engine.player_movement(PlayerMovement::Interact(true, false));
                             }
                         }
                         glfw::MouseButton::Button3 => {
