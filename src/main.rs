@@ -1,7 +1,7 @@
 
 
 use glfw::Context;
-use voxel::engine::engine::{PlayerMovement, Engine};
+use voxel::engine::{PlayerMovement, PlayState, Engine};
 use voxel::physics::vectormath::q_rsqrt;
 
 const WIDTH: i32 = 1920;
@@ -107,7 +107,7 @@ fn main() {
                         },
 
                         glfw::Key::P => if state == glfw::Action::Release {
-                            if engine.play_state == voxel::engine::engine::PlayState::Running {
+                            if engine.play_state == PlayState::Running {
                                 engine.pause();
                             } else {
                                 engine.resume();
