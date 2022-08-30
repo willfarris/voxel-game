@@ -1,4 +1,5 @@
 # Voxel Game
+![Screenshot](https://user-images.githubusercontent.com/9190155/187536563-14793048-66b4-4bc6-b040-4403f08ec179.png)
 
 A simple Minecraft-like game written in Rust and OpenGL. This is the desktop version, an Android project is available at [WillFarris/VoxelGameAndroid](https://github.com/WillFarris/VoxelGameAndroid).
 
