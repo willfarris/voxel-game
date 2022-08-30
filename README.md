@@ -17,3 +17,9 @@ cd voxel-game
 git submodule update --init
 cargo run
 ```
+# Content
+
+So far there isn't much to do in the game. The following are roughly planned for the future:
+* Proper inventory system + the ability to break and collect blocks
+* Simple AI/mobs
+* Persistent storage for worlds
