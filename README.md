@@ -7,7 +7,7 @@ The core code for the game is found at [WillFarris/libvoxel](https://github.com/
 
 # Building and Usage
 
-This project was written in Rust and requires the Rust toolchain, available at [rustup.rs](https://rustup.rs/). The game requires the GLFW library, which can be installed with e.g. `sudo pacman -S glfw` or your OS/distro's equivalent.
+This project was written in Rust and requires the Rust toolchain, available at [rustup.rs](https://rustup.rs/). The game requires the [GLFW](https://www.glfw.org/) library, which can be installed with e.g. `sudo pacman -S glfw` or your OS/distro's equivalent.
 
 After setting up the required dependencies, the code can be built and run as follows:
 
