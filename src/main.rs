@@ -37,6 +37,7 @@ fn main() {
     let mut i = 0;
 
     let mut wasd_pressed = [false; 4];
+    let mut jump = false;
     let start_time = glfw.get_time() as f32;
     let mut last_time = start_time;
 
@@ -103,7 +104,9 @@ fn main() {
                         glfw::Key::S => wasd_pressed[2] = pressed_or_held,
                         glfw::Key::D => wasd_pressed[3] = pressed_or_held,
                         glfw::Key::Space => if state == glfw::Action::Press {
-                            engine.player_movement(PlayerMovement::Jump);
+                            jump = true;
+                        } else if state == glfw::Action::Release {
+                            jump = false;
                         },
 
                         glfw::Key::P => if state == glfw::Action::Release {
@@ -145,6 +148,10 @@ fn main() {
         } else {
             //todo!("Update player velocity")
             engine.player_movement(PlayerMovement::Walk(move_direction.x, move_direction.y, move_direction.z));
+        }
+
+        if jump {
+            engine.player_movement(PlayerMovement::Jump);
         }
         
     }
