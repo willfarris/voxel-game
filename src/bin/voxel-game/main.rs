@@ -1,20 +1,18 @@
-
-
 use glfw::Context;
-use voxel::engine::{PlayerMovement, PlayState, Engine};
-use voxel::physics::vectormath::q_rsqrt;
+use voxel::{Engine, PlayerMovement};
+use voxel::q_rsqrt;
 
-const WIDTH: i32 = 1920;
+const WIDTH: i32 = 1600;
 const HEIGHT: i32 = 900;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
-    //#[cfg(target_arch = "aarch64")] {
-        glfw.window_hint(glfw::WindowHint::ContextVersion(3, 1));
-        glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::OpenGlEs));
-        glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
-    //}
+    glfw.window_hint(glfw::WindowHint::ContextVersion(3, 1));
+    glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::OpenGlEs));
+    glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
+
+    let mut engine = Engine::new();
 
     let (mut window, events) = glfw.create_window(WIDTH as u32, HEIGHT as u32, "VoxelGame", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
 
@@ -26,11 +24,7 @@ fn main() {
     window.set_cursor_pos(WIDTH as f64/2.0, HEIGHT as f64/2.0);
     window.set_cursor_mode(glfw::CursorMode::Hidden);
     
-    
-    let seed = 4;//0xFF221234;
-    let world_radius = 4;
-
-    let mut engine = Engine::new(WIDTH, HEIGHT, seed, world_radius);
+    engine.init_gl(WIDTH, HEIGHT);
 
     const NUM_AVG_FRAMES: usize = 60;
     let mut averages = [0f32; NUM_AVG_FRAMES];
@@ -61,8 +55,7 @@ fn main() {
         };
         last_time = current_time;
 
-        engine.update(delta_time);
-        engine.render();
+        engine.draw();
         window.swap_buffers();
 
         glfw.poll_events();
@@ -77,12 +70,12 @@ fn main() {
                     match button {
                         glfw::MouseButton::Button1 => {
                             if state == glfw::Action::Press {
-                                engine.player_movement(PlayerMovement::Interact(false, true));
+                                //engine.player_movement(PlayerMovement::Interact(false, true));
                             }
                         },
                         glfw::MouseButton::Button2 => {
                             if state == glfw::Action::Press {
-                                engine.player_movement(PlayerMovement::Interact(true, false));
+                                //engine.player_movement(PlayerMovement::Interact(true, false));
                             }
                         }
                         glfw::MouseButton::Button3 => {
@@ -110,11 +103,11 @@ fn main() {
                         },
 
                         glfw::Key::P => if state == glfw::Action::Release {
-                            if engine.play_state == PlayState::Running {
+                            /*if engine.play_state == PlayState::Running {
                                 engine.pause();
                             } else {
                                 engine.resume();
-                            }
+                            }*/
                         },
 
                         glfw::Key::Num1 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(0));},
@@ -143,10 +136,8 @@ fn main() {
         };
         move_direction *= q_rsqrt(move_direction.x * move_direction.x + move_direction.z * move_direction.z);
         if !wasd_pressed[0] && !wasd_pressed[1] && !wasd_pressed[2] && !wasd_pressed[3] {
-            //todo!("Stop player movement")
             engine.player_movement(PlayerMovement::Stop);
         } else {
-            //todo!("Update player velocity")
             engine.player_movement(PlayerMovement::Walk(move_direction.x, move_direction.y, move_direction.z));
         }
 
