@@ -1,9 +1,9 @@
-use std::{ptr, collections::HashMap, mem::size_of, ffi::c_void};
+use std::{ptr, mem::size_of, ffi::c_void};
 
 use cgmath::{Vector3, Matrix4, Vector2};
 use gl::types::GLsizeiptr;
 
-use crate::{graphics::{resources::GLRenderable, texture::Texture, shader::Shader, vertex::Vertex3D}};
+use crate::graphics::{texture::Texture, shader::Shader, vertex::Vertex3D};
 
 pub(crate) const CHUNK_SIZE: usize = 16;
 

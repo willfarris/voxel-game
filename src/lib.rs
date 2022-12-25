@@ -6,30 +6,31 @@ mod world;
 mod player;
 mod physics;
 
-#[cfg(target_os = "android")]
+#[cfg(feature = "android-lib")]
 #[macro_use] extern crate log;
-#[cfg(target_os = "android")]
+#[cfg(feature = "android-lib")]
 extern crate android_log;
-#[cfg(target_os = "android")]
+#[cfg(feature = "android-lib")]
 extern crate jni;
-#[cfg(target_os = "android")]
+#[cfg(feature = "android-lib")]
 mod java_interface;
 
 use cgmath::Vector3;
-use physics::vectormath::Z_VECTOR;
+use physics::{vectormath::{Z_VECTOR, Vec3Direction}, collision::{Collider, self, rect_vs_rect, check_world_collision_axis}};
 use player::{Player, camera::perspective_matrix};
-use world::World;
+use world::{World, block::BLOCKS, BlockWorldPos};
 use graphics::resources::GLRenderable;
 use mesh_object::MeshObject;
 
 pub use physics::vectormath::q_rsqrt;
 
-#[derive(PartialEq, Eq)]
-pub enum PlayState {
+#[derive(PartialEq, Eq, Debug)]
+enum PlayState {
     Running,
     Paused,
 }
 
+#[derive(Debug)]
 pub enum PlayerMovement {
     Look(f32, f32),
     Walk(f32, f32, f32),
@@ -53,7 +54,6 @@ pub struct Engine {
 
 impl Engine {
     pub fn new() -> Self {
-        //let camera = Camera::new(Vector3::new(0.0, 5.0, -10.0), Vector3::new(0.0, 0.0, 1.0));
         let player = Some(Player::new(Vector3::new(0.0, 30.0, 0.0), Z_VECTOR));
 
         let mut entities = Vec::new();
@@ -68,22 +68,15 @@ impl Engine {
         );
         entities.push(test_mesh);
 
-        //let world_vertex_src = include_str!("../shaders/world.vert");
-        //let world_frag_src = include_str!("../shaders/world.frag");
         let world_texture_bitmap = include_bytes!("../assets/terrain.png");
         let mut world = Some(World::new(
             include_str!("../shaders/cube.vert"),
             include_str!("../shaders/cube.frag"),
             world_texture_bitmap,
         ));
-        #[cfg(target_os = "android")] {
-            debug!("Placing blocks");
-        }
+        
         if let Some(w) = world.as_mut() {
             w.gen_terrain(5, 69);
-        }
-        #[cfg(target_os = "android")] {
-            debug!("World built");
         }
 
         Self {
@@ -96,6 +89,38 @@ impl Engine {
 
             width: 0,
             height: 0,
+        }
+    }
+
+    pub fn update(&mut self, delta_time: f32) {
+        if self.play_state == PlayState::Running {
+            /*for i in 0..self.entities.len() {
+                let entity = &mut self.entities[i];
+                entity.update(delta_time);
+            }*/
+
+            if let Some(player) = &mut self.player{
+                let world = self.world.as_ref().unwrap();
+                player.update_physics(delta_time);
+
+                let movement_delta = player.movement_delta();
+
+                player.position.x += movement_delta.x;
+                let overlap_x = check_world_collision_axis(Vec3Direction::X, player, world);
+                player.correct_position_axis(Vec3Direction::X, overlap_x);
+
+                player.position.y += movement_delta.y;
+                let overlap_y = check_world_collision_axis(Vec3Direction::Y, player, world);
+                player.correct_position_axis(Vec3Direction::Y, overlap_y);
+                
+                player.position.z += movement_delta.z;
+                let overlap_z = check_world_collision_axis(Vec3Direction::Z, player, world);
+                player.correct_position_axis(Vec3Direction::Z, overlap_z);
+
+                //println!("Player at: ({}, {}, {})", player.position.x, player.position.y, player.position.z);
+            }
+
+            self.elapsed_time += delta_time;
         }
     }
 
@@ -125,14 +150,6 @@ impl Engine {
             gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut framebuffer_id);
         }
 
-        /*debug!("Creating vbo...");
-        let mut vertexbuffer: u32 = 0;
-        unsafe {
-            gl::GenBuffers(1, &mut vertexbuffer as *mut u32);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vertexbuffer);
-            gl::BufferData(gl::ARRAY_BUFFER, std::mem::size_of::<[f32; 9]>() as isize, (&TEST_TRIANGLE_VERTS as *const [f32; 9])  as *const c_void, gl::STATIC_DRAW);
-        }*/
-
         for entity in &mut self.entities {
             entity.init_gl_resources();
         }
@@ -142,10 +159,6 @@ impl Engine {
         }
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
-
-        #[cfg(target_os = "android")] {
-            debug!("GL setup done");
         }
         
     }
@@ -169,6 +182,24 @@ impl Engine {
                 world.draw(perspective_matrix, view_matrix, self.elapsed_time);
             }
         }
+    }
+
+    pub fn pause(&mut self) {
+        self.play_state = PlayState::Paused;
+        #[cfg(feature = "android-lib")] {
+            debug!("Paused");
+        }
+    }
+
+    pub fn resume(&mut self) {
+        self.play_state = PlayState::Running;
+        #[cfg(feature = "android-lib")] {
+            debug!("Running");
+        }
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.play_state == PlayState::Paused
     }
 
     pub fn set_color(&mut self, red: f32, green: f32, blue: f32) {

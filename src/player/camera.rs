@@ -74,6 +74,7 @@ impl Camera {
         self.forward = quaternion_rotate(self.forward, angle, self.right);
         self.calculate_normals();
     }
+    
 }
 
 pub fn perspective_matrix(width: i32, height: i32) -> Matrix4<f32> {

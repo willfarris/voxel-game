@@ -4,10 +4,8 @@ use cgmath::{Vector3, InnerSpace, Matrix4};
 
 use camera::Camera;
 
-use super::world::World;
 use crate::physics::collision::{self, Collider, Rect3};
-use crate::physics::collision::rect_vs_rect;
-use crate::physics::vectormath::{Y_VECTOR, q_rsqrt};
+use crate::physics::vectormath::{Y_VECTOR, q_rsqrt, Vec3Direction};
 
 const GRAVITY: Vector3<f32> = Vector3 {x: 0.0, y: -9.81 * 2.0, z: 0.0};
 
@@ -16,9 +14,10 @@ pub(crate) struct Player {
     pub position: Vector3<f32>,
     velocity: Vector3<f32>,
     acceleration: Vector3<f32>,
+    movement_delta: Vector3<f32>,
 
     move_speed: f32,
-    grounded: bool,
+    pub grounded: bool,
     walking: bool,
     height: f32,
 
@@ -32,8 +31,11 @@ impl Player {
         Self {
             camera: Camera::new(position, forward),
             position,
+
             velocity: Vector3::new(0f32, 0f32, 0f32),
             acceleration: Vector3::new(0f32, 0f32, 0f32),
+            movement_delta: Vector3::new(0f32, 0f32, 0f32),
+
             move_speed: 3.0,
             grounded: false,
             walking: false,
@@ -45,11 +47,10 @@ impl Player {
         }
     }
 
-    pub fn update(&mut self, delta_time: f32) {
+    pub fn update_physics(&mut self, delta_time: f32) {
 
         if !self.grounded {
             self.acceleration.y = GRAVITY.y;
-            //self.velocity.y += self.acceleration.y * delta_time;
         }
 
         if !self.walking {
@@ -65,9 +66,9 @@ impl Player {
             y: self.velocity.y as f32,
             z: (self.move_speed * self.camera.right.z * self.velocity.x as f32) + (self.move_speed * forward.z * self.velocity.z as f32),
         };
+        self.movement_delta = delta;
 
-        /*
-        self.position.x += delta.x;
+        /*self.position.x += delta.x;
         let mut player_bounding_box = self.bounding_box();
         for block_x in (self.position.x.floor() as isize - 1) ..= (self.position.x.floor() as isize + 1) {
             for block_y in (self.position.y.floor() as isize - 1) ..= (self.position.y.floor() as isize + 2) {
@@ -198,54 +199,33 @@ impl Player {
 }
 
 impl Collider for Player {
-    /*fn check_collision(&mut self, delta: Vector3<f32>, other: &impl Collider) -> Vector3<f32> {
-        let mut overlap: Vector3<f32> = [0.0, 0.0, 0.0].into();
-
-        let other_bounding_box = other.bounding_box();
-        let mut self_bounding_box = self.bounding_box();
-
-        
-        self_bounding_box.pos.x += delta.x;
-        if rect_vs_rect(&self_bounding_box, &other_bounding_box) {
-            let x_overlap = if self_bounding_box.pos.x > other_bounding_box.pos.x {
-                (other_bounding_box.pos.x + 1.0) - self_bounding_box.pos.x 
-            } else {
-                -1.0 * (self_bounding_box.pos.x + self_bounding_box.size.x - other_bounding_box.pos.x)
-            };
-            self_bounding_box.pos.x += x_overlap;
-            overlap.x += x_overlap;
-        }
-
-        /*
-        self_bounding_box.pos.y += delta.y;
-        if rect_vs_rect(&self_bounding_box, &other_bounding_box) {
-            let y_overlap = if self_bounding_box.pos.y > other_bounding_box.pos.y {
-                (other_bounding_box.pos.y + 1.0) - self_bounding_box.pos.y 
-            } else {
-                -1.0 * (self_bounding_box.pos.y + self_bounding_box.size.y - other_bounding_box.pos.y)
-            };
-            self_bounding_box.pos.y += y_overlap;
-            overlap.y += y_overlap;
-        }
-        */
-
-        self_bounding_box.pos.z += delta.z;
-        if rect_vs_rect(&self_bounding_box, &other_bounding_box) {
-            let z_overlap = if self_bounding_box.pos.z > other_bounding_box.pos.z {
-                (other_bounding_box.pos.z + 1.0) - self_bounding_box.pos.z
-            } else {
-                -1.0 * (self_bounding_box.pos.z + self_bounding_box.size.z - other_bounding_box.pos.z)
-            };
-            self_bounding_box.pos.z += z_overlap;
-            overlap.z += z_overlap;
-        }
-
-        overlap
-    }*/
-
     fn bounding_box(&self) -> collision::Rect3 {
         let mut bounding_box = self.collision_box.clone();
         bounding_box.pos += self.position;
         bounding_box
+    }
+
+    fn movement_delta(&self) -> Vector3<f32> {
+        self.movement_delta
+    }
+
+    fn correct_position_axis(&mut self, axis: Vec3Direction, overlap: f32) {
+        match axis {
+            Vec3Direction::X => {
+                self.position.x += overlap;
+            },
+            Vec3Direction::Y => {
+                self.position.y += overlap;
+                if overlap.abs() > 0.0 {
+                    self.velocity.y = 0f32;
+                    if overlap > 0.0 {
+                        self.grounded = true;
+                    }
+                }
+            },
+            Vec3Direction::Z => {
+                self.position.z += overlap;
+            },
+        }
     }
 }

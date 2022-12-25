@@ -7,7 +7,7 @@ pub const Y_VECTOR: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0);
 pub const Z_VECTOR: Vector3<f32> = Vector3::new(0.0, 0.0, 1.0);
 
 #[derive(PartialEq)]
-enum Vec3Direction {
+pub enum Vec3Direction {
     X,
     Y,
     Z
@@ -25,12 +25,6 @@ pub fn q_rsqrt(number: f32)  -> f32 {
     let mut y: f32 = unsafe {std::mem::transmute(i) };
     y = y * ( threehalfs - (x2 * y * y ) );
     return y;
-}
-
-pub fn len(vec: &Vector3<f32>) -> f32 {
-    let len = (vec.x * vec.x + vec.y * vec.y + vec.z * vec.z).sqrt();
-    if len.is_nan() { return 0.0; }
-    len
 }
 
 pub fn dda(world: &World, start: &Vector3<f32>, dir: &Vector3<f32>, max_dist: f32) -> Option<(Vector3<f32>, BlockWorldPos)> {

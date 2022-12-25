@@ -8,7 +8,7 @@ use crate::graphics::{shader::Shader, texture::Texture, resources::GLRenderable,
 use self::{chunk::{Chunk, CHUNK_SIZE, push_face}, block::{BLOCKS, MeshType, Block}};
 
 mod chunk;
-mod block;
+pub(crate) mod block;
 mod terrain;
 
 pub type BlockWorldPos = Vector3<isize>;
@@ -51,6 +51,15 @@ impl World {
             noise_scale,
             noise_offset,
             perlin,
+        }
+    }
+
+    pub fn block_at_world_pos(&self, world_pos: &BlockWorldPos) -> usize {
+        let (chunk_index, block_index) = World::chunk_and_block_index(world_pos);
+        if let Some(chunk) = self.chunks.get(&chunk_index) {
+            chunk.block_at_chunk_pos(&block_index)
+        } else {
+            0
         }
     }
 
@@ -192,9 +201,9 @@ impl World {
                     let vertex_type = cur.block_type as i32;
                     match cur.mesh_type {
                         MeshType::Block => {
-                            let x_right_adjacent = if x < 15 {
+                            let x_right_adjacent = if x < CHUNK_SIZE-1 {
                                 Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x+1, y, z))])
-                            } else if let Some(x_pos_chunk) = x_pos {
+                            } else if let Some(chunk) = x_pos {
                                 Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(0, y, z))])
                             } else {
                                 None
@@ -207,7 +216,7 @@ impl World {
 
                             let x_left_adjacent = if x > 0 {
                                 Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x-1, y, z))])
-                            } else if let Some(x_neg_chunk) = x_neg {
+                            } else if let Some(chunk) = x_neg {
                                 Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(CHUNK_SIZE-1, y, z))])
                             } else {
                                 None
@@ -219,7 +228,7 @@ impl World {
                             }
 
     
-                            let y_top_adjacent = if y < 15 {
+                            let y_top_adjacent = if y < CHUNK_SIZE-1 {
                                 Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x, y+1, z))])
                             } else if let Some(chunk) = y_pos {
                                 Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x,0, z))])
@@ -245,7 +254,7 @@ impl World {
                                 }
                             }
 
-                            let z_back_adjacent = if z < 15 {
+                            let z_back_adjacent = if z < CHUNK_SIZE-1 {
                                 Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x, y, z+1))])
                             } else if let Some(chunk) = z_pos {
                                 Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x, y, 0))])
@@ -304,9 +313,9 @@ impl GLRenderable for World {
     fn draw(&self, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32) {
         for (idx, chunk) in &self.chunks {
             let position = Vector3::new(
-                (idx.x * 16) as f32,
-                (idx.y * 16) as f32,
-                (idx.z * 16) as f32,
+                (idx.x * CHUNK_SIZE as isize) as f32,
+                (idx.y * CHUNK_SIZE as isize) as f32,
+                (idx.z * CHUNK_SIZE as isize) as f32,
             );
             chunk.draw(position, perspective_matrix, view_matrix, elapsed_time);
         }

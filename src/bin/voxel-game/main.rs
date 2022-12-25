@@ -55,6 +55,7 @@ fn main() {
         };
         last_time = current_time;
 
+        engine.update(delta_time);
         engine.draw();
         window.swap_buffers();
 
@@ -103,11 +104,11 @@ fn main() {
                         },
 
                         glfw::Key::P => if state == glfw::Action::Release {
-                            /*if engine.play_state == PlayState::Running {
-                                engine.pause();
-                            } else {
+                            if engine.is_paused() {
                                 engine.resume();
-                            }*/
+                            } else {
+                                engine.pause();
+                            }
                         },
 
                         glfw::Key::Num1 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(0));},
