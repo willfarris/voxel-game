@@ -1,4 +1,5 @@
 pub(crate) mod camera;
+mod inventory;
 
 use cgmath::{Vector3, InnerSpace, Matrix4};
 
@@ -6,6 +7,8 @@ use camera::Camera;
 
 use crate::physics::collision::{self, Collider, Rect3};
 use crate::physics::vectormath::{Y_VECTOR, q_rsqrt, Vec3Direction};
+
+use self::inventory::Inventory;
 
 const GRAVITY: Vector3<f32> = Vector3 {x: 0.0, y: -9.81 * 2.0, z: 0.0};
 
@@ -23,7 +26,7 @@ pub(crate) struct Player {
 
     collision_box: Rect3,
 
-    //pub inventory: Inventory,
+    inventory: Inventory,
 }
 
 impl Player {
@@ -43,12 +46,12 @@ impl Player {
 
             collision_box: Rect3::new([-0.25, 0.0, -0.25].into(), [0.5, 1.6, 0.5].into()),
 
-            //inventory: Inventory::new(),
+            inventory: Inventory::new(),
         }
     }
 
     pub fn update_physics(&mut self, delta_time: f32) {
-
+        self.camera.translate(self.position + self.height * Y_VECTOR);
         if !self.grounded {
             self.acceleration.y = GRAVITY.y;
         }
@@ -67,111 +70,6 @@ impl Player {
             z: (self.move_speed * self.camera.right.z * self.velocity.x as f32) + (self.move_speed * forward.z * self.velocity.z as f32),
         };
         self.movement_delta = delta;
-
-        /*self.position.x += delta.x;
-        let mut player_bounding_box = self.bounding_box();
-        for block_x in (self.position.x.floor() as isize - 1) ..= (self.position.x.floor() as isize + 1) {
-            for block_y in (self.position.y.floor() as isize - 1) ..= (self.position.y.floor() as isize + 2) {
-                for block_z in (self.position.z.floor() as isize - 1) ..= (self.position.z.floor() as isize + 1) {
-                    if !BLOCKS[world.block_at_global_pos(Vector3::new(block_x, block_y, block_z))].solid {
-                        continue;
-                    }
-                    let block_bounding_box = collision::Rect3 {
-                        pos: Vector3::new(block_x as f32, block_y as f32, block_z as f32),
-                        size: Vector3::new(1.0, 1.0, 1.0)
-                    };
-                    if rect_vs_rect(&player_bounding_box, &block_bounding_box) {
-                        let x_overlap = if player_bounding_box.pos.x > block_bounding_box.pos.x {
-                            (block_bounding_box.pos.x + 1.0) - player_bounding_box.pos.x 
-                        } else {
-                            -1.0 * (player_bounding_box.pos.x + player_bounding_box.size.x - block_bounding_box.pos.x)
-                        };
-                        self.position.x += x_overlap;
-                        player_bounding_box.pos.x += x_overlap;
-                    }
-                }
-            }
-        }
-        for i in 0..entities.len() {
-            let x_overlap = self.check_overlap_x(&entities[i]);
-            self.position.x += x_overlap;
-            player_bounding_box.pos.x += x_overlap;
-        }
-
-        self.position.y += delta.y;
-        player_bounding_box = self.bounding_box();
-        for block_x in (self.position.x.floor() as isize - 1) ..= (self.position.x.floor() as isize + 1) {
-            for block_y in (self.position.y.floor() as isize - 1) ..= (self.position.y.floor() as isize + 2) {
-                for block_z in (self.position.z.floor() as isize - 1) ..= (self.position.z.floor() as isize + 1) {
-                    if !BLOCKS[world.block_at_global_pos(Vector3::new(block_x, block_y, block_z))].solid {
-                        continue;
-                    }
-                    let block_bounding_box = collision::Rect3 {
-                        pos: Vector3::new(block_x as f32, block_y as f32, block_z as f32),
-                        size: Vector3::new(1.0, 1.0, 1.0)
-                    };
-                    if rect_vs_rect(&player_bounding_box, &block_bounding_box) {
-                        let y_overlap = if player_bounding_box.pos.y > block_bounding_box.pos.y {
-                            (block_bounding_box.pos.y + 1.0) - player_bounding_box.pos.y 
-                        } else {
-                            -1.0 * (player_bounding_box.pos.y + player_bounding_box.size.y - block_bounding_box.pos.y)
-                        };
-
-                        self.position.y += y_overlap;
-                        player_bounding_box.pos.y += y_overlap;
-                        if y_overlap.abs() > 0.0 {
-                            self.velocity.y = 0f32;
-                            if y_overlap > 0.0 {
-                                self.grounded = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        for i in 0..entities.len() {
-            let y_overlap = self.check_overlap_y(&entities[i]);
-            self.position.y += y_overlap;
-            player_bounding_box.pos.y += y_overlap;
-            if y_overlap.abs() > 0.0 {
-                self.velocity.y = 0f32;
-                if y_overlap > 0.0 {
-                    self.grounded = true;
-                }
-            }
-        }
-
-        self.position.z += delta.z;
-        player_bounding_box = self.bounding_box();
-        for block_x in (self.position.x.floor() as isize - 1) ..= (self.position.x.floor() as isize + 1) {
-            for block_y in (self.position.y.floor() as isize - 1) ..= (self.position.y.floor() as isize + 2) {
-                for block_z in (self.position.z.floor() as isize - 1) ..= (self.position.z.floor() as isize + 1) {
-                    if !BLOCKS[world.block_at_global_pos(Vector3::new(block_x, block_y, block_z))].solid {
-                        continue;
-                    }
-                    let block_bounding_box = collision::Rect3 {
-                        pos: Vector3::new(block_x as f32, block_y as f32, block_z as f32),
-                        size: Vector3::new(1.0, 1.0, 1.0)
-                    };
-                    if rect_vs_rect(&player_bounding_box, &block_bounding_box) {
-                        let z_overlap = if player_bounding_box.pos.z > block_bounding_box.pos.z {
-                            (block_bounding_box.pos.z + 1.0) - player_bounding_box.pos.z 
-                        } else {
-                            -1.0 * (player_bounding_box.pos.z + player_bounding_box.size.z - block_bounding_box.pos.z)
-                        };
-                        self.position.z += z_overlap;
-                        player_bounding_box.pos.z += z_overlap;
-                    }
-                }
-            }
-        }
-        for i in 0..entities.len() {
-            let z_overlap = self.check_overlap_z(&entities[i]);
-            self.position.z += z_overlap;
-            player_bounding_box.pos.z += z_overlap;
-        }
-        */
-        self.camera.translate(self.position + self.height * Y_VECTOR);
     }
 
     pub fn move_direction(&mut self, direction: Vector3<f32>) {
@@ -195,6 +93,15 @@ impl Player {
 
     pub fn camera_view_matrix(&self) -> Matrix4<f32> {
         self.camera.view_matrix()
+    }
+
+    pub fn select_inventory(&mut self, selected: usize) {
+        self.inventory.set_selected(selected);
+        self.inventory.print_inventory();
+    }
+
+    pub fn add_to_inventory(&mut self, block_id: usize) {
+        self.inventory.add_to_inventory(block_id);
     }
 }
 

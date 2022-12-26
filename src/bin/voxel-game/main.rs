@@ -71,12 +71,12 @@ fn main() {
                     match button {
                         glfw::MouseButton::Button1 => {
                             if state == glfw::Action::Press {
-                                //engine.player_movement(PlayerMovement::Interact(false, true));
+                                engine.player_movement(PlayerMovement::Interact(false, true));
                             }
                         },
                         glfw::MouseButton::Button2 => {
                             if state == glfw::Action::Press {
-                                //engine.player_movement(PlayerMovement::Interact(true, false));
+                                engine.player_movement(PlayerMovement::Interact(true, false));
                             }
                         }
                         glfw::MouseButton::Button3 => {

@@ -17,6 +17,7 @@ cargo run --release --features=desktop-binary
 See [WillFarris/VoxelGameAndroid](https://github.com/WillFarris/VoxelGameAndroid) for the Android Studio project. The code can be compiled to a .so file for use on Android as seen below. Requires Python and wget.
 ```
 git clone git@github.com:WillFarris/voxel-game.git
+git clone git@github.com:WillFarris/VoxelGameAndroid $HOME/AndroidStudioProjects/
 cd voxel-game
 ./link_android.py $HOME/AndroidStudioProjects/VoxelGameAndroid
 ```

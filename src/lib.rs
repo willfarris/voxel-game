@@ -16,13 +16,15 @@ extern crate jni;
 mod java_interface;
 
 use cgmath::Vector3;
-use physics::{vectormath::{Z_VECTOR, Vec3Direction}, collision::{Collider, self, rect_vs_rect, check_world_collision_axis}};
+use physics::{vectormath::{Z_VECTOR, Vec3Direction, self}, collision::{Collider, check_world_collision_axis}};
 use player::{Player, camera::perspective_matrix};
-use world::{World, block::BLOCKS, BlockWorldPos};
+use world::World;
 use graphics::resources::GLRenderable;
 use mesh_object::MeshObject;
 
 pub use physics::vectormath::q_rsqrt;
+
+use crate::world::block::BLOCKS;
 
 #[derive(PartialEq, Eq, Debug)]
 enum PlayState {
@@ -60,7 +62,7 @@ impl Engine {
         let test_mesh = MeshObject::new(
             Vector3::new(0.0, 1.0, 0.0),
             Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 1.0, 1.0),
+            Vector3::new(0.1, 0.1, 0.1),
             mesh_object::DEFAULT_CUBE.to_vec(),
             include_str!("../shaders/cube.vert"),
             include_str!("../shaders/cube.frag"),
@@ -224,21 +226,23 @@ impl Engine {
                         player.stop_move();
                     }
                     PlayerMovement::Inventory(selected) => {
-                        //self.player.inventory.selected = selected;
+                        player.select_inventory(selected);
                     },
                     PlayerMovement::Interact(left_hand, right_hand) => {
-                        /*if right_hand {
-                            if let Some((_, world_index)) = vectormath::dda(&self.terrain, &self.player.camera.position, &self.player.camera.forward, 6.0) {
-                                let block_id = self.terrain.block_at_global_pos(world_index);
-                                self.player.inventory.add_to_inventory(block_id);
-                                self.terrain.destroy_at_global_pos(world_index);
+                        if right_hand {
+                            if let Some((world_pos, world_index)) = vectormath::dda(self.world.as_ref().unwrap(), &player.camera.position, &player.camera.forward, 6.0) {
+                                let block_id = self.world.as_ref().unwrap().block_at_world_pos(&world_index);
+                                player.add_to_inventory(block_id);
+                                println!("{:?}, {}", world_index, BLOCKS[block_id].name);
+                                self.entities[0].set_position(world_pos);
+                                //self.world.unwrap().destroy_at_global_pos(world_index);
                             }
                         }
                         if left_hand {
-                            if let Some((_, world_index)) = vectormath::dda(&self.terrain, &self.player.camera.position, &self.player.camera.forward, 6.0) {
+                            /*if let Some((_, world_index)) = vectormath::dda(&self.terrain, &self.player.camera.position, &self.player.camera.forward, 6.0) {
                                 self.terrain.interact_at_global_pos(world_index);
-                            }
-                        }*/
+                            }*/
+                        }
                     }
                 }
             }

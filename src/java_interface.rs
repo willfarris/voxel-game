@@ -72,7 +72,6 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_resumeGameNative
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_lookAroundNative(_env: JNIEnv, _: JClass, ptr: jlong, dx: jfloat, dy: jfloat) {
     let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
-    debug!("Look {} {}", dx, dy);
     engine.player_movement(PlayerMovement::Look(dy, dx));
 }
 
@@ -116,4 +115,9 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_prevInventoryNat
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_nextInventoryNative(_env: JNIEnv, _: JClass, ptr: jlong) {
     let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
     
+}
+
+#[no_mangle]
+pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_invSqrt(_env: JNIEnv, _: JClass, num: jfloat) -> jfloat {
+    crate::physics::vectormath::q_rsqrt(num)
 }

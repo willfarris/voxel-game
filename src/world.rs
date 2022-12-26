@@ -297,7 +297,16 @@ impl World {
     }
 
     pub fn collision_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
-        true
+        let (chunk_index, block_index) = World::chunk_and_block_index(world_pos);
+        if let Some(chunk) = self.chunks.get(&chunk_index) {
+            if chunk.block_at_chunk_pos(&block_index) != 0 {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 }
 

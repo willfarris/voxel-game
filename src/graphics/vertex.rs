@@ -10,15 +10,6 @@ pub struct Vertex3D {
     pub vtype: i32,
 }
 
-impl Vertex3D {
-    pub(crate) fn postion_only(position: Vector3<f32>, tex_coords: Vector2<f32>) -> Self {
-        let mut default = Self::default();
-        default.position = position;
-        default.tex_coords = tex_coords;
-        default
-    }
-}
-
 impl Default for Vertex3D {
     fn default() -> Self {
         Self {

@@ -44,23 +44,6 @@ impl Camera {
         self.up = self.forward.cross(self.right).normalize();
     }
 
-
-    pub fn move_direction(&mut self, direction: Vector3<f32>) {
-        self.position.x += self.right.x * direction.x;
-        self.position.y += self.right.y * direction.x;
-        self.position.z += self.right.z * direction.x;
-
-        self.position.x += self.up.x * direction.y;
-        self.position.y += self.up.y * direction.y;
-        self.position.z += self.up.z * direction.y;
-
-        self.position.x += self.forward.x * direction.z;
-        self.position.y += self.forward.y * direction.z;
-        self.position.z += self.forward.z * direction.z;
-
-        self.calculate_normals();
-    }
-
     pub fn translate(&mut self, new_position: Vector3<f32>) {
         self.position = new_position;
     }
