@@ -1,11 +1,11 @@
-use std::{collections::{HashMap, LinkedList}, hash::Hash};
+use std::collections::{HashMap, LinkedList};
 
 use cgmath::{Vector3, Matrix4, Vector2};
-use noise::{Perlin, Seedable};
+use noise::Perlin;
 
-use crate::graphics::{shader::Shader, texture::Texture, resources::GLRenderable, vertex::Vertex3D};
+use crate::{graphics::{shader::Shader, texture::Texture, resources::{GLRenderable, GLResources}, vertex::Vertex3D, mesh::{push_face, block_drop_vertices}, source::{TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, TERRAIN_BITMAP}}, item::drop::ItemDrop};
 
-use self::{chunk::{Chunk, CHUNK_SIZE, push_face}, block::{BLOCKS, MeshType, Block}};
+use self::{chunk::{Chunk, CHUNK_SIZE}, block::{BLOCKS, MeshType}};
 
 mod chunk;
 pub(crate) mod block;
@@ -17,14 +17,6 @@ pub type BlockIndex = Vector3<usize>;
 
 pub struct World {
     chunks: HashMap<Vector3<isize>, Chunk>,
-    
-    // OpenGL Resources
-    shader_src: (&'static str, &'static str),
-    texture_bitmap: &'static [u8],
-    shader: Option<Shader>,
-    texture: Option<Texture>,
-
-    // World Generation Resources
     generation_queue: HashMap<Vector3<isize>, LinkedList<(Vector3<usize>, usize)>>,
     noise_offset: Vector2<f64>,
     noise_scale: f64,
@@ -32,7 +24,7 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(vertex_shader_src: &'static str, fragment_shader_src: &'static str, texture_bitmap: &'static [u8]) -> Self {
+    pub fn new() -> Self {
         let noise_scale = 0.02;
         let noise_offset = Vector2::new(
             1_000_000.0 * rand::random::<f64>() + 3_141_592.0,
@@ -41,11 +33,6 @@ impl World {
         let perlin = Perlin::new();
         Self {
             chunks: HashMap::new(),
-
-            shader_src: (vertex_shader_src, fragment_shader_src),
-            texture_bitmap,
-            shader: None,
-            texture: None,
 
             generation_queue: HashMap::new(),
             noise_scale,
@@ -78,59 +65,66 @@ impl World {
     }
 
     pub fn place_block(&mut self, block_id: usize, world_pos: &BlockWorldPos) {
-        let (chunk_id, block_idx) = World::chunk_and_block_index(&world_pos);
-        if let Some(chunk) = self.chunks.get_mut(&chunk_id) {
+        let (chunk_index, block_idx) = World::chunk_and_block_index(&world_pos);
+        if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
             chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
         } else {
-            let mut new_chunk = Chunk::new();
+            let position = Vector3::new(
+                (chunk_index.x * CHUNK_SIZE as isize) as f32,
+                (chunk_index.y * CHUNK_SIZE as isize) as f32,
+                (chunk_index.z * CHUNK_SIZE as isize) as f32,
+            );
+            let mut new_chunk = Chunk::new(position);
             new_chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
-            self.chunks.insert(chunk_id, new_chunk);
+            self.chunks.insert(chunk_index, new_chunk);
         }
     }
 
-    pub fn build_all_chunk_mesh(&mut self, render_distance: isize, player_position: Vector3<f32>) {
-        self.init_gl_resources();
-
+    pub fn build_all_chunk_vertices(&self, render_distance: isize, player_position: Vector3<f32>) -> Vec<(ChunkIndex, Vec<Vertex3D>)> {
         let player_world_pos = Vector3::new(
             player_position.x as isize,
             player_position.y as isize,
             player_position.z as isize,
         );
         let (chunk_idx, _block_idx) = World::chunk_and_block_index(&player_world_pos);
+        let mut vertex_list = Vec::new();
 
         for x in chunk_idx.x-render_distance ..= chunk_idx.x+render_distance {
             for y in chunk_idx.y-render_distance ..= chunk_idx.y+render_distance {
                 for z in chunk_idx.z-render_distance ..= chunk_idx.z+render_distance {
-                    let idx = Vector3::new(x, y, z);
-
-                    let vertices = if let Some(chunk) = self.chunks.get(&idx) {
-                        let x_pos = self.chunks.get(&(idx + Vector3::new(1, 0, 0)));
-                        let x_neg = self.chunks.get(&(idx + Vector3::new(-1, 0, 0)));
-                        let y_pos = self.chunks.get(&(idx + Vector3::new(0, 1, 0)));
-                        let y_neg = self.chunks.get(&(idx + Vector3::new(0, -1, 0)));
-                        let z_pos = self.chunks.get(&(idx + Vector3::new(0, 0, 1)));
-                        let z_neg = self.chunks.get(&(idx + Vector3::new(0, 0, -1)));
-                        World::gen_chunk_verts(
-                            chunk,
-                            x_pos,
-                            x_neg,
-                            y_pos,
-                            y_neg,
-                            z_pos,
-                            z_neg,
-                        )
-                    } else {
-                        continue;
-                    };
-                    let chunk = self.chunks.get_mut(&idx).unwrap();
-                    chunk.rebuild_mesh(vertices, self.shader.clone(), self.texture.clone())
-                    
+                    let chunk_index = Vector3::new(x, y, z);
+                    if let Some(verts) = self.generate_chunk_mesh(&chunk_index) {
+                        vertex_list.push((chunk_index, verts))
+                    }
                 }
             }
         }
+        vertex_list
     }
 
-    fn gen_chunk_verts(
+    fn generate_chunk_mesh(&self, chunk_index: &ChunkIndex) -> Option<Vec<Vertex3D>>{
+        if let Some(chunk) = self.chunks.get(&chunk_index) {
+            let x_pos = self.chunks.get(&(chunk_index + Vector3::new(1, 0, 0)));
+            let x_neg = self.chunks.get(&(chunk_index + Vector3::new(-1, 0, 0)));
+            let y_pos = self.chunks.get(&(chunk_index + Vector3::new(0, 1, 0)));
+            let y_neg = self.chunks.get(&(chunk_index + Vector3::new(0, -1, 0)));
+            let z_pos = self.chunks.get(&(chunk_index + Vector3::new(0, 0, 1)));
+            let z_neg = self.chunks.get(&(chunk_index + Vector3::new(0, 0, -1)));
+            World::generate_chunk_verts(
+                chunk,
+                x_pos,
+                x_neg,
+                y_pos,
+                y_neg,
+                z_pos,
+                z_neg,
+            )
+        } else {
+            None
+        }
+    }
+
+    fn generate_chunk_verts(
         chunk: &Chunk,
         x_pos: Option<&Chunk>,
         x_neg: Option<&Chunk>,
@@ -138,7 +132,7 @@ impl World {
         y_neg: Option<&Chunk>,
         z_pos: Option<&Chunk>, 
         z_neg: Option<&Chunk>,
-    ) -> Vec<Vertex3D> {
+    ) -> Option<Vec<Vertex3D>> {
         let mut vertices = Vec::new();
 
         for x in 0..CHUNK_SIZE {
@@ -293,7 +287,11 @@ impl World {
             }
         }
             
-        vertices
+        if vertices.is_empty() {
+            None
+        } else {
+            Some(vertices)
+        }
     }
 
     pub fn collision_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
@@ -308,25 +306,181 @@ impl World {
             false
         }
     }
+
+    /*pub fn rebuild_queue(&mut self) {
+        for i in 0..self.should_rebuild.len() {
+            if i == self.should_rebuild.len() {
+                break;
+            }
+            let (chunk_index, block_index) = self.should_rebuild.swap_remove(i);
+            self.generate_chunk_mesh(&chunk_index);
+
+            if block_index.x == 0 {
+                let adjacent_chunk_index = chunk_index - Vector3::new(1, 0, 0);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    self.generate_chunk_mesh(&adjacent_chunk_index);
+                }
+            } else if block_index.x == CHUNK_SIZE-1 {
+                let adjacent_chunk_index = chunk_index + Vector3::new(1, 0, 0);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    self.generate_chunk_mesh(&adjacent_chunk_index);
+                }
+            }
+
+            if block_index.y == 0 {
+                let adjacent_chunk_index = chunk_index - Vector3::new(0, 1, 0);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    self.generate_chunk_mesh(&adjacent_chunk_index);
+                }
+            } else if block_index.y == CHUNK_SIZE-1 {
+                let adjacent_chunk_index = chunk_index + Vector3::new(0, 1, 0);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    self.generate_chunk_mesh(&adjacent_chunk_index);
+                }
+            }
+
+            if block_index.z == 0 {
+                let adjacent_chunk_index = chunk_index - Vector3::new(0, 0, 1);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    self.generate_chunk_mesh(&adjacent_chunk_index);
+                }
+            } else if block_index.z == CHUNK_SIZE-1 {
+                let adjacent_chunk_index = chunk_index + Vector3::new(0, 0, 1);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    self.generate_chunk_mesh(&adjacent_chunk_index);
+                }
+            }
+        }
+        
+    }
+    */
+    
+    pub fn destroy_at_global_pos(&mut self, world_pos: &BlockWorldPos, gl_resources: &mut GLResources) -> Option<ItemDrop> {
+        let (chunk_index, block_index) = World::chunk_and_block_index(world_pos);
+
+        if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
+            
+            // Delete block in the world
+            let block_id = chunk.blocks[block_index.x][block_index.y][block_index.z];
+            chunk.blocks[block_index.x][block_index.y][block_index.z] = 0;
+            
+            if let Some(chunk_vertices) = self.generate_chunk_mesh(&chunk_index) {
+                let name = format!("chunk_{}_{}_{}", chunk_index.x, chunk_index.y, chunk_index.z);
+                gl_resources.update_buffer(name, chunk_vertices);
+            }
+
+            if block_index.x == 0 {
+                let adjacent_chunk_index = chunk_index - Vector3::new(1, 0, 0);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
+                        let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
+                        gl_resources.update_buffer(name, adjacent_chunk_vertices);
+                    }
+                }
+            } else if block_index.x == CHUNK_SIZE-1 {
+                let adjacent_chunk_index = chunk_index + Vector3::new(1, 0, 0);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
+                        let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
+                        gl_resources.update_buffer(name, adjacent_chunk_vertices);
+                    }
+                }
+            }
+
+            if block_index.y == 0 {
+                let adjacent_chunk_index = chunk_index - Vector3::new(0, 1, 0);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
+                        let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
+                        gl_resources.update_buffer(name, adjacent_chunk_vertices);
+                    }
+                }
+            } else if block_index.y == CHUNK_SIZE-1 {
+                let adjacent_chunk_index = chunk_index + Vector3::new(0, 1, 0);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
+                        let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
+                        gl_resources.update_buffer(name, adjacent_chunk_vertices);
+                    }
+                }
+            }
+
+            if block_index.z == 0 {
+                let adjacent_chunk_index = chunk_index - Vector3::new(0, 0, 1);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
+                        let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
+                        gl_resources.update_buffer(name, adjacent_chunk_vertices);
+                    }
+                }
+            } else if block_index.z == CHUNK_SIZE-1 {
+                let adjacent_chunk_index = chunk_index + Vector3::new(0, 0, 1);
+                if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
+                    if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
+                        let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
+                        gl_resources.update_buffer(name, adjacent_chunk_vertices);
+                    }
+                }
+            }
+
+            // Create a drop and return it
+            let drop_world_pos = Vector3::new(
+                world_pos.x as f32 + 0.5,
+                world_pos.y as f32 + 0.5,
+                world_pos.z as f32 + 0.5,
+            );
+            let block_drop = ItemDrop::new(
+                block_id,
+                drop_world_pos,
+            );
+            return Some(block_drop);
+        }
+        None
+
+    }
 }
 
 impl GLRenderable for World {
-    fn init_gl_resources(&mut self) {
-        self.shader = Some(match Shader::new(self.shader_src.0, self.shader_src.1) {
-            Ok(s) => s,
-            Err(_) => todo!(),
-        });
-        self.texture = Some(Texture::from_dynamic_image_bytes(&self.texture_bitmap, image::ImageFormat::Png));
+    fn init_gl_resources(&self, gl_resources: &mut GLResources) {
+        if gl_resources.get_shader("terrain").is_none() {
+            gl_resources.create_shader("terrain", TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC);
+        }
+        if gl_resources.get_texture("terrain").is_none() {
+            gl_resources.create_texture("terrain", TERRAIN_BITMAP);
+        }
+
+        let verts = self.build_all_chunk_vertices(5, Vector3::new(0.0, 0.0, 0.0));
+        for (chunk_index, chunk_verts) in verts {
+            let name = format!("chunk_{}_{}_{}", chunk_index.x, chunk_index.y, chunk_index.z);
+            gl_resources.create_buffer_from_verts(name, chunk_verts);
+        }
     }
 
-    fn draw(&self, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32) {
-        for (idx, chunk) in &self.chunks {
-            let position = Vector3::new(
-                (idx.x * CHUNK_SIZE as isize) as f32,
-                (idx.y * CHUNK_SIZE as isize) as f32,
-                (idx.z * CHUNK_SIZE as isize) as f32,
-            );
-            chunk.draw(position, perspective_matrix, view_matrix, elapsed_time);
+    fn draw(&self, gl_resources: &mut GLResources, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32) {
+        
+        let shader = gl_resources.get_shader("terrain").unwrap();
+        let texture = gl_resources.get_texture("terrain").unwrap();
+
+        texture.bind();
+
+        shader.use_program();
+        shader.set_mat4(unsafe {c_str!("perspective_matrix")}, &perspective_matrix);
+        shader.set_mat4(unsafe {c_str!("view_matrix")}, &view_matrix);
+        shader.set_float(unsafe {c_str!("time")}, elapsed_time);
+        shader.set_texture(unsafe {c_str!("texture_map")}, 0);
+        
+        for (chunk_index, _chunk) in &self.chunks {
+            let model_matrix = Matrix4::from_translation(Vector3::new(
+                (chunk_index.x * CHUNK_SIZE as isize) as f32,
+                (chunk_index.y * CHUNK_SIZE as isize) as f32,
+                (chunk_index.z * CHUNK_SIZE as isize) as f32,
+            ));
+            shader.set_mat4(unsafe {c_str!("model_matrix")}, &model_matrix);
+
+            let name = format!("chunk_{}_{}_{}", chunk_index.x, chunk_index.y, chunk_index.z);
+            if let Some(vbo) = gl_resources.get_buffer(name) {
+                vbo.draw_vertex_buffer();
+            }
         }
     }
 }

@@ -6,11 +6,12 @@ use cgmath::{Vector3, InnerSpace, Matrix4};
 use camera::Camera;
 
 use crate::physics::collision::{self, Collider, Rect3};
+use crate::physics::physics_update::PhysicsUpdate;
 use crate::physics::vectormath::{Y_VECTOR, q_rsqrt, Vec3Direction};
 
 use self::inventory::Inventory;
 
-const GRAVITY: Vector3<f32> = Vector3 {x: 0.0, y: -9.81 * 2.0, z: 0.0};
+pub(crate) const GRAVITY: Vector3<f32> = Vector3 {x: 0.0, y: -9.81 * 2.0, z: 0.0};
 
 pub(crate) struct Player {
     pub(crate) camera: Camera,
@@ -50,28 +51,6 @@ impl Player {
         }
     }
 
-    pub fn update_physics(&mut self, delta_time: f32) {
-        self.camera.translate(self.position + self.height * Y_VECTOR);
-        if !self.grounded {
-            self.acceleration.y = GRAVITY.y;
-        }
-
-        if !self.walking {
-            self.velocity.x *= 1.0 - 10.0 * delta_time;
-            self.velocity.z *= 1.0 - 10.0 * delta_time;
-        }
-
-        self.velocity += self.acceleration * delta_time;
-
-        let forward = Vector3::new(self.camera.forward.x, 0.0, self.camera.forward.z).normalize();
-        let delta = delta_time * Vector3 {
-            x: (self.move_speed * self.camera.right.x * self.velocity.x as f32) + (self.move_speed * forward.x * self.velocity.z as f32),
-            y: self.velocity.y as f32,
-            z: (self.move_speed * self.camera.right.z * self.velocity.x as f32) + (self.move_speed * forward.z * self.velocity.z as f32),
-        };
-        self.movement_delta = delta;
-    }
-
     pub fn move_direction(&mut self, direction: Vector3<f32>) {
         self.walking = true;
         self.velocity.x += direction.x;
@@ -105,6 +84,34 @@ impl Player {
     }
 }
 
+impl PhysicsUpdate for Player {
+    fn update_physics(&mut self, delta_time: f32) {
+        self.camera.translate(self.position + self.height * Y_VECTOR);
+        if !self.grounded {
+            self.acceleration.y = GRAVITY.y;
+        }
+
+        if !self.walking {
+            self.velocity.x *= 1.0 - 10.0 * delta_time;
+            self.velocity.z *= 1.0 - 10.0 * delta_time;
+        }
+
+        self.velocity += self.acceleration * delta_time;
+
+        let forward = Vector3::new(self.camera.forward.x, 0.0, self.camera.forward.z).normalize();
+        let delta = delta_time * Vector3 {
+            x: (self.move_speed * self.camera.right.x * self.velocity.x as f32) + (self.move_speed * forward.x * self.velocity.z as f32),
+            y: self.velocity.y as f32,
+            z: (self.move_speed * self.camera.right.z * self.velocity.x as f32) + (self.move_speed * forward.z * self.velocity.z as f32),
+        };
+        self.movement_delta = delta;
+    }
+
+    fn translate_relative(&mut self, translation: Vector3<f32>) {
+        self.position += translation;
+    }
+}
+
 impl Collider for Player {
     fn bounding_box(&self) -> collision::Rect3 {
         let mut bounding_box = self.collision_box.clone();
@@ -135,4 +142,9 @@ impl Collider for Player {
             },
         }
     }
+
+    fn has_collider(&self) -> bool {
+        true
+    }
 }
+

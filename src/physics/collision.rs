@@ -1,6 +1,6 @@
 use cgmath::Vector3;
 
-use crate::world::{World, block::BLOCKS, BlockWorldPos};
+use crate::{world::{World, block::BLOCKS, BlockWorldPos}, entity::EntityTrait};
 
 use super::vectormath::Vec3Direction;
 
@@ -8,61 +8,12 @@ pub trait Collider {
     fn bounding_box(&self) -> Rect3;
     fn movement_delta(&self) -> Vector3<f32>;
     fn correct_position_axis(&mut self, axis: Vec3Direction, overlap: f32);
-
-    fn check_overlap_x(&self, other: &impl Collider) -> f32 {
-        let other_bounding_box = other.bounding_box();
-        let self_bounding_box = self.bounding_box();
-
-        if rect_vs_rect(&self_bounding_box, &other_bounding_box) {
-            let x_overlap = if self_bounding_box.pos.x > other_bounding_box.pos.x {
-                (other_bounding_box.pos.x + other_bounding_box.size.x) - self_bounding_box.pos.x 
-            } else {
-                -1.0 * (self_bounding_box.pos.x + self_bounding_box.size.x - other_bounding_box.pos.x)
-            };
-            return x_overlap;
-        }
-
-        0.0
-    }
-
-    fn check_overlap_y(&self, other: &impl Collider) -> f32 {
-        let other_bounding_box = other.bounding_box();
-        let self_bounding_box = self.bounding_box();
-
-        if rect_vs_rect(&self_bounding_box, &other_bounding_box) {
-            let y_overlap = if self_bounding_box.pos.y > other_bounding_box.pos.y {
-                (other_bounding_box.pos.y + other_bounding_box.size.y) - self_bounding_box.pos.y
-            } else {
-                -1.0 * (self_bounding_box.pos.y + self_bounding_box.size.y - other_bounding_box.pos.y)
-            };
-            return y_overlap;
-        }
-
-        0.0
-    }
-
-    fn check_overlap_z(&self, other: &impl Collider) -> f32 {
-        let other_bounding_box = other.bounding_box();
-        let self_bounding_box = self.bounding_box();
-
-        if rect_vs_rect(&self_bounding_box, &other_bounding_box) {
-            let z_overlap = if self_bounding_box.pos.z > other_bounding_box.pos.z {
-                (other_bounding_box.pos.z + other_bounding_box.size.z) - self_bounding_box.pos.z 
-            } else {
-                -1.0 * (self_bounding_box.pos.z + self_bounding_box.size.z - other_bounding_box.pos.z)
-            };
-            return z_overlap;
-        }
-
-        0.0
-    }
-
-    
+    fn has_collider(&self) -> bool;
 }
 
 // Returns the overlap of `entity` with `world` along the specified axis
-pub fn check_world_collision_axis(axis: Vec3Direction, entity: &impl Collider, world: &World) -> f32 {
-    let bounding_box = entity.bounding_box();
+pub fn check_world_collision_axis(axis: Vec3Direction, bounding_box: Rect3, world: &World) -> f32 {
+    //let bounding_box = entity.bounding_box();
     
     for block_x in (bounding_box.pos.x.floor() as isize - 1) ..= ((bounding_box.pos.x + bounding_box.size.x).floor() as isize + 1) {
         for block_y in (bounding_box.pos.y.floor() as isize - 1) ..= ((bounding_box.pos.y + bounding_box.size.y).floor() as isize + 2) {
@@ -103,6 +54,40 @@ pub fn check_world_collision_axis(axis: Vec3Direction, entity: &impl Collider, w
                     }
                 }
             }
+        }
+    }
+    0f32
+}
+
+pub fn check_collision_axis(axis: Vec3Direction, entity1: &impl Collider, entity2: &impl Collider) -> f32 {
+    let bounding_box1 = entity1.bounding_box();
+    let bounding_box2 = entity2.bounding_box();
+    if rect_vs_rect(&bounding_box1, &bounding_box2) {
+        match axis {
+            Vec3Direction::X => {
+                let x_overlap = if bounding_box1.pos.x > bounding_box2.pos.x {
+                    (bounding_box2.pos.x + bounding_box2.size.x) - bounding_box1.pos.x 
+                } else {
+                    -1.0 * (bounding_box1.pos.x + bounding_box1.size.x - bounding_box2.pos.x)
+                };
+                return x_overlap;
+            },
+            Vec3Direction::Y => {
+                let y_overlap = if bounding_box1.pos.y > bounding_box2.pos.y {
+                    (bounding_box2.pos.y + bounding_box2.size.y) - bounding_box1.pos.y
+                } else {
+                    -1.0 * (bounding_box1.pos.y + bounding_box1.size.y - bounding_box2.pos.y)
+                };
+                return y_overlap;
+            },
+            Vec3Direction::Z => {
+                let z_overlap = if bounding_box1.pos.z > bounding_box2.pos.z {
+                    (bounding_box2.pos.z + bounding_box2.size.z) - bounding_box1.pos.z
+                } else {
+                    -1.0 * (bounding_box1.pos.z + bounding_box1.size.z - bounding_box2.pos.z)
+                };
+                return z_overlap;
+            },
         }
     }
     0f32

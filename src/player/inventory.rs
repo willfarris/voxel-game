@@ -1,4 +1,4 @@
-use crate::world::block::{BLOCKS, self};
+use crate::world::block::BLOCKS;
 
 const INVENTORY_SIZE: usize = 9;
 

@@ -2,10 +2,10 @@
 
 precision mediump float;
 
-in vec3 position;
-in vec3 normal;
-in vec2 tex_coords;
-in int vtype;
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 normal;
+layout (location = 2) in vec2 tex_coords;
+layout (location = 3) in int vtype;
 
 uniform mat4 model_matrix;
 uniform mat4 view_matrix;

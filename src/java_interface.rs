@@ -43,6 +43,12 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_drawFrameNative(
 }
 
 #[no_mangle]
+pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_resetGlResourcesNative(_env: JNIEnv, _: JClass, ptr: jlong) {
+    let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
+    engine.reset_gl_resources();
+}
+
+#[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_isPausedNative(_env: JNIEnv, _: JClass, ptr: jlong) -> jboolean {
     if ptr == 0 {
         return true as u8;
@@ -96,7 +102,7 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_playerJumpNative
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_breakBlockNative(_env: JNIEnv, _: JClass, ptr: jlong) {
     let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
-    
+    engine.player_movement(PlayerMovement::Interact(false, true));
 }
 
 #[no_mangle]

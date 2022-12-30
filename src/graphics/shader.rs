@@ -2,7 +2,7 @@ pub(crate) use std::ffi::CStr;
 use std::{ffi::CString, ptr};
 use cgmath::{Array, Matrix, Matrix4, Vector3, Vector2, Matrix2, Matrix3};
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct Shader {
     pub id: u32,
 }
