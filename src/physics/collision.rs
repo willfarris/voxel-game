@@ -13,8 +13,6 @@ pub trait Collider {
 
 // Returns the overlap of `entity` with `world` along the specified axis
 pub fn check_world_collision_axis(axis: Vec3Direction, bounding_box: Rect3, world: &World) -> f32 {
-    //let bounding_box = entity.bounding_box();
-    
     for block_x in (bounding_box.pos.x.floor() as isize - 1) ..= ((bounding_box.pos.x + bounding_box.size.x).floor() as isize + 1) {
         for block_y in (bounding_box.pos.y.floor() as isize - 1) ..= ((bounding_box.pos.y + bounding_box.size.y).floor() as isize + 2) {
             for block_z in (bounding_box.pos.z.floor() as isize - 1) ..= ((bounding_box.pos.z + bounding_box.size.z).floor() as isize + 1) {
@@ -59,9 +57,8 @@ pub fn check_world_collision_axis(axis: Vec3Direction, bounding_box: Rect3, worl
     0f32
 }
 
-pub fn check_collision_axis(axis: Vec3Direction, entity1: &impl Collider, entity2: &impl Collider) -> f32 {
-    let bounding_box1 = entity1.bounding_box();
-    let bounding_box2 = entity2.bounding_box();
+#[allow(unused)]
+pub fn check_collision_axis(axis: Vec3Direction, bounding_box1: Rect3, bounding_box2: Rect3) -> f32 {
     if rect_vs_rect(&bounding_box1, &bounding_box2) {
         match axis {
             Vec3Direction::X => {

@@ -60,7 +60,7 @@ impl Engine {
         let entities = Vec::new();
         let mut world = Some(World::new());
         if let Some(w) = world.as_mut() {
-            w.gen_terrain(5, 69);
+            w.gen_terrain(2, 69);
         }
 
         Self {
@@ -234,9 +234,45 @@ impl Engine {
                             }
                         }
                         if left_hand {
-                            /*if let Some((_, world_index)) = vectormath::dda(&self.terrain, &self.player.camera.position, &self.player.camera.forward, 6.0) {
-                                self.terrain.interact_at_global_pos(world_index);
-                            }*/
+                            if let Some((_world_pos, world_index)) = vectormath::dda(&self.world.as_ref().unwrap(), &player.camera.position, &player.camera.forward, 6.0) {
+                                let mut diff = Vector3::new(
+                                    _world_pos.x - world_index.x as f32,
+                                    _world_pos.y - world_index.y as f32,
+                                    _world_pos.z - world_index.z as f32,
+                                );
+
+                                if diff.x == 0.0 {
+                                    diff.x = -1.0;
+                                } else if diff.x == 1.0 {
+                                    diff.x = 1.0;
+                                } else {
+                                    diff.x = 0.0;
+                                }
+
+                                if diff.y == 0.0 {
+                                    diff.y = -1.0;
+                                } else if diff.y == 1.0 {
+                                    diff.y = 1.0;
+                                } else {
+                                    diff.y = 0.0;
+                                }
+
+                                if diff.z == 0.0 {
+                                    diff.z = -1.0;
+                                } else if diff.z == 1.0 {
+                                    diff.z = 1.0;
+                                } else {
+                                    diff.z = 0.0;
+                                }
+
+                                let offset = Vector3::new(
+                                    diff.x as isize,
+                                    diff.y as isize,
+                                    diff.z as isize,
+                                );
+                                self.world.as_mut().unwrap().place_block(1, &(world_index + offset), &mut self.gl_resources);
+                                
+                            }
                         }
                     }
                 }

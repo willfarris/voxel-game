@@ -16,6 +16,8 @@ pub fn quaternion_rotate(vec: Vector3<f32>, angle: f32, axis: Vector3<f32>) -> V
     Quaternion::from_sv(-angle, axis).rotate_vector(vec)
 }
 
+// Fast inverse square root <3
+// https://en.wikipedia.org/wiki/Fast_inverse_square_root
 pub fn q_rsqrt(number: f32)  -> f32 {
     let x2 = number * 0.5f32;
     let threehalfs = 1.5f32;

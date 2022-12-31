@@ -1,7 +1,7 @@
 use cgmath::Zero;
 pub(crate) use cgmath::{Vector3, Matrix4, Quaternion, Rotation3, Deg};
 
-use crate::{graphics::{resources::{GLRenderable, GLResources}, texture::Texture, buffer::BufferObject, mesh::block_drop_vertices, source::{TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, TERRAIN_BITMAP}}, c_str, physics::{collision::{Rect3, Collider}, vectormath::Vec3Direction, physics_update::PhysicsUpdate}, player::GRAVITY, world::block::BLOCKS, EntityTrait};
+use crate::{graphics::{resources::{GLRenderable, GLResources}, mesh::block_drop_vertices, source::{TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, TERRAIN_BITMAP}}, c_str, physics::{collision::{Rect3, Collider}, vectormath::Vec3Direction, physics_update::PhysicsUpdate}, player::GRAVITY, world::block::BLOCKS, EntityTrait};
 
 pub struct ItemDrop {
     // Persists across OpenGL context creation
@@ -35,18 +35,6 @@ impl ItemDrop {
             movement_delta: Vector3::zero(),
             grounded: false,
         }
-    }
-
-    pub fn set_position(&mut self, position: Vector3<f32>) {
-        self.position = position;
-    }
-
-    pub fn set_rotation(&mut self, rotation: Vector3<f32>) {
-        self.rotation = rotation;
-    }
-
-    pub fn set_scale(&mut self, scale: Vector3<f32>) {
-        self.scale = scale;
     }
 }
 

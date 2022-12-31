@@ -64,19 +64,18 @@ impl World {
         (chunk_index, block_index)
     }
 
-    pub fn place_block(&mut self, block_id: usize, world_pos: &BlockWorldPos) {
+    pub fn place_block(&mut self, block_id: usize, world_pos: &BlockWorldPos, gl_resources: &mut GLResources) {
         let (chunk_index, block_idx) = World::chunk_and_block_index(&world_pos);
         if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
             chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
         } else {
-            let position = Vector3::new(
-                (chunk_index.x * CHUNK_SIZE as isize) as f32,
-                (chunk_index.y * CHUNK_SIZE as isize) as f32,
-                (chunk_index.z * CHUNK_SIZE as isize) as f32,
-            );
-            let mut new_chunk = Chunk::new(position);
+            let mut new_chunk = Chunk::new();
             new_chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
             self.chunks.insert(chunk_index, new_chunk);
+        }
+        if let Some(chunk_vertices) = self.generate_chunk_mesh(&chunk_index) {
+            let name = format!("chunk_{}_{}_{}", chunk_index.x, chunk_index.y, chunk_index.z);
+            gl_resources.update_buffer(name, chunk_vertices);
         }
     }
 

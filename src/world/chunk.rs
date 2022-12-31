@@ -10,19 +10,15 @@ pub enum ChunkMeshState {
 }
 
 pub struct Chunk {
-    position: Vector3<f32>,
     pub blocks: [[[usize; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE],
     pub metadata: [[[usize; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE],
-    pub mesh_state: ChunkMeshState,
 }
 
 impl Chunk {
-    pub fn new(position: Vector3<f32>) -> Self {
+    pub fn new() -> Self {
         Self {
-            position,
             blocks: [[[0; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE],
             metadata: [[[0; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE],
-            mesh_state: ChunkMeshState::Uninit,
         }
     }
 

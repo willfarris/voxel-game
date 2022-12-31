@@ -12,12 +12,7 @@ impl World {
             for chunk_y in 0..chunk_radius {
                 for chunk_z in -chunk_radius..chunk_radius {
                     let chunk_index = ChunkIndex::new(chunk_x, chunk_y, chunk_z);
-                    let position = Vector3::new(
-                        (chunk_index.x * CHUNK_SIZE as isize) as f32,
-                        (chunk_index.y * CHUNK_SIZE as isize) as f32,
-                        (chunk_index.z * CHUNK_SIZE as isize) as f32,
-                    );
-                    let mut cur_chunk = Chunk::new(position);
+                    let mut cur_chunk = Chunk::new();
                     
                     self.gen_chunk(&chunk_index, &mut cur_chunk);
                     self.gen_caves(&chunk_index, &mut cur_chunk);
