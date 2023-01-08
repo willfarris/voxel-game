@@ -1,8 +1,8 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
 use cgmath::Matrix4;
 
-use super::{shader::{Shader, self}, texture::Texture, buffer::BufferObject, vertex::Vertex3D};
+use super::{shader::Shader, texture::Texture, buffer::BufferObject, vertex::Vertex3D};
 
 pub struct GLResources {
     textures: HashMap<&'static str, Texture>,

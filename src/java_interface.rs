@@ -1,18 +1,5 @@
 use jni::{sys::{jlong, jint, jfloat, jboolean}, objects::JClass, JNIEnv};
-use std::sync::Mutex;
-use crate::{Engine, PlayerMovement};
-
-struct EngineLock {
-    engine: Mutex<Engine>
-}
-
-impl EngineLock {
-    pub fn new() -> Self {
-        Self {
-            engine: Mutex::new(Engine::new()),
-        }
-    }
-}
+use crate::{EngineLock, PlayerInput};
 
 
 #[no_mangle]
@@ -26,8 +13,14 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_initEngineNative
 
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_initGLNative(_env: JNIEnv, _: JClass, ptr: jlong, width: jint, height: jint) {
-    let engine = (&mut *(ptr as *mut EngineLock)).engine.get_mut().unwrap();
+    let mut engine = (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
     engine.init_gl(width as i32, height as i32);
+}
+
+#[no_mangle]
+pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_startTerrainThreadNative(_env: JNIEnv, _: JClass, ptr: jlong) {
+    let engine = (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
+    engine.start_terrain_thread();
 }
 
 #[no_mangle]
@@ -53,7 +46,7 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_isPausedNative(_
     if ptr == 0 {
         return true as u8;
     }
-    let engine = &mut *(ptr as *mut Engine);
+    let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
     engine.is_paused() as u8
 }
 
@@ -62,7 +55,7 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_pauseGameNative(
     if ptr == 0 {
         return;
     }
-    let engine = &mut *(ptr as *mut Engine);
+    let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
     engine.pause();
 }
 
@@ -78,31 +71,31 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_resumeGameNative
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_lookAroundNative(_env: JNIEnv, _: JClass, ptr: jlong, dx: jfloat, dy: jfloat) {
     let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
-    engine.player_movement(PlayerMovement::Look(dy, dx));
+    engine.player_input(PlayerInput::Look(dy, dx));
 }
 
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_moveAroundNative(_env: JNIEnv, _: JClass, ptr: jlong, dx: jfloat, dy: jfloat, dz: jfloat) {
     let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
-    engine.player_movement(PlayerMovement::Walk(dx, dy, dz));
+    engine.player_input(PlayerInput::Walk(dx, dy, dz));
 }
 
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_stopMovingNative(_env: JNIEnv, _: JClass, ptr: jlong) {
     let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
-    engine.player_movement(PlayerMovement::Stop);
+    engine.player_input(PlayerInput::Stop);
 }
 
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_playerJumpNative(_env: JNIEnv, _: JClass, ptr: jlong) {
     let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
-    engine.player_movement(PlayerMovement::Jump);
+    engine.player_input(PlayerInput::Jump);
 }
 
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_breakBlockNative(_env: JNIEnv, _: JClass, ptr: jlong) {
     let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
-    engine.player_movement(PlayerMovement::Interact(false, true));
+    engine.player_input(PlayerInput::Interact(false, true));
 }
 
 #[no_mangle]

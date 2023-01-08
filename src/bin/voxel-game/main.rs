@@ -1,5 +1,8 @@
+use std::sync::{Mutex, Arc};
+use std::time::{Instant, Duration};
+
 use glfw::Context;
-use voxel::{Engine, PlayerMovement};
+use voxel::{Engine, PlayerInput};
 use voxel::q_rsqrt;
 
 const WIDTH: i32 = 1600;
@@ -12,9 +15,9 @@ fn main() {
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::OpenGlEs));
     glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
 
-    let mut engine = Engine::new();
+    let mut voxel_game = Engine::new();
 
-    let (mut window, events) = glfw.create_window(WIDTH as u32, HEIGHT as u32, "VoxelGame", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
+    let (mut window, events) = glfw.create_window(WIDTH as u32, HEIGHT as u32, "Voxel Game", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
 
     gl::load_with(|s| window.get_proc_address(s) as *const _);
     window.make_current();
@@ -23,8 +26,10 @@ fn main() {
     window.set_mouse_button_polling(true);
     window.set_cursor_pos(WIDTH as f64/2.0, HEIGHT as f64/2.0);
     window.set_cursor_mode(glfw::CursorMode::Hidden);
-    
-    engine.init_gl(WIDTH, HEIGHT);
+
+    voxel_game.init_gl(WIDTH, HEIGHT);
+    voxel_game.start_terrain_thread();
+    //voxel_game.start_physics_engine();
 
     const NUM_AVG_FRAMES: usize = 60;
     let mut averages = [0f32; NUM_AVG_FRAMES];
@@ -55,8 +60,8 @@ fn main() {
         };
         last_time = current_time;
 
-        engine.update(delta_time);
-        engine.draw();
+        voxel_game.update(delta_time);
+        voxel_game.draw();
         window.swap_buffers();
 
         glfw.poll_events();
@@ -65,23 +70,23 @@ fn main() {
                 glfw::WindowEvent::CursorPos(x, y) => {
                     let delta = (x-WIDTH as f64/2.0, y-HEIGHT as f64/2.0);
                     window.set_cursor_pos(WIDTH as f64/2.0, HEIGHT as f64/2.0);
-                    engine.player_movement(PlayerMovement::Look(0.001 * delta.1 as f32, 0.001 * delta.0 as f32));             
+                    voxel_game.player_input(PlayerInput::Look(0.001 * delta.1 as f32, 0.001 * delta.0 as f32));             
                 },
                 glfw::WindowEvent::MouseButton(button, state, x) => {
                     match button {
                         glfw::MouseButton::Button1 => {
                             if state == glfw::Action::Press {
-                                engine.player_movement(PlayerMovement::Interact(false, true));
+                                voxel_game.player_input(PlayerInput::Interact(false, true));
                             }
                         },
                         glfw::MouseButton::Button2 => {
                             if state == glfw::Action::Press {
-                                engine.player_movement(PlayerMovement::Interact(true, false));
+                                voxel_game.player_input(PlayerInput::Interact(true, false));
                             }
                         }
                         glfw::MouseButton::Button3 => {
                             if state == glfw::Action::Release {
-                                //engine.should_interact = true;
+                                //voxel_game.should_interact = true;
                             }
                         }
                         _ => println!("{:?} {:?} {:?}", button, state, x),
@@ -104,22 +109,22 @@ fn main() {
                         },
 
                         glfw::Key::P => if state == glfw::Action::Release {
-                            if engine.is_paused() {
-                                engine.resume();
+                            if voxel_game.is_paused() {
+                                voxel_game.resume();
                             } else {
-                                engine.pause();
+                                voxel_game.pause();
                             }
                         },
 
-                        glfw::Key::Num1 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(0));},
-                        glfw::Key::Num2 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(1));},
-                        glfw::Key::Num3 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(2));},
-                        glfw::Key::Num4 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(3));},
-                        glfw::Key::Num5 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(4));},
-                        glfw::Key::Num6 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(5));},
-                        glfw::Key::Num7 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(6));},
-                        glfw::Key::Num8 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(7));},
-                        glfw::Key::Num9 => if state == glfw::Action::Press {engine.player_movement(PlayerMovement::Inventory(8));},
+                        glfw::Key::Num1 => if state == glfw::Action::Press {voxel_game.player_input(PlayerInput::Inventory(0));},
+                        glfw::Key::Num2 => if state == glfw::Action::Press {voxel_game.player_input(PlayerInput::Inventory(1));},
+                        glfw::Key::Num3 => if state == glfw::Action::Press {voxel_game.player_input(PlayerInput::Inventory(2));},
+                        glfw::Key::Num4 => if state == glfw::Action::Press {voxel_game.player_input(PlayerInput::Inventory(3));},
+                        glfw::Key::Num5 => if state == glfw::Action::Press {voxel_game.player_input(PlayerInput::Inventory(4));},
+                        glfw::Key::Num6 => if state == glfw::Action::Press {voxel_game.player_input(PlayerInput::Inventory(5));},
+                        glfw::Key::Num7 => if state == glfw::Action::Press {voxel_game.player_input(PlayerInput::Inventory(6));},
+                        glfw::Key::Num8 => if state == glfw::Action::Press {voxel_game.player_input(PlayerInput::Inventory(7));},
+                        glfw::Key::Num9 => if state == glfw::Action::Press {voxel_game.player_input(PlayerInput::Inventory(8));},
 
                         _ => {
                             println!("{:?}", k);
@@ -137,13 +142,13 @@ fn main() {
         };
         move_direction *= q_rsqrt(move_direction.x * move_direction.x + move_direction.z * move_direction.z);
         if !wasd_pressed[0] && !wasd_pressed[1] && !wasd_pressed[2] && !wasd_pressed[3] {
-            engine.player_movement(PlayerMovement::Stop);
+            voxel_game.player_input(PlayerInput::Stop);
         } else {
-            engine.player_movement(PlayerMovement::Walk(move_direction.x, move_direction.y, move_direction.z));
+            voxel_game.player_input(PlayerInput::Walk(move_direction.x, move_direction.y, move_direction.z));
         }
 
         if jump {
-            engine.player_movement(PlayerMovement::Jump);
+            voxel_game.player_input(PlayerInput::Jump);
         }
         
     }

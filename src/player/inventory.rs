@@ -1,4 +1,4 @@
-use crate::world::block::BLOCKS;
+use crate::terrain::block::BLOCKS;
 
 const INVENTORY_SIZE: usize = 9;
 

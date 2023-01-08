@@ -1,4 +1,4 @@
-use crate::world::{World, BlockWorldPos};
+use crate::terrain::{Terrain, BlockWorldPos};
 use cgmath::{Vector3, Quaternion, Rotation, InnerSpace};
 
 pub const X_VECTOR: Vector3<f32> = Vector3::new(1.0, 0.0, 0.0);
@@ -28,7 +28,7 @@ pub fn q_rsqrt(number: f32)  -> f32 {
     return y;
 }
 
-pub fn dda(world: &World, start: &Vector3<f32>, dir: &Vector3<f32>, max_dist: f32) -> Option<(Vector3<f32>, BlockWorldPos)> {
+pub fn dda(world: &Terrain, start: &Vector3<f32>, dir: &Vector3<f32>, max_dist: f32) -> Option<(Vector3<f32>, BlockWorldPos)> {
     let ray_dir = dir.normalize();
 
     let mut ray_unit_step_size = Vector3 {

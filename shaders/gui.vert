@@ -17,5 +17,5 @@ void main() {
     v_position = position_transformed.xy;
     v_tex_coords = tex_coords;
 
-    gl_Position = vec4(position_transformed);
+    gl_Position = vec4(position_transformed, 1.0);
 }

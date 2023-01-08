@@ -1,6 +1,6 @@
 use cgmath::{Vector3, Vector2};
 
-use crate::world::block::{Block, MeshType, self};
+use crate::terrain::block::{Block, MeshType, self};
 
 use super::vertex::Vertex3D;
 

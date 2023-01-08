@@ -1,7 +1,7 @@
 use cgmath::Zero;
 pub(crate) use cgmath::{Vector3, Matrix4, Quaternion, Rotation3, Deg};
 
-use crate::{graphics::{resources::{GLRenderable, GLResources}, mesh::block_drop_vertices, source::{TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, TERRAIN_BITMAP}}, c_str, physics::{collision::{Rect3, Collider}, vectormath::Vec3Direction, physics_update::PhysicsUpdate}, player::GRAVITY, world::block::BLOCKS, EntityTrait};
+use crate::{graphics::{resources::{GLRenderable, GLResources}, mesh::block_drop_vertices, source::{TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, TERRAIN_BITMAP}}, c_str, physics::{collision::{Rect3, Collider}, vectormath::Vec3Direction, physics_update::PhysicsUpdate}, player::GRAVITY, terrain::block::BLOCKS, EntityTrait};
 
 pub struct ItemDrop {
     // Persists across OpenGL context creation

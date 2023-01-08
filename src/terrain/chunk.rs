@@ -1,17 +1,13 @@
-use cgmath::{Vector3, Matrix4};
-
-use crate::graphics::{texture::Texture, shader::Shader, vertex::Vertex3D, resources::GLRenderable, buffer::BufferObject};
+use cgmath::Vector3;
 
 pub(crate) const CHUNK_SIZE: usize = 16;
 
-pub enum ChunkMeshState {
-    Uninit,
-    Valid,
-}
+pub(crate) type BlockDataArray = [[[usize; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE];
 
+#[derive(Clone)]
 pub struct Chunk {
-    pub blocks: [[[usize; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE],
-    pub metadata: [[[usize; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE],
+    pub blocks: BlockDataArray,
+    pub metadata: BlockDataArray,
 }
 
 impl Chunk {

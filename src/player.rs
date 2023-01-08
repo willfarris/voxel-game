@@ -23,6 +23,7 @@ pub(crate) struct Player {
     move_speed: f32,
     pub grounded: bool,
     walking: bool,
+    running: bool,
     height: f32,
 
     collision_box: Rect3,
@@ -41,6 +42,7 @@ impl Player {
             movement_delta: Vector3::new(0f32, 0f32, 0f32),
 
             move_speed: 3.0,
+            running: false,
             grounded: false,
             walking: false,
             height: 1.6,
@@ -99,10 +101,15 @@ impl PhysicsUpdate for Player {
         self.velocity += self.acceleration * delta_time;
 
         let forward = Vector3::new(self.camera.forward.x, 0.0, self.camera.forward.z).normalize();
+        let move_speed = if self.running {
+            self.move_speed * 2.0
+        } else {
+            self.move_speed
+        };
         let delta = delta_time * Vector3 {
-            x: (self.move_speed * self.camera.right.x * self.velocity.x as f32) + (self.move_speed * forward.x * self.velocity.z as f32),
+            x: (move_speed * self.camera.right.x * self.velocity.x as f32) + (move_speed * forward.x * self.velocity.z as f32),
             y: self.velocity.y as f32,
-            z: (self.move_speed * self.camera.right.z * self.velocity.x as f32) + (self.move_speed * forward.z * self.velocity.z as f32),
+            z: (move_speed * self.camera.right.z * self.velocity.x as f32) + (move_speed * forward.z * self.velocity.z as f32),
         };
         self.movement_delta = delta;
     }

@@ -1,6 +1,6 @@
 use cgmath::Vector3;
 
-use crate::{world::{World, block::BLOCKS, BlockWorldPos}, entity::EntityTrait};
+use crate::{terrain::{Terrain, block::BLOCKS, BlockWorldPos}, entity::EntityTrait};
 
 use super::vectormath::Vec3Direction;
 
@@ -12,7 +12,7 @@ pub trait Collider {
 }
 
 // Returns the overlap of `entity` with `world` along the specified axis
-pub fn check_world_collision_axis(axis: Vec3Direction, bounding_box: Rect3, world: &World) -> f32 {
+pub fn check_world_collision_axis(axis: Vec3Direction, bounding_box: Rect3, world: &Terrain) -> f32 {
     for block_x in (bounding_box.pos.x.floor() as isize - 1) ..= ((bounding_box.pos.x + bounding_box.size.x).floor() as isize + 1) {
         for block_y in (bounding_box.pos.y.floor() as isize - 1) ..= ((bounding_box.pos.y + bounding_box.size.y).floor() as isize + 2) {
             for block_z in (bounding_box.pos.z.floor() as isize - 1) ..= ((bounding_box.pos.z + bounding_box.size.z).floor() as isize + 1) {

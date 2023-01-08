@@ -64,7 +64,7 @@ pub fn perspective_matrix(width: i32, height: i32) -> Matrix4<f32> {
     let aspect_ratio = height as f32 / width as f32;
 
     let fov: f32 = 3.141592 / 2.0;
-    let zfar = 128.0;
+    let zfar = 256.0;
     let znear = 0.01;
 
     let f = 1.0 / (fov / 2.0).tan();

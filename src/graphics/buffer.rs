@@ -1,10 +1,10 @@
 use std::{ptr, mem::size_of, ffi::c_void};
 
-use gl::{self, STATIC_DRAW, types::GLsizeiptr};
+use gl::{self, types::GLsizeiptr};
 
-use crate::{c_str, offset_of};
+use crate::offset_of;
 
-use super::{vertex::Vertex3D, shader::Shader};
+use super::vertex::Vertex3D;
 
 pub struct BufferObject<T> {
     buffer_gl_object: u32,
@@ -92,6 +92,8 @@ impl<T> BufferObject<T> {
 
     pub fn invalidate(&mut self) {
         self.needs_update = true;
+        self.attribute_gl_object = 0;
+        self.buffer_gl_object = 0;
     }
 
     pub fn is_valid(&self) -> bool {
