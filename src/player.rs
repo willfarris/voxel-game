@@ -41,7 +41,7 @@ impl Player {
             acceleration: Vector3::new(0f32, 0f32, 0f32),
             movement_delta: Vector3::new(0f32, 0f32, 0f32),
 
-            move_speed: 3.0,
+            move_speed: 4.0,
             running: false,
             grounded: false,
             walking: false,

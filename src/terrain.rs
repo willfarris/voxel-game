@@ -319,7 +319,7 @@ impl Terrain {
 
     }
 
-    /*pub(crate) fn get_adjacent_chunks(&self, chunk_index: &ChunkIndex) -> Vec<(ChunkIndex, BlockDataArray)> {
+    pub(crate) fn get_adjacent_chunks(&self, chunk_index: &ChunkIndex) -> Vec<(ChunkIndex, &BlockDataArray)> {
         let right_index = chunk_index + Vector3::new(1, 0, 0);
         let left_index = chunk_index + Vector3::new(-1, 0, 0);
         let up_index = chunk_index + Vector3::new(0, 1, 0);
@@ -327,27 +327,27 @@ impl Terrain {
         let front_index = chunk_index + Vector3::new(0, 0, 1);
         let back_index = chunk_index + Vector3::new(0, 0, -1);
 
-        let mut existing_chunks: Vec<(ChunkIndex, BlockDataArray)> = Vec::new();
+        let mut existing_chunks: Vec<(ChunkIndex, &BlockDataArray)> = Vec::new();
         if let Some(chunk) = self.chunks.get(&right_index) {
-            existing_chunks.push((right_index, chunk.blocks.clone()));
+            existing_chunks.push((right_index, &chunk.blocks));
         }
         if let Some(chunk) = self.chunks.get(&left_index) {
-            existing_chunks.push((left_index, chunk.blocks.clone()));
+            existing_chunks.push((left_index, &chunk.blocks));
         }
         if let Some(chunk) = self.chunks.get(&up_index) {
-            existing_chunks.push((up_index, chunk.blocks.clone()));
+            existing_chunks.push((up_index, &chunk.blocks));
         }
         if let Some(chunk) = self.chunks.get(&down_index) {
-            existing_chunks.push((down_index, chunk.blocks.clone()));
+            existing_chunks.push((down_index, &chunk.blocks));
         }
         if let Some(chunk) = self.chunks.get(&front_index) {
-            existing_chunks.push((front_index, chunk.blocks.clone()));
+            existing_chunks.push((front_index, &chunk.blocks));
         }
         if let Some(chunk) = self.chunks.get(&back_index) {
-            existing_chunks.push((back_index, chunk.blocks.clone()));
+            existing_chunks.push((back_index, &chunk.blocks));
         }
         existing_chunks
-    }*/
+    }
 
     pub(crate) fn update_single_chunk_mesh(&mut self, chunk_index: &ChunkIndex, gl_resources: &mut GLResources) {
         if let Some(_) = self.chunks.get(chunk_index) {

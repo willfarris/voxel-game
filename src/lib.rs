@@ -16,7 +16,7 @@ extern crate jni;
 #[cfg(feature = "android-lib")]
 mod java_interface;
 
-use std::{sync::{Mutex, Arc}, time::{Instant, Duration}};
+use std::{sync::{Mutex, Arc, RwLock}, time::{Instant, Duration}};
 
 use cgmath::{Vector3, Zero, Vector2};
 use entity::EntityTrait;
@@ -57,13 +57,14 @@ impl EngineLock {
 }
 
 pub struct Engine {
-    player: Arc<Mutex<Box<Player>>>,
-    terrain: Arc<Mutex<Terrain>>,
+    player: Arc<RwLock<Box<Player>>>,
+    terrain: Arc<RwLock<Terrain>>,
     entities: Vec<Box<dyn EntityTrait>>,
 
     elapsed_time: f32,
     play_state: PlayState,
     input_queue: Vec<PlayerInput>,
+    noise_config: Arc<Mutex<NoiseConfig>>,
 
     width: i32,
     height: i32,
@@ -74,15 +75,28 @@ impl Engine {
     pub fn new() -> Self {
         let player = Box::new(Player::new(Vector3::new(0.0, 30.0, 0.0), Z_VECTOR));
         let terrain = Terrain::new();
+        
+        let noise_scale = 0.02;
+        let noise_offset = Vector2::new(
+            1_000_000.0 * rand::random::<f64>() + 3_141_592.0,
+            1_000_000.0 * rand::random::<f64>() + 3_141_592.0,
+        );
+        let perlin = Perlin::new();
+        let noise_config = NoiseConfig {
+            perlin,
+            noise_scale,
+            noise_offset,
+        };
 
         Self {
-            player: Arc::new(Mutex::new(player)),
-            terrain: Arc::new(Mutex::new(terrain)),
+            player: Arc::new(RwLock::new(player)),
+            terrain: Arc::new(RwLock::new(terrain)),
             entities: Vec::new(),
 
             elapsed_time: 0.0,
-            play_state: PlayState::Running,
+            play_state: PlayState::Paused,
             input_queue: Vec::new(),
+            noise_config: Arc::new(Mutex::new(noise_config)),
 
             width: 0,
             height: 0,
@@ -94,8 +108,8 @@ impl Engine {
         if self.play_state == PlayState::Running {
 
             {
-                let mut player = self.player.lock().unwrap();
-                let terrain = self.terrain.lock().unwrap();
+                let mut player = self.player.write().unwrap();
+                let terrain = self.terrain.read().unwrap();
 
                 player.update_physics(delta_time);
 
@@ -115,7 +129,7 @@ impl Engine {
             }
 
             for entity in &mut self.entities {
-                let terrain = self.terrain.lock().unwrap();
+                let terrain = self.terrain.read().unwrap();
                 entity.update_physics(delta_time);
 
                 let movement_delta = entity.movement_delta();
@@ -136,8 +150,8 @@ impl Engine {
             self.elapsed_time += delta_time;
             
             {
-                let mut player = self.player.lock().unwrap();
-                let mut terrain = self.terrain.lock().unwrap();
+                let mut player = self.player.write().unwrap();
+                let mut terrain = self.terrain.write().unwrap();
                 let mut gl_resources = self.gl_resources.lock().unwrap();
 
                 while !self.input_queue.is_empty() {
@@ -219,29 +233,20 @@ impl Engine {
         }
     }
 
-    pub fn start_terrain_thread(&self) {
+    pub fn start_terrain_thread(&mut self) {
         #[cfg(feature = "android-lib")] {
             debug!("Starting terrain thread");
         }
         let terrain = self.terrain.clone();
         let player = self.player.clone();
         let gl_resources = self.gl_resources.clone();
-
-        let noise_scale = 0.02;
-        let noise_offset = Vector2::new(
-            1_000_000.0 * rand::random::<f64>() + 3_141_592.0,
-            1_000_000.0 * rand::random::<f64>() + 3_141_592.0,
-        );
-        let perlin = Perlin::new();
-        let noise_config = NoiseConfig {
-            perlin,
-            noise_scale,
-            noise_offset,
-        };
+        let noise_config = self.noise_config.clone();
 
         {
-            terrain.lock().unwrap().init_worldgen(&Vector3::new(0.0, 0.0, 0.0), 2, &mut gl_resources.lock().unwrap(), &noise_config);
+            terrain.write().unwrap().init_worldgen(&Vector3::new(0.0, 0.0, 0.0), 2, &mut gl_resources.lock().unwrap(), &noise_config.lock().unwrap());
         }
+
+        self.resume();
 
         std::thread::spawn(move || {
             loop {
@@ -250,8 +255,8 @@ impl Engine {
 
                 // Get the list of chunks which need generation
                 let chunk_indices = {
-                    let player = player.lock().unwrap();
-                    let terrain = terrain.lock().unwrap();
+                    let player = player.read().unwrap();
+                    let terrain = terrain.read().unwrap();
                     let player_position = player.position;
                     let player_world_pos = Vector3::new(
                         player_position.x.floor() as isize,
@@ -262,28 +267,20 @@ impl Engine {
                         continue;
                     }
                     let (player_chunk_index, _block_index) = Terrain::chunk_and_block_index(&player_world_pos);
-                    let chunks_to_generate = terrain.get_needed_update_indices(3, &player_chunk_index);
+                    let chunks_to_generate = terrain.get_needed_update_indices(8, &player_chunk_index);
                     chunks_to_generate
                 };
 
                 let mut new_chunks: Vec<(ChunkIndex, Chunk)> = Vec::new();
                 for chunk_index in &chunk_indices {
                     let mut chunk = Chunk::new();
-                    Terrain::gen_surface_terrain(&chunk_index, &mut chunk, &noise_config);
+                    Terrain::gen_surface_terrain(&chunk_index, &mut chunk, &noise_config.lock().unwrap());
                     new_chunks.push((chunk_index.clone(), chunk));
                 }
 
-                {
-                    let mut terrain = terrain.lock().unwrap();
-                    for (chunk_index, chunk) in new_chunks {
-                        terrain.insert_chunk(chunk_index, chunk);
-                    }
-                    
-                    let mut gl_resources = gl_resources.lock().unwrap();
-                    for chunk_index in chunk_indices {
-                        terrain.update_chunk_mesh(&chunk_index, &mut gl_resources);
-                    }
-                }                
+                for (chunk_index, chunk) in new_chunks {
+                    terrain.write().unwrap().insert_chunk(chunk_index, chunk);
+                }       
             }
         });
     }
@@ -330,7 +327,7 @@ impl Engine {
         }
 
         {
-            self.terrain.lock().unwrap().init_gl_resources(&mut self.gl_resources.lock().unwrap());
+            self.terrain.write().unwrap().init_gl_resources(&mut self.gl_resources.lock().unwrap());
         }
 
         unsafe {
@@ -344,8 +341,8 @@ impl Engine {
     }
 
     pub fn draw(&mut self) {
-        let player = self.player.lock().unwrap();
-        let terrain = self.terrain.lock().unwrap();
+        let player = self.player.read().unwrap();
+        let terrain = self.terrain.read().unwrap();
         let mut gl_resources = self.gl_resources.lock().unwrap();
 
         unsafe {
