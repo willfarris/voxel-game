@@ -64,11 +64,11 @@ pub struct Engine {
     elapsed_time: f32,
     play_state: PlayState,
     input_queue: Vec<PlayerInput>,
-    noise_config: Arc<Mutex<NoiseConfig>>,
+    noise_config: Arc<RwLock<NoiseConfig>>,
 
     width: i32,
     height: i32,
-    gl_resources: Arc<Mutex<GLResources>>,
+    gl_resources: Arc<RwLock<GLResources>>,
 }
 
 impl Engine {
@@ -96,11 +96,11 @@ impl Engine {
             elapsed_time: 0.0,
             play_state: PlayState::Paused,
             input_queue: Vec::new(),
-            noise_config: Arc::new(Mutex::new(noise_config)),
+            noise_config: Arc::new(RwLock::new(noise_config)),
 
             width: 0,
             height: 0,
-            gl_resources: Arc::new(Mutex::new(GLResources::new())),
+            gl_resources: Arc::new(RwLock::new(GLResources::new())),
         }
     }
 
@@ -152,7 +152,7 @@ impl Engine {
             {
                 let mut player = self.player.write().unwrap();
                 let mut terrain = self.terrain.write().unwrap();
-                let mut gl_resources = self.gl_resources.lock().unwrap();
+                let mut gl_resources = self.gl_resources.write().unwrap();
 
                 while !self.input_queue.is_empty() {
                     let input = self.input_queue.remove(0);
@@ -237,69 +237,79 @@ impl Engine {
         #[cfg(feature = "android-lib")] {
             debug!("Starting terrain thread");
         }
-        let terrain = self.terrain.clone();
-        let player = self.player.clone();
-        let gl_resources = self.gl_resources.clone();
-        let noise_config = self.noise_config.clone();
+        let mut chunk_update_list = Arc::new(RwLock::new(Vec::new()));
 
+        let chunk_render_distance = 4;
         {
-            terrain.write().unwrap().init_worldgen(&Vector3::new(0.0, 0.0, 0.0), 2, &mut gl_resources.lock().unwrap(), &noise_config.lock().unwrap());
+            let terrain = self.terrain.clone();
+            let gl_resources = self.gl_resources.clone();
+            let noise_config = self.noise_config.clone();
+            terrain.write().unwrap().init_worldgen(&Vector3::new(0.0, 0.0, 0.0), chunk_render_distance*2, &mut gl_resources.write().unwrap(), &noise_config.read().unwrap());
         }
 
         self.resume();
 
+
+        let terrain_gen = self.terrain.clone();
+        let player_gen = self.player.clone();
+        let noise_config_gen = self.noise_config.clone();
+        let chunk_update_list_gen = chunk_update_list.clone();
         std::thread::spawn(move || {
             loop {
-                // Only bother generating terrain every few hundred ms to reduce lock contention
-                std::thread::sleep(Duration::from_millis(100));
 
                 // Get the list of chunks which need generation
-                let chunk_indices = {
-                    let player = player.read().unwrap();
-                    let terrain = terrain.read().unwrap();
+                let player_chunk = {
+                    let player = player_gen.read().unwrap();
                     let player_position = player.position;
                     let player_world_pos = Vector3::new(
                         player_position.x.floor() as isize,
                         player_position.y.floor() as isize,
                         player_position.z.floor() as isize,
                     );
-                    if player.position.y < 0.0 {
-                        continue;
-                    }
                     let (player_chunk_index, _block_index) = Terrain::chunk_and_block_index(&player_world_pos);
-                    let chunks_to_generate = terrain.get_needed_update_indices(8, &player_chunk_index);
-                    chunks_to_generate
+                    player_chunk_index
                 };
 
-                let mut new_chunks: Vec<(ChunkIndex, Chunk)> = Vec::new();
-                for chunk_index in &chunk_indices {
-                    let mut chunk = Chunk::new();
-                    Terrain::gen_surface_terrain(&chunk_index, &mut chunk, &noise_config.lock().unwrap());
-                    new_chunks.push((chunk_index.clone(), chunk));
+                {
+                    let terrain = terrain_gen.read().unwrap();
+                    let chunks_to_generate = terrain.get_indices_to_generate(chunk_render_distance, 200, &player_chunk);
+                    println!("Player is at chunk {:?}, generating {} chunks", player_chunk, chunks_to_generate.len());
+                    for chunk in chunks_to_generate {
+                        chunk_update_list_gen.write().unwrap().push(chunk);
+                    }
                 }
 
-                for (chunk_index, chunk) in new_chunks {
-                    terrain.write().unwrap().insert_chunk(chunk_index, chunk);
-                }       
+                // Sleep the thread for a bit then try again if no chunks need to generate
+                if chunk_update_list_gen.read().unwrap().is_empty() {
+                    std::thread::sleep(Duration::from_millis(100));
+                    continue;
+                }
+                
+                // Generate data for the new chunks that are in range
+                for chunk_index in chunk_update_list_gen.read().unwrap().iter() {
+                    let mut chunk = Chunk::new();
+                    Terrain::gen_surface_terrain(&chunk_index, &mut chunk, &noise_config_gen.read().unwrap());
+                    {
+                        terrain_gen.write().unwrap().insert_chunk(chunk_index.clone(), chunk);
+                    }
+                }
+
+                std::thread::sleep(Duration::from_millis(1));
             }
         });
-    }
 
-    /*pub fn start_physics_thread(&self) {
-        let engine_physics = self.engine.clone();
+        let terrain_draw = self.terrain.clone();
+        let gl_resources_draw = self.gl_resources.clone();
+        let chunk_update_list_draw = chunk_update_list.clone();
         std::thread::spawn(move || {
-            let mut last_time = Instant::now();
             loop {
-                let cur_time = Instant::now();
-                let delta_time = cur_time - last_time;
-                last_time = cur_time;
-                {
-                    engine_physics.lock().unwrap().update(delta_time.as_secs_f32());
+                if let Some(chunk_index) = chunk_update_list_draw.write().unwrap().pop() {
+                    terrain_draw.write().unwrap().update_chunk_mesh(&chunk_index, &mut gl_resources_draw.write().unwrap());
                 }
                 std::thread::sleep(Duration::from_millis(1));
             }
         });
-    }*/
+    }
 
     pub fn init_gl(&mut self, width: i32, height: i32) {
 
@@ -327,7 +337,7 @@ impl Engine {
         }
 
         {
-            self.terrain.write().unwrap().init_gl_resources(&mut self.gl_resources.lock().unwrap());
+            self.terrain.write().unwrap().init_gl_resources(&mut self.gl_resources.write().unwrap());
         }
 
         unsafe {
@@ -337,13 +347,13 @@ impl Engine {
     }
 
     pub fn reset_gl_resources(&mut self) {
-        self.gl_resources.lock().unwrap().invalidate_resources();
+        self.gl_resources.write().unwrap().invalidate_resources();
     }
 
     pub fn draw(&mut self) {
         let player = self.player.read().unwrap();
         let terrain = self.terrain.read().unwrap();
-        let mut gl_resources = self.gl_resources.lock().unwrap();
+        
 
         unsafe {
             gl::Viewport(0, 0, self.width, self.height);
@@ -351,7 +361,11 @@ impl Engine {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        gl_resources.process_buffer_updates();
+        {
+            self.gl_resources.write().unwrap().process_buffer_updates(2);
+        }
+
+        let mut gl_resources = self.gl_resources.read().unwrap();
 
         let perspective_matrix = perspective_matrix(self.width, self.height);
         let view_matrix = player.camera_view_matrix();

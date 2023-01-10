@@ -1,5 +1,7 @@
 use cgmath::Vector3;
 
+use super::BlockIndex;
+
 pub(crate) const CHUNK_SIZE: usize = 16;
 
 pub(crate) type BlockDataArray = [[[usize; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE];
@@ -18,7 +20,7 @@ impl Chunk {
         }
     }
 
-    pub fn block_at_chunk_pos(&self, position: &Vector3<usize>) -> usize {
+    pub fn block_in_chunk(&self, position: &BlockIndex) -> usize {
         self.blocks[position.x][position.y][position.z] as usize
     }
 }

@@ -52,7 +52,7 @@ impl GLRenderable for ItemDrop {
         gl_resources.update_buffer(name, verts);
     }
 
-    fn draw(&self, gl_resources: &mut GLResources, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32) {
+    fn draw(&self, gl_resources: &GLResources, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32) {
         let scale_matrix = Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
         let rotation = Quaternion::from_angle_x(Deg(self.rotation.x)) * Quaternion::from_angle_y(Deg(self.rotation.y)) * Quaternion::from_angle_z(Deg(self.rotation.z));
         let rotation_matrix = Matrix4::from(rotation);

@@ -31,7 +31,7 @@ impl Terrain {
     pub fn block_at_world_pos(&self, world_pos: &BlockWorldPos) -> usize {
         let (chunk_index, block_index) = Terrain::chunk_and_block_index(world_pos);
         if let Some(chunk) = self.chunks.get(&chunk_index) {
-            chunk.block_at_chunk_pos(&block_index)
+            chunk.block_in_chunk(&block_index)
         } else {
             0
         }
@@ -60,35 +60,14 @@ impl Terrain {
             new_chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
             self.chunks.insert(chunk_index, new_chunk);
         }
-        if let Some(chunk_vertices) = self.generate_chunk_mesh(&chunk_index) {
+        if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
             let name = format!("chunk_{}_{}_{}", chunk_index.x, chunk_index.y, chunk_index.z);
             gl_resources.update_buffer(name, chunk_vertices);
         }
     }
 
-    pub fn build_all_chunk_vertices(&self, render_distance: isize, player_position: Vector3<f32>) -> Vec<(ChunkIndex, Vec<Vertex3D>)> {
-        let player_world_pos = Vector3::new(
-            player_position.x as isize,
-            player_position.y as isize,
-            player_position.z as isize,
-        );
-        let (chunk_idx, _block_idx) = Terrain::chunk_and_block_index(&player_world_pos);
-        let mut vertex_list = Vec::new();
 
-        for x in chunk_idx.x-render_distance ..= chunk_idx.x+render_distance {
-            for y in chunk_idx.y-render_distance ..= chunk_idx.y+render_distance {
-                for z in chunk_idx.z-render_distance ..= chunk_idx.z+render_distance {
-                    let chunk_index = Vector3::new(x, y, z);
-                    if let Some(verts) = self.generate_chunk_mesh(&chunk_index) {
-                        vertex_list.push((chunk_index, verts))
-                    }
-                }
-            }
-        }
-        vertex_list
-    }
-
-    fn generate_chunk_mesh(&self, chunk_index: &ChunkIndex) -> Option<Vec<Vertex3D>>{
+    pub(crate) fn generate_chunk_vertices(&self, chunk_index: &ChunkIndex) -> Option<Vec<Vertex3D>>{
         if let Some(chunk) = self.chunks.get(&chunk_index) {
             let x_pos = self.chunks.get(&(chunk_index + Vector3::new(1, 0, 0)));
             let x_neg = self.chunks.get(&(chunk_index + Vector3::new(-1, 0, 0)));
@@ -96,194 +75,174 @@ impl Terrain {
             let y_neg = self.chunks.get(&(chunk_index + Vector3::new(0, -1, 0)));
             let z_pos = self.chunks.get(&(chunk_index + Vector3::new(0, 0, 1)));
             let z_neg = self.chunks.get(&(chunk_index + Vector3::new(0, 0, -1)));
-            Terrain::generate_chunk_verts(
-                chunk,
-                x_pos,
-                x_neg,
-                y_pos,
-                y_neg,
-                z_pos,
-                z_neg,
-            )
-        } else {
-            None
-        }
-    }
-
-    fn generate_chunk_verts(
-        chunk: &Chunk,
-        x_pos: Option<&Chunk>,
-        x_neg: Option<&Chunk>,
-        y_pos: Option<&Chunk>,
-        y_neg: Option<&Chunk>,
-        z_pos: Option<&Chunk>, 
-        z_neg: Option<&Chunk>,
-    ) -> Option<Vec<Vertex3D>> {
-        let mut vertices = Vec::new();
-
-        for x in 0..CHUNK_SIZE {
-            for y in 0..CHUNK_SIZE {
-                for z in 0..CHUNK_SIZE {
-                    let i = chunk.blocks[x][y][z] as usize;
-                    if i == 0 {
-                        continue;
-                    }
-                    let cur = &block::BLOCKS[i];
-                    let tex_coords:[(f32, f32);  6] = if let Some(texture_type) = &cur.texture_map {
-                        let mut coords = [(0.0f32, 0.0f32); 6];
-                        match texture_type {
-                            block::TextureType::Single(x, y) => {
-                                for i in 0..6 {
-                                    coords[i] = (*x, *y)
-                                }
-                            },
-                            block::TextureType::TopAndSide((x_top, y_top), (x_side, y_side)) => {
-                                coords[0] = (*x_side, *y_side);
-                                coords[1] = (*x_side, *y_side);
-                                coords[2] = (*x_top, *y_top);
-                                coords[3] = (*x_side, *y_side);
-                                coords[4] = (*x_side, *y_side);
-                                coords[5] = (*x_side, *y_side);
-                            },
-                            block::TextureType::TopSideBottom((x_top, y_top), (x_side, y_side), (x_bottom, y_bottom)) => {
-                                coords[0] = (*x_side, *y_side);
-                                coords[1] = (*x_side, *y_side);
-                                coords[2] = (*x_top, *y_top);
-                                coords[3] = (*x_bottom, *y_bottom);
-                                coords[4] = (*x_side, *y_side);
-                                coords[5] = (*x_side, *y_side);
-                            },
-                            block::TextureType::TopSideFrontActivatable(
-                                (x_front_inactive, y_front_inactive),
-                                (x_front_active, y_front_active),
-                                (x_side, y_side),
-                                (x_top, y_top)
-                            ) => {
-                                coords[0] = (*x_side, *y_side);
-                                coords[1] = (*x_side, *y_side);
-                                coords[2] = (*x_top, *y_top);
-                                coords[3] = (*x_top, *y_top);
-                                coords[4] = (*x_side, *y_side);
-                                let active = chunk.metadata[x][y][z] == 1;
-                                coords[5] = if active {
-                                    (*x_front_active, *y_front_active)
-                                    } else {
-                                        (*x_front_inactive, *y_front_inactive)
-                                    };
-                            }
+            
+            let mut vertices = Vec::new();
+            for x in 0..CHUNK_SIZE {
+                for y in 0..CHUNK_SIZE {
+                    for z in 0..CHUNK_SIZE {
+                        let i = chunk.blocks[x][y][z] as usize;
+                        if i == 0 {
+                            continue;
                         }
-                        coords
-                    } else {
-                        [(0.0, 0.0); 6]
-                    };
-
-                    let position = [x as f32, y as f32, z as f32];
-                    let vertex_type = cur.block_type as i32;
-                    match cur.mesh_type {
-                        MeshType::Block => {
-                            let x_right_adjacent = if x < CHUNK_SIZE-1 {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x+1, y, z))])
-                            } else if let Some(chunk) = x_pos {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(0, y, z))])
-                            } else {
-                                None
-                            };
-                            if let Some(adjacent_block) = x_right_adjacent {
-                                if adjacent_block.transparent {
-                                    push_face(&position, 0, &mut vertices, &tex_coords[0], vertex_type);
+                        let cur = &block::BLOCKS[i];
+                        let tex_coords:[(f32, f32);  6] = if let Some(texture_type) = &cur.texture_map {
+                            let mut coords = [(0.0f32, 0.0f32); 6];
+                            match texture_type {
+                                block::TextureType::Single(x, y) => {
+                                    for i in 0..6 {
+                                        coords[i] = (*x, *y)
+                                    }
+                                },
+                                block::TextureType::TopAndSide((x_top, y_top), (x_side, y_side)) => {
+                                    coords[0] = (*x_side, *y_side);
+                                    coords[1] = (*x_side, *y_side);
+                                    coords[2] = (*x_top, *y_top);
+                                    coords[3] = (*x_side, *y_side);
+                                    coords[4] = (*x_side, *y_side);
+                                    coords[5] = (*x_side, *y_side);
+                                },
+                                block::TextureType::TopSideBottom((x_top, y_top), (x_side, y_side), (x_bottom, y_bottom)) => {
+                                    coords[0] = (*x_side, *y_side);
+                                    coords[1] = (*x_side, *y_side);
+                                    coords[2] = (*x_top, *y_top);
+                                    coords[3] = (*x_bottom, *y_bottom);
+                                    coords[4] = (*x_side, *y_side);
+                                    coords[5] = (*x_side, *y_side);
+                                },
+                                block::TextureType::TopSideFrontActivatable(
+                                    (x_front_inactive, y_front_inactive),
+                                    (x_front_active, y_front_active),
+                                    (x_side, y_side),
+                                    (x_top, y_top)
+                                ) => {
+                                    coords[0] = (*x_side, *y_side);
+                                    coords[1] = (*x_side, *y_side);
+                                    coords[2] = (*x_top, *y_top);
+                                    coords[3] = (*x_top, *y_top);
+                                    coords[4] = (*x_side, *y_side);
+                                    let active = chunk.metadata[x][y][z] == 1;
+                                    coords[5] = if active {
+                                        (*x_front_active, *y_front_active)
+                                        } else {
+                                            (*x_front_inactive, *y_front_inactive)
+                                        };
                                 }
                             }
-
-                            let x_left_adjacent = if x > 0 {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x-1, y, z))])
-                            } else if let Some(chunk) = x_neg {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(CHUNK_SIZE-1, y, z))])
-                            } else {
-                                None
-                            };
-                            if let Some(adjacent_block) = x_left_adjacent {
-                                if adjacent_block.transparent {
-                                    push_face(&position, 1, &mut vertices, &tex_coords[1], vertex_type);
-                                }
-                            }
-
+                            coords
+                        } else {
+                            [(0.0, 0.0); 6]
+                        };
     
-                            let y_top_adjacent = if y < CHUNK_SIZE-1 {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x, y+1, z))])
-                            } else if let Some(chunk) = y_pos {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x,0, z))])
-                            } else {
-                                None
-                            };
-                            if let Some(adjacent_block) = y_top_adjacent {
-                                if adjacent_block.transparent {
-                                    push_face(&position, 2, &mut vertices, &tex_coords[2], vertex_type);
+                        let position = [x as f32, y as f32, z as f32];
+                        let vertex_type = cur.block_type as i32;
+                        match cur.mesh_type {
+                            MeshType::Block => {
+                                let x_right_adjacent = if x < CHUNK_SIZE-1 {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x+1, y, z))])
+                                } else if let Some(chunk) = x_pos {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(0, y, z))])
+                                } else {
+                                    None
+                                };
+                                if let Some(adjacent_block) = x_right_adjacent {
+                                    if adjacent_block.transparent {
+                                        push_face(&position, 0, &mut vertices, &tex_coords[0], vertex_type);
+                                    }
                                 }
-                            }
     
-                            let y_bottom_adjacent = if y > 0 {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x, y-1, z))])
-                            } else if let Some(chunk) = y_neg {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x,CHUNK_SIZE-1, z))])
-                            } else {
-                                None
-                            };
-                            if let Some(adjacent_block) = y_bottom_adjacent {
-                                if adjacent_block.transparent {
-                                    push_face(&position, 3, &mut vertices, &tex_coords[3], vertex_type);
+                                let x_left_adjacent = if x > 0 {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x-1, y, z))])
+                                } else if let Some(chunk) = x_neg {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(CHUNK_SIZE-1, y, z))])
+                                } else {
+                                    None
+                                };
+                                if let Some(adjacent_block) = x_left_adjacent {
+                                    if adjacent_block.transparent {
+                                        push_face(&position, 1, &mut vertices, &tex_coords[1], vertex_type);
+                                    }
+                                }
+    
+        
+                                let y_top_adjacent = if y < CHUNK_SIZE-1 {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y+1, z))])
+                                } else if let Some(chunk) = y_pos {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x,0, z))])
+                                } else {
+                                    None
+                                };
+                                if let Some(adjacent_block) = y_top_adjacent {
+                                    if adjacent_block.transparent {
+                                        push_face(&position, 2, &mut vertices, &tex_coords[2], vertex_type);
+                                    }
+                                }
+        
+                                let y_bottom_adjacent = if y > 0 {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y-1, z))])
+                                } else if let Some(chunk) = y_neg {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x,CHUNK_SIZE-1, z))])
+                                } else {
+                                    None
+                                };
+                                if let Some(adjacent_block) = y_bottom_adjacent {
+                                    if adjacent_block.transparent {
+                                        push_face(&position, 3, &mut vertices, &tex_coords[3], vertex_type);
+                                    }
+                                }
+    
+                                let z_back_adjacent = if z < CHUNK_SIZE-1 {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, z+1))])
+                                } else if let Some(chunk) = z_pos {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, 0))])
+                                } else {
+                                    None
+                                };
+                                if let Some(adjacent_block) = z_back_adjacent {
+                                    if adjacent_block.transparent {
+                                        push_face(&position, 4, &mut vertices, &tex_coords[4], vertex_type);
+                                    }
+                                }
+    
+    
+                                let z_front_adjacent = if z > 0 {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, z-1))])
+                                } else if let Some(chunk) = z_neg {
+                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, CHUNK_SIZE-1))])
+                                } else {
+                                    None
+                                };
+                                if let Some(adjacent_block) = z_front_adjacent {
+                                    if adjacent_block.transparent {
+                                        push_face(&position, 5, &mut vertices, &tex_coords[5], vertex_type);
+                                    }
                                 }
                             }
-
-                            let z_back_adjacent = if z < CHUNK_SIZE-1 {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x, y, z+1))])
-                            } else if let Some(chunk) = z_pos {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x, y, 0))])
-                            } else {
-                                None
-                            };
-                            if let Some(adjacent_block) = z_back_adjacent {
-                                if adjacent_block.transparent {
-                                    push_face(&position, 4, &mut vertices, &tex_coords[4], vertex_type);
-                                }
-                            }
-
-
-                            let z_front_adjacent = if z > 0 {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x, y, z-1))])
-                            } else if let Some(chunk) = z_neg {
-                                Some(BLOCKS[chunk.block_at_chunk_pos(&Vector3::new(x, y, CHUNK_SIZE-1))])
-                            } else {
-                                None
-                            };
-                            if let Some(adjacent_block) = z_front_adjacent {
-                                if adjacent_block.transparent {
-                                    push_face(&position, 5, &mut vertices, &tex_coords[5], vertex_type);
-                                }
+                            MeshType::CrossedPlanes => {
+                                push_face(&position, 6, &mut vertices, &tex_coords[0], vertex_type);
+                                push_face(&position, 7, &mut vertices, &tex_coords[0], vertex_type);
+                                push_face(&position, 8, &mut vertices, &tex_coords[0], vertex_type);
+                                push_face(&position, 9, &mut vertices, &tex_coords[0], vertex_type);
                             }
                         }
-                        MeshType::CrossedPlanes => {
-                            push_face(&position, 6, &mut vertices, &tex_coords[0], vertex_type);
-                            push_face(&position, 7, &mut vertices, &tex_coords[0], vertex_type);
-                            push_face(&position, 8, &mut vertices, &tex_coords[0], vertex_type);
-                            push_face(&position, 9, &mut vertices, &tex_coords[0], vertex_type);
-                        }
+                        
                     }
-                    
                 }
             }
-        }
-            
-        if vertices.is_empty() {
-            None
+                
+            if vertices.is_empty() {
+                None
+            } else {
+                Some(vertices)
+            }
         } else {
-            Some(vertices)
+            None
         }
     }
 
     pub fn collision_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
         let (chunk_index, block_index) = Terrain::chunk_and_block_index(world_pos);
         if let Some(chunk) = self.chunks.get(&chunk_index) {
-            if chunk.block_at_chunk_pos(&block_index) != 0 {
+            if chunk.block_in_chunk(&block_index) != 0 {
                 true
             } else {
                 false
@@ -351,7 +310,7 @@ impl Terrain {
 
     pub(crate) fn update_single_chunk_mesh(&mut self, chunk_index: &ChunkIndex, gl_resources: &mut GLResources) {
         if let Some(_) = self.chunks.get(chunk_index) {
-            if let Some(chunk_vertices) = self.generate_chunk_mesh(&chunk_index) {
+            if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
                 let name = format!("chunk_{}_{}_{}", chunk_index.x, chunk_index.y, chunk_index.z);
                 gl_resources.update_buffer(name, chunk_vertices);
             }
@@ -436,20 +395,34 @@ impl Terrain {
         }
     }*/
 
-    pub fn get_needed_update_indices(&self, radius: isize, center_chunk: &ChunkIndex) -> Vec<ChunkIndex> {
-        let mut needs_update = Vec::new();
-        for x in -radius..=radius {
+    pub fn get_indices_to_generate(&self, radius: isize, max: usize, center_chunk: &ChunkIndex) -> Vec<ChunkIndex> {
+        let mut needs_generation = Vec::new();
+        let mut i = 0;
+        for x in 0..=radius {
             for y in -radius..=radius {
-                for z in -radius..=radius {
-                    let chunk_index = center_chunk + Vector3::new(x, y, z);
-                    if self.chunks.get(&chunk_index).is_none() {
-                        needs_update.push(chunk_index);
+                for z in 0..=radius {
+                    let chunk_index_pos = center_chunk + Vector3::new(x, y, z);
+                    if self.chunks.get(&chunk_index_pos).is_none() {
+                        needs_generation.push(chunk_index_pos);
+                        i += 1;
+                        if i == max {
+                            return needs_generation
+                        }
                     }
                     
+                    let chunk_index_neg = center_chunk + Vector3::new(-x, y, -z);
+                    if self.chunks.get(&chunk_index_neg).is_none() {
+                        needs_generation.push(chunk_index_neg);
+                        i += 1;
+                        if i == max {
+                            return needs_generation
+                        }
+                    } 
                 }
             }
         }
-        needs_update
+        println!("terrain has {} ungenerated chunks in range", needs_generation.len());
+        needs_generation
     }
 
     pub fn insert_chunk(&mut self, chunk_index: ChunkIndex, chunk: Chunk) {
@@ -467,15 +440,9 @@ impl GLRenderable for Terrain {
         if gl_resources.get_texture("terrain").is_none() {
             gl_resources.create_texture("terrain", TERRAIN_BITMAP);
         }
-
-        let verts = self.build_all_chunk_vertices(5, Vector3::new(0.0, 0.0, 0.0));
-        for (chunk_index, chunk_verts) in verts {
-            let name = format!("chunk_{}_{}_{}", chunk_index.x, chunk_index.y, chunk_index.z);
-            gl_resources.create_buffer_from_verts(name, chunk_verts);
-        }
     }
 
-    fn draw(&self, gl_resources: &mut GLResources, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32) {
+    fn draw(&self, gl_resources: &GLResources, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32) {
         
         let shader = gl_resources.get_shader("terrain").unwrap();
         let texture = gl_resources.get_texture("terrain").unwrap();

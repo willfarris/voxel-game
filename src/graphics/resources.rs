@@ -49,13 +49,12 @@ impl GLResources {
         }
     }
 
-    pub fn get_buffer(&mut self, name: String) -> Option<&mut BufferObject<Vertex3D>> {
-        if let Some(buffer) = self.buffers.get_mut(name.as_str()) {
+    pub fn get_buffer(&self, name: String) -> Option<&BufferObject<Vertex3D>> {
+        if let Some(buffer) = self.buffers.get(name.as_str()) {
             if buffer.is_valid() {
                 Some(buffer)
             } else {
-                buffer.recreate_buffer();
-                Some(buffer)
+                None
             }
         } else {
             None
@@ -71,15 +70,17 @@ impl GLResources {
         self.buffer_update_queue.push((name, new_contents));
     }
 
-    pub fn process_buffer_updates(&mut self) {
-        while let Some((buffer_name, new_contents)) = self.buffer_update_queue.pop() {
-            if let Some(buffer) = self.buffers.get_mut(&buffer_name) {
-                buffer.update_buffer(new_contents);
-            }  else {
-                self.create_buffer_from_verts(buffer_name, new_contents);
+    pub fn process_buffer_updates(&mut self, num_per_frame: usize) {
+        for _ in 0..num_per_frame {
+            if let Some((buffer_name, new_contents)) = self.buffer_update_queue.pop() {
+                if let Some(buffer) = self.buffers.get_mut(&buffer_name) {
+                    buffer.update_buffer(new_contents);
+                }  else {
+                    self.create_buffer_from_verts(buffer_name, new_contents);
+                }
             }
         }
-        assert_eq!(self.buffer_update_queue.len(), 0);
+        //assert_eq!(self.buffer_update_queue.len(), 0);
     }
 
     pub fn invalidate_resources(&mut self) {
@@ -94,6 +95,6 @@ impl GLResources {
 
 pub trait GLRenderable {
     fn init_gl_resources(&self, gl_resources: &mut GLResources);
-    fn draw(&self, gl_resources: &mut GLResources, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32);
+    fn draw(&self, gl_resources: &GLResources, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32);
 }
 

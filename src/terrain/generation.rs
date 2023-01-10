@@ -28,8 +28,6 @@ impl Terrain {
             start_position.z.floor() as isize,
         );
         let (start_chunk_index, _block_index) = Terrain::chunk_and_block_index(&world_pos);
-        //self.noise_config.perlin.set_seed(seed.try_into().unwrap());
-
 
         for chunk_x in -chunk_radius..chunk_radius {
             for chunk_y in 0..chunk_radius {

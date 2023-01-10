@@ -41,7 +41,7 @@ impl Player {
             acceleration: Vector3::new(0f32, 0f32, 0f32),
             movement_delta: Vector3::new(0f32, 0f32, 0f32),
 
-            move_speed: 4.0,
+            move_speed: 32.0,
             running: false,
             grounded: false,
             walking: false,
@@ -90,7 +90,7 @@ impl PhysicsUpdate for Player {
     fn update_physics(&mut self, delta_time: f32) {
         self.camera.translate(self.position + self.height * Y_VECTOR);
         if !self.grounded {
-            self.acceleration.y = GRAVITY.y;
+            //self.acceleration.y = GRAVITY.y;
         }
 
         if !self.walking {
