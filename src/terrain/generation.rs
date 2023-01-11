@@ -58,37 +58,12 @@ impl Terrain {
                 for block_z in 0..CHUNK_SIZE {
                     let global_coords = chunk_index * 16 + Vector3::new(block_x as isize, block_y as isize, block_z as isize);
                     let surface = Self::surface_noise(global_coords.x as f64, global_coords.z as f64, noise_config).round() as isize;
-                    if global_coords.y == surface + 1 {
-                        match rand::random::<usize>()%100 {
-                            85..=99 => {
-                                let rand_val = rand::random::<usize>()%10;
-                                let block_id = match rand_val {
-                                    0..=6 => block_index_by_name("Short Grass"),
-                                    7 => block_index_by_name("Fern"),
-                                    8 => block_index_by_name("Rose"),
-                                    _ => block_index_by_name("Dandelion"),
-                                };
-                                chunk.blocks[block_x][block_y][block_z] = block_id;
-                            }
-                            40 => {
-                                //self.place_tree(Vector3::new(global_x, global_y+1, global_z))
-                            }
-                            _ => {
-                
-                            }
-                        }
-                    } else if global_coords.y == surface {
-                        chunk.blocks[block_x][block_y][block_z] = block_index_by_name("Grass");
-                    } else if global_coords.y < surface - 2 {
+                    if global_coords.y < surface {
                         chunk.blocks[block_x][block_y][block_z] = block_index_by_name("Stone");
-                    } else if global_coords.y < surface {
-                        chunk.blocks[block_x][block_y][block_z] = block_index_by_name("Dirt");
                     }
                 }
             }
         }
-
-        //Self::gen_foliage(chunk_index, chunk, noise_config);
     }
 
     fn gen_foliage(chunk_index: &ChunkIndex, chunk: &mut Chunk, noise_config: &NoiseConfig) {

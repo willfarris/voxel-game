@@ -66,7 +66,6 @@ impl Terrain {
         }
     }
 
-
     pub(crate) fn generate_chunk_vertices(&self, chunk_index: &ChunkIndex) -> Option<Vec<Vertex3D>>{
         if let Some(chunk) = self.chunks.get(&chunk_index) {
             let x_pos = self.chunks.get(&(chunk_index + Vector3::new(1, 0, 0)));
@@ -278,36 +277,6 @@ impl Terrain {
 
     }
 
-    pub(crate) fn get_adjacent_chunks(&self, chunk_index: &ChunkIndex) -> Vec<(ChunkIndex, &BlockDataArray)> {
-        let right_index = chunk_index + Vector3::new(1, 0, 0);
-        let left_index = chunk_index + Vector3::new(-1, 0, 0);
-        let up_index = chunk_index + Vector3::new(0, 1, 0);
-        let down_index = chunk_index + Vector3::new(0, -1, 0);
-        let front_index = chunk_index + Vector3::new(0, 0, 1);
-        let back_index = chunk_index + Vector3::new(0, 0, -1);
-
-        let mut existing_chunks: Vec<(ChunkIndex, &BlockDataArray)> = Vec::new();
-        if let Some(chunk) = self.chunks.get(&right_index) {
-            existing_chunks.push((right_index, &chunk.blocks));
-        }
-        if let Some(chunk) = self.chunks.get(&left_index) {
-            existing_chunks.push((left_index, &chunk.blocks));
-        }
-        if let Some(chunk) = self.chunks.get(&up_index) {
-            existing_chunks.push((up_index, &chunk.blocks));
-        }
-        if let Some(chunk) = self.chunks.get(&down_index) {
-            existing_chunks.push((down_index, &chunk.blocks));
-        }
-        if let Some(chunk) = self.chunks.get(&front_index) {
-            existing_chunks.push((front_index, &chunk.blocks));
-        }
-        if let Some(chunk) = self.chunks.get(&back_index) {
-            existing_chunks.push((back_index, &chunk.blocks));
-        }
-        existing_chunks
-    }
-
     pub(crate) fn update_single_chunk_mesh(&mut self, chunk_index: &ChunkIndex, gl_resources: &mut GLResources) {
         if let Some(_) = self.chunks.get(chunk_index) {
             if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
@@ -334,73 +303,12 @@ impl Terrain {
         self.update_single_chunk_mesh(&back_index, gl_resources);
     }
 
-    /*pub(crate) fn update_chunk_mesh(&mut self, update_all: bool, chunk_index: &ChunkIndex, block_index: &BlockIndex, gl_resources: &mut GLResources) {
-        if let Some(chunk_vertices) = self.generate_chunk_mesh(&chunk_index) {
-            let name = format!("chunk_{}_{}_{}", chunk_index.x, chunk_index.y, chunk_index.z);
-            gl_resources.update_buffer(name, chunk_vertices);
-        }
-
-        if block_index.x == 0 || update_all {
-            let adjacent_chunk_index = chunk_index - Vector3::new(1, 0, 0);
-            if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
-                if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
-                    let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
-                    gl_resources.update_buffer(name, adjacent_chunk_vertices);
-                }
-            }
-        } else if block_index.x == CHUNK_SIZE-1 || update_all {
-            let adjacent_chunk_index = chunk_index + Vector3::new(1, 0, 0);
-            if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
-                if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
-                    let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
-                    gl_resources.update_buffer(name, adjacent_chunk_vertices);
-                }
-            }
-        }
-
-        if block_index.y == 0 || update_all  {
-            let adjacent_chunk_index = chunk_index - Vector3::new(0, 1, 0);
-            if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
-                if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
-                    let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
-                    gl_resources.update_buffer(name, adjacent_chunk_vertices);
-                }
-            }
-        } else if block_index.y == CHUNK_SIZE-1 || update_all  {
-            let adjacent_chunk_index = chunk_index + Vector3::new(0, 1, 0);
-            if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
-                if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
-                    let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
-                    gl_resources.update_buffer(name, adjacent_chunk_vertices);
-                }
-            }
-        }
-
-        if block_index.z == 0 || update_all  {
-            let adjacent_chunk_index = chunk_index - Vector3::new(0, 0, 1);
-            if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
-                if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
-                    let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
-                    gl_resources.update_buffer(name, adjacent_chunk_vertices);
-                }
-            }
-        } else if block_index.z == CHUNK_SIZE-1 || update_all  {
-            let adjacent_chunk_index = chunk_index + Vector3::new(0, 0, 1);
-            if let Some(_) = self.chunks.get(&adjacent_chunk_index) {
-                if let Some(adjacent_chunk_vertices) = self.generate_chunk_mesh(&adjacent_chunk_index) {
-                    let name = format!("chunk_{}_{}_{}", adjacent_chunk_index.x, adjacent_chunk_index.y, adjacent_chunk_index.z);
-                    gl_resources.update_buffer(name, adjacent_chunk_vertices);
-                }
-            }
-        }
-    }*/
-
     pub fn get_indices_to_generate(&self, radius: isize, max: usize, center_chunk: &ChunkIndex) -> Vec<ChunkIndex> {
         let mut needs_generation = Vec::new();
         let mut i = 0;
-        for x in 0..=radius {
+        for x in -radius..=radius {
             for y in -radius..=radius {
-                for z in 0..=radius {
+                for z in -radius..=radius {
                     let chunk_index_pos = center_chunk + Vector3::new(x, y, z);
                     if self.chunks.get(&chunk_index_pos).is_none() {
                         needs_generation.push(chunk_index_pos);
@@ -409,19 +317,9 @@ impl Terrain {
                             return needs_generation
                         }
                     }
-                    
-                    let chunk_index_neg = center_chunk + Vector3::new(-x, y, -z);
-                    if self.chunks.get(&chunk_index_neg).is_none() {
-                        needs_generation.push(chunk_index_neg);
-                        i += 1;
-                        if i == max {
-                            return needs_generation
-                        }
-                    } 
                 }
             }
         }
-        println!("terrain has {} ungenerated chunks in range", needs_generation.len());
         needs_generation
     }
 

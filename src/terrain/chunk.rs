@@ -1,8 +1,10 @@
 use cgmath::Vector3;
 
-use super::BlockIndex;
+use super::{BlockIndex, block::Block};
 
 pub(crate) const CHUNK_SIZE: usize = 16;
+pub(crate) const CHUNK_WIDTH: usize = 16;
+pub(crate) const CHUNK_HEIGHT: usize = 256;
 
 pub(crate) type BlockDataArray = [[[usize; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE];
 
