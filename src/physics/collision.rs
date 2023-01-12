@@ -16,7 +16,7 @@ pub fn check_world_collision_axis(axis: Vec3Direction, bounding_box: Rect3, worl
     for block_x in (bounding_box.pos.x.floor() as isize - 1) ..= ((bounding_box.pos.x + bounding_box.size.x).floor() as isize + 1) {
         for block_y in (bounding_box.pos.y.floor() as isize - 1) ..= ((bounding_box.pos.y + bounding_box.size.y).floor() as isize + 2) {
             for block_z in (bounding_box.pos.z.floor() as isize - 1) ..= ((bounding_box.pos.z + bounding_box.size.z).floor() as isize + 1) {
-                if !BLOCKS[world.block_at_world_pos(&BlockWorldPos::new(block_x, block_y, block_z))].solid {
+                if !world.solid_block_at_world_pos(&BlockWorldPos::new(block_x, block_y, block_z)) {
                     continue;
                 }
                 let block_bounding_box = Rect3 {

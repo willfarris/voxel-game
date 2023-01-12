@@ -2,11 +2,11 @@ use cgmath::Vector3;
 
 use super::{BlockIndex, block::Block};
 
-pub(crate) const CHUNK_SIZE: usize = 16;
+//pub(crate) const CHUNK_SIZE: usize = 16;
 pub(crate) const CHUNK_WIDTH: usize = 16;
-pub(crate) const CHUNK_HEIGHT: usize = 256;
+pub(crate) const CHUNK_HEIGHT: usize = 32;
 
-pub(crate) type BlockDataArray = [[[usize; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE];
+pub(crate) type BlockDataArray = [[[usize; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
 
 #[derive(Clone)]
 pub struct Chunk {
@@ -17,8 +17,8 @@ pub struct Chunk {
 impl Chunk {
     pub fn new() -> Self {
         Self {
-            blocks: [[[0; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE],
-            metadata: [[[0; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE],
+            blocks: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
+            metadata: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
         }
     }
 

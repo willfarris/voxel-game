@@ -90,7 +90,7 @@ impl PhysicsUpdate for Player {
     fn update_physics(&mut self, delta_time: f32) {
         self.camera.translate(self.position + self.height * Y_VECTOR);
         if !self.grounded {
-            //self.acceleration.y = GRAVITY.y;
+            self.acceleration.y = GRAVITY.y;
         }
 
         if !self.walking {

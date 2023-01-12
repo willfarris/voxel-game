@@ -23,7 +23,7 @@ use entity::EntityTrait;
 use noise::Perlin;
 use physics::{vectormath::{Z_VECTOR, Vec3Direction, self}, collision::{Collider, check_world_collision_axis, check_collision_axis}, physics_update::PhysicsUpdate};
 use player::{Player, camera::perspective_matrix};
-use terrain::{Terrain, block::BLOCKS, chunk::Chunk, ChunkIndex, generation::NoiseConfig};
+use terrain::{Terrain, block::BLOCKS, chunk::{Chunk, CHUNK_WIDTH}, ChunkIndex, generation::NoiseConfig, BlockWorldPos};
 use graphics::{resources::{GLRenderable, GLResources}, mesh::block_drop_vertices};
 
 pub use physics::vectormath::q_rsqrt;
@@ -258,13 +258,10 @@ impl Engine {
                 let player_chunk = {
                     let player = player_gen.read().unwrap();
                     let player_position = player.position;
-                    let player_world_pos = Vector3::new(
-                        player_position.x.floor() as isize,
-                        player_position.y.floor() as isize,
-                        player_position.z.floor() as isize,
-                    );
-                    let (player_chunk_index, _block_index) = Terrain::chunk_and_block_index(&player_world_pos);
-                    player_chunk_index
+                    ChunkIndex::new(
+                        player_position.x.floor() as isize / CHUNK_WIDTH as isize,
+                        player_position.z.floor() as isize / CHUNK_WIDTH as isize,
+                    )
                 };
 
                 let chunk_update_list = {
@@ -293,20 +290,16 @@ impl Engine {
                     let mut terrain = terrain_gen.write().unwrap();
                     let mut gl_resources = gl_resources_gen.write().unwrap();
 
-                    let right_index = chunk_index + Vector3::new(1, 0, 0);
-                    let left_index = chunk_index + Vector3::new(-1, 0, 0);
-                    let up_index = chunk_index + Vector3::new(0, 1, 0);
-                    let down_index = chunk_index + Vector3::new(0, -1, 0);
-                    let front_index = chunk_index + Vector3::new(0, 0, 1);
-                    let back_index = chunk_index + Vector3::new(0, 0, -1);
+                    let x_pos = chunk_index + ChunkIndex::new(1, 0);
+                    let x_neg = chunk_index + ChunkIndex::new(-1, 0);
+                    let z_pos = chunk_index + ChunkIndex::new(0, 1);
+                    let z_neg = chunk_index + ChunkIndex::new(0, -1);
 
                     terrain.update_single_chunk_mesh(chunk_index, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(&right_index, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(&left_index, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(&up_index, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(&down_index, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(&front_index, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(&back_index, &mut gl_resources);
+                    terrain.update_single_chunk_mesh(&x_pos, &mut gl_resources);
+                    terrain.update_single_chunk_mesh(&x_neg, &mut gl_resources);
+                    terrain.update_single_chunk_mesh(&z_pos, &mut gl_resources);
+                    terrain.update_single_chunk_mesh(&z_neg, &mut gl_resources);
                 }
             }
         });
