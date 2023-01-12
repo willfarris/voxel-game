@@ -15,7 +15,7 @@ fn main() {
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::OpenGlEs));
     glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
 
-    let mut voxel_game = Engine::new();
+    let mut voxel_game = Engine::default();
 
     let (mut window, events) = glfw.create_window(WIDTH as u32, HEIGHT as u32, "Voxel Game", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
 
