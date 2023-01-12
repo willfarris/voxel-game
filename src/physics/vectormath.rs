@@ -5,7 +5,7 @@ pub const X_VECTOR: Vector3<f32> = Vector3::new(1.0, 0.0, 0.0);
 pub const Y_VECTOR: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0);
 pub const Z_VECTOR: Vector3<f32> = Vector3::new(0.0, 0.0, 1.0);
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum Vec3Direction {
     X,
     Y,
@@ -21,11 +21,11 @@ pub fn quaternion_rotate(vec: Vector3<f32>, angle: f32, axis: Vector3<f32>) -> V
 pub fn q_rsqrt(number: f32)  -> f32 {
     let x2 = number * 0.5f32;
     let threehalfs = 1.5f32;
-    let mut i: u32 = unsafe { std::mem::transmute(number) };
+    let mut i: u32 = number.to_bits();
     i = 0x5f375a86 - (i >> 1);
-    let mut y: f32 = unsafe {std::mem::transmute(i) };
+    let mut y: f32 = f32::from_bits(i);
     y = y * ( threehalfs - (x2 * y * y ) );
-    return y;
+    y
 }
 
 pub fn dda(world: &Terrain, start: &Vector3<f32>, dir: &Vector3<f32>, max_dist: f32) -> Option<(Vector3<f32>, BlockWorldPos)> {

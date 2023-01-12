@@ -1,5 +1,5 @@
 use std::sync::{Mutex, Arc};
-use std::time::{Instant, Duration};
+use std::time::Duration;
 
 use glfw::Context;
 use voxel::{Engine, PlayerInput};

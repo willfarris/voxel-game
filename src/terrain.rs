@@ -1,11 +1,10 @@
-use std::collections::{HashMap, LinkedList};
+use std::collections::HashMap;
 
-use cgmath::{Vector3, Matrix4, Vector2, Zero};
-use noise::Perlin;
+use cgmath::{Vector3, Matrix4, Vector2};
 
-use crate::{graphics::{shader::Shader, texture::Texture, resources::{GLRenderable, GLResources}, vertex::Vertex3D, mesh::{push_face, block_drop_vertices}, source::{TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, TERRAIN_BITMAP}}, item::drop::ItemDrop};
+use crate::{graphics::{resources::{GLRenderable, GLResources}, vertex::Vertex3D, mesh::push_face, source::{TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, TERRAIN_BITMAP}}, item::drop::ItemDrop};
 
-use self::{chunk::{Chunk, BlockDataArray, CHUNK_WIDTH, CHUNK_HEIGHT}, block::{BLOCKS, MeshType}, generation::NoiseConfig};
+use self::{chunk::{Chunk, CHUNK_WIDTH, CHUNK_HEIGHT}, block::{BLOCKS, MeshType}};
 
 pub(crate) mod chunk;
 pub(crate) mod block;
@@ -48,7 +47,7 @@ impl Terrain {
             };
             let block_index = Vector3 {
                 x: (world_pos.x.rem_euclid(CHUNK_WIDTH as isize)) as usize,
-                y: (world_pos.y.rem_euclid(256 as isize)) as usize,
+                y: (world_pos.y.rem_euclid(CHUNK_HEIGHT as isize)) as usize,
                 z: (world_pos.z.rem_euclid(CHUNK_WIDTH as isize)) as usize,
             };
             Some((chunk_index, block_index))
@@ -56,7 +55,7 @@ impl Terrain {
     }
 
     pub fn place_block(&mut self, block_id: usize, world_pos: &BlockWorldPos, gl_resources: &mut GLResources) {
-        if let Some((chunk_index, block_idx)) = Terrain::chunk_and_block_index(&world_pos) {
+        if let Some((chunk_index, block_idx)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
                 chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
             } else {
@@ -72,7 +71,7 @@ impl Terrain {
     }
 
     pub(crate) fn generate_chunk_vertices(&self, chunk_index: &ChunkIndex) -> Option<Vec<Vertex3D>>{
-        if let Some(chunk) = self.chunks.get(&chunk_index) {
+        if let Some(chunk) = self.chunks.get(chunk_index) {
             let x_pos = self.chunks.get(&(chunk_index + ChunkIndex::new(1, 0)));
             let x_neg = self.chunks.get(&(chunk_index + ChunkIndex::new(-1, 0)));
             let z_pos = self.chunks.get(&(chunk_index + ChunkIndex::new(0, 1)));
@@ -244,11 +243,7 @@ impl Terrain {
     pub fn collision_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.get(&chunk_index) {
-                if chunk.block_in_chunk(&block_index) != 0 {
-                    true
-                } else {
-                    false
-                }
+                chunk.block_in_chunk(&block_index) != 0
             } else {
                 false
             }
@@ -286,8 +281,8 @@ impl Terrain {
     }
 
     pub(crate) fn update_single_chunk_mesh(&mut self, chunk_index: &ChunkIndex, gl_resources: &mut GLResources) {
-        if let Some(_) = self.chunks.get(chunk_index) {
-            if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
+        if self.chunks.get(chunk_index).is_some() {
+            if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
                 gl_resources.update_buffer(name, chunk_vertices);
             }
@@ -359,7 +354,7 @@ impl GLRenderable for Terrain {
         shader.set_float(unsafe {c_str!("time")}, elapsed_time);
         shader.set_texture(unsafe {c_str!("texture_map")}, 0);
         
-        for (chunk_index, _chunk) in &self.chunks {
+        for chunk_index in self.chunks.keys() {
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
                 0f32,//(chunk_index.y * CHUNK_SIZE as isize) as f32,

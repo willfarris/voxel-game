@@ -42,11 +42,7 @@ impl GLResources {
     }
 
     pub fn get_shader(&self, key: &str) -> Option<Shader> {
-        if let Some(shader) = self.shaders.get(key) {
-            Some(shader.clone())
-        } else {
-            None
-        }
+        self.shaders.get(key).map(|shader| *shader)
     }
 
     pub fn get_buffer(&self, name: String) -> Option<&BufferObject<Vertex3D>> {

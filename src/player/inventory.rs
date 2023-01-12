@@ -40,7 +40,7 @@ impl Inventory {
         if let Some((id, quantity)) = &mut self.items[self.selected] {
             let id = *id;
             *quantity -= 1;
-            if *quantity <= 0 {
+            if *quantity == 0 {
                 self.items[self.selected] = None;
             }
             return Some(id)

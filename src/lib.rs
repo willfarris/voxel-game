@@ -48,10 +48,10 @@ pub struct EngineLock {
     engine: Mutex<Engine>,
 }
 
-impl EngineLock {
-    pub fn new() -> Self {
+impl Default for EngineLock {
+    fn default() -> Self {
         Self {
-            engine: Mutex::new(Engine::new()),
+            engine: Mutex::new(Engine::default()),
         }
     }
 }
@@ -71,8 +71,8 @@ pub struct Engine {
     gl_resources: Arc<RwLock<GLResources>>,
 }
 
-impl Engine {
-    pub fn new() -> Self {
+impl Default for Engine {
+    fn default() -> Self {
         let player = Box::new(Player::new(Vector3::new(0.0, 30.0, 0.0), Z_VECTOR));
         let terrain = Terrain::new();
         
@@ -103,7 +103,9 @@ impl Engine {
             gl_resources: Arc::new(RwLock::new(GLResources::new())),
         }
     }
+}
 
+impl Engine {
     pub fn update(&mut self, delta_time: f32) {
         if self.play_state == PlayState::Running {
 
@@ -158,8 +160,8 @@ impl Engine {
                     let input = self.input_queue.remove(0);
                     match input {
                         PlayerInput::Look(dx, dy) => {
-                            player.camera.rotate_on_x_axis(f32::from(dx));
-                            player.camera.rotate_on_y_axis(f32::from(dy));
+                            player.camera.rotate_on_x_axis(dx);
+                            player.camera.rotate_on_y_axis(dy);
                         },
                         PlayerInput::Walk(dx, dy, dz) => {
                             player.move_direction(Vector3::new(dx, dy, dz));
@@ -278,10 +280,10 @@ impl Engine {
                 // Generate data for the new chunks that are in range
                 for chunk_index in chunk_update_list.iter() {
                     let mut chunk = Box::new(Chunk::new());
-                    Terrain::gen_surface_terrain(&chunk_index, &mut chunk, &noise_config_gen.read().unwrap());
+                    Terrain::gen_surface_terrain(chunk_index, &mut chunk, &noise_config_gen.read().unwrap());
                     {
                         let mut terrain = terrain_gen.write().unwrap();
-                        terrain.insert_chunk(chunk_index.clone(), chunk);
+                        terrain.insert_chunk(*chunk_index, chunk);
                     }
                     std::thread::sleep(Duration::from_millis(1));
                 }
@@ -359,15 +361,15 @@ impl Engine {
             self.gl_resources.write().unwrap().process_buffer_updates(2);
         }
 
-        let mut gl_resources = self.gl_resources.read().unwrap();
+        let gl_resources = self.gl_resources.read().unwrap();
 
         let perspective_matrix = perspective_matrix(self.width, self.height);
         let view_matrix = player.camera_view_matrix();
 
-        terrain.draw(&mut gl_resources, perspective_matrix, view_matrix, self.elapsed_time);
+        terrain.draw(&gl_resources, perspective_matrix, view_matrix, self.elapsed_time);
 
         for entity in &self.entities {
-            entity.draw(&mut gl_resources, perspective_matrix, view_matrix, self.elapsed_time);
+            entity.draw(&gl_resources, perspective_matrix, view_matrix, self.elapsed_time);
         }
     }
 

@@ -7,7 +7,7 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_initEngineNative
     #[cfg(target_os = "android")] {
         android_log::init("VoxelTest").unwrap();
     }
-    Box::into_raw(Box::new(EngineLock::new())) as jlong
+    Box::into_raw(Box::new(EngineLock::default())) as jlong
 }
 
 
@@ -19,7 +19,7 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_initGLNative(_en
 
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_startTerrainThreadNative(_env: JNIEnv, _: JClass, ptr: jlong) {
-    let engine = (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
+    let mut engine = (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
     engine.start_terrain_thread();
 }
 
@@ -100,19 +100,19 @@ pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_breakBlockNative
 
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_placeBlockNative(_env: JNIEnv, _: JClass, ptr: jlong) {
-    let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
+    let _engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
     
 }
 
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_prevInventoryNative(_env: JNIEnv, _: JClass, ptr: jlong) {
-    let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
+    let _engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
 
 }
 
 #[no_mangle]
 pub unsafe extern fn Java_org_farriswheel_voxelgame_VoxelEngine_nextInventoryNative(_env: JNIEnv, _: JClass, ptr: jlong) {
-    let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
+    let _engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
     
 }
 

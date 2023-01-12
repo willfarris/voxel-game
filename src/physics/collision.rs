@@ -1,6 +1,6 @@
 use cgmath::Vector3;
 
-use crate::{terrain::{Terrain, block::BLOCKS, BlockWorldPos}, entity::EntityTrait};
+use crate::terrain::{Terrain, BlockWorldPos};
 
 use super::vectormath::Vec3Direction;
 

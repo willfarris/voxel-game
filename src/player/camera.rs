@@ -12,9 +12,8 @@ pub struct Camera {
 impl Camera {
     pub fn new(position: Vector3<f32>, direction: Vector3<f32>) -> Self {
         let n_direction = direction.normalize();
-        let p = position.clone();
         let mut s = Self {
-            position: p,
+            position,
             forward: n_direction,
             right: Vector3::new(0.0, 0.0, 0.0),
             up: Vector3::new(0.0, 0.0, 0.0),
@@ -63,7 +62,7 @@ impl Camera {
 pub fn perspective_matrix(width: i32, height: i32) -> Matrix4<f32> {
     let aspect_ratio = height as f32 / width as f32;
 
-    let fov: f32 = 3.141592 / 2.0;
+    let fov: f32 = std::f32::consts::PI / 2.0;
     let zfar = 256.0;
     let znear = 0.01;
 
