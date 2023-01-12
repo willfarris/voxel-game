@@ -1,6 +1,4 @@
-
-
-use super::{BlockIndex};
+use super::BlockIndex;
 
 pub(crate) const CHUNK_WIDTH: usize = 16;
 pub(crate) const CHUNK_HEIGHT: usize = 256;

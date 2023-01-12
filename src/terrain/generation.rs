@@ -18,16 +18,18 @@ pub struct NoiseConfig {
 impl Default for NoiseConfig {
     fn default() -> Self {
         let cont_keys = vec![
-            splines::Key::new(-1.0, 0.0, splines::Interpolation::Linear),
-            splines::Key::new(0.0, 3.0, splines::Interpolation::Linear),
-            splines::Key::new(0.1, 18.0, splines::Interpolation::Linear),
-            splines::Key::new(1.0, 20.0, splines::Interpolation::Linear),
+            splines::Key::new(f64::MIN, 1.0, splines::Interpolation::Linear),
+            splines::Key::new(-1.0, 1.0, splines::Interpolation::Linear),
+            splines::Key::new(0.7, 10.0, splines::Interpolation::Linear),
+            splines::Key::new(0.75, 29.0, splines::Interpolation::Linear),
+            splines::Key::new(1.0, 32.0, splines::Interpolation::Linear),
+            splines::Key::new(f64::MAX, 40.0, splines::Interpolation::Linear),
         ];
         let continentalness_spline = splines::Spline::from_vec(cont_keys);
 
         Self {
             perlin: Perlin::new(1),
-            continentalness_scale: Vector2::new(0.01, 0.01),
+            continentalness_scale: Vector2::new(0.0051, 0.0051),
             continentalness_spline,
         }
     }
@@ -44,18 +46,11 @@ impl NoiseConfig {
     }
 
     pub(crate) fn get_surface(&self, offset: [f64; 2]) -> f64 {
-        let mut sample = 0.0;
         
-        for i in 1..=4 {
-            sample += (5 - i) as f64 * self.perlin.get([offset[0] * self.continentalness_scale.x * i as f64, offset[1] * self.continentalness_scale.y * i as f64]);
-        }
-        
-        
-        let splined = self.continentalness_spline.sample(sample).unwrap_or(0.0);
-
-        //println!("{} -> {}", sample, splined);
-
-        splined
+        let cont_sample = self.perlin.get([offset[0] * self.continentalness_scale.x as f64, offset[1] * self.continentalness_scale.y as f64]);
+        let continentalness = self.continentalness_spline.sample(cont_sample).unwrap_or(0.0);
+        let surface_noise = 2.0 * self.get_perlin([offset[0] * 0.02, offset[1] * 0.02]);
+        surface_noise * continentalness + 32.0
     }
 }
 
@@ -65,26 +60,33 @@ pub(crate) mod generation {
 
     pub fn generate_surface(chunk_index: &ChunkIndex, chunk: &mut Chunk, noise_config: &NoiseConfig) {
         shape_terrain(chunk_index, chunk, noise_config);
-
+        place_grass(chunk_index, chunk, noise_config);
     }
 
     fn shape_terrain(chunk_index: &ChunkIndex, chunk: &mut Chunk, noise_config: &NoiseConfig) {
         for block_x in 0..CHUNK_WIDTH {
-            for block_y in 0..CHUNK_HEIGHT {
-                for block_z in 0..CHUNK_WIDTH {
-                    let global_coords = BlockWorldPos::new(chunk_index.x, 0, chunk_index.y) * 16 + BlockWorldPos::new(block_x as isize, block_y as isize, block_z as isize);
-
-                    let surface = noise_config.get_surface([global_coords.x as f64, global_coords.z as f64]);
-                    
-                    if global_coords.y <= surface.round() as isize {
-                        chunk.blocks[block_x][block_y][block_z] =  block_index_by_name("Stone");
-                    }/* else if global_coords.y < 10 {
-                        chunk.blocks[block_x][block_y][block_z] =  block_index_by_name("Dirt");
-                    }*/
+            for block_z in 0..CHUNK_WIDTH {
+                let global_coords = BlockWorldPos::new(chunk_index.x, 0, chunk_index.y) * 16 + BlockWorldPos::new(block_x as isize, 0, block_z as isize);
+                let surface = noise_config.get_surface([global_coords.x as f64, global_coords.z as f64]);
+                for block_y in 0..=surface.round() as usize {
+                    chunk.blocks[block_x][block_y][block_z] =  block_index_by_name("Stone");
                 }
             }
         }
     }
+
+    fn place_grass(chunk_index: &ChunkIndex, chunk: &mut Chunk, noise_config: &NoiseConfig) {
+        for block_x in 0..CHUNK_WIDTH {
+            for block_z in 0..CHUNK_WIDTH {
+                let global_coords = BlockWorldPos::new(chunk_index.x, 0, chunk_index.y) * 16 + BlockWorldPos::new(block_x as isize, 0, block_z as isize);
+                let surface = noise_config.get_surface([global_coords.x as f64, global_coords.z as f64]).round() as usize;
+                for block_y in surface-1..surface {
+                    chunk.blocks[block_x][block_y][block_z] =  block_index_by_name("Dirt");
+                }
+                chunk.blocks[block_x][surface][block_z] =  block_index_by_name("Grass");
+            }
+        }
+    } 
 }
 impl Terrain {
     pub(crate) fn init_worldgen(&mut self, start_position: &Vector3<f32>, chunk_radius: isize, gl_resources: &mut GLResources, noise_config: &NoiseConfig) {
