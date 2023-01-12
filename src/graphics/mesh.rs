@@ -223,7 +223,7 @@ pub(crate) fn block_drop_vertices(block: &Block) -> Vec<Vertex3D> {
             },
             block::TextureType::TopSideFrontActivatable(
                 (x_front_inactive, y_front_inactive),
-                (x_front_active, y_front_active),
+                (_x_front_active, _y_front_active),
                 (x_side, y_side),
                 (x_top, y_top)
             ) => {

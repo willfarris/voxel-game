@@ -16,14 +16,14 @@ extern crate jni;
 #[cfg(feature = "android-lib")]
 mod java_interface;
 
-use std::{sync::{Mutex, Arc, RwLock}, time::{Instant, Duration}};
+use std::{sync::{Mutex, Arc, RwLock}, time::{Duration}};
 
-use cgmath::{Vector3, Zero, Vector2};
+use cgmath::{Vector3, Vector2};
 use entity::EntityTrait;
 use noise::Perlin;
-use physics::{vectormath::{Z_VECTOR, Vec3Direction, self}, collision::{Collider, check_world_collision_axis, check_collision_axis}, physics_update::PhysicsUpdate};
+use physics::{vectormath::{Z_VECTOR, Vec3Direction, self}, collision::{Collider, check_world_collision_axis}, physics_update::PhysicsUpdate};
 use player::{Player, camera::perspective_matrix};
-use terrain::{Terrain, block::BLOCKS, chunk::{Chunk, CHUNK_WIDTH}, ChunkIndex, generation::NoiseConfig, BlockWorldPos};
+use terrain::{Terrain, block::BLOCKS, chunk::{Chunk, CHUNK_WIDTH}, ChunkIndex, generation::{NoiseConfig, generation}};
 use graphics::{resources::{GLRenderable, GLResources}, mesh::block_drop_vertices};
 
 pub use physics::vectormath::q_rsqrt;
@@ -75,18 +75,7 @@ impl Default for Engine {
     fn default() -> Self {
         let player = Box::new(Player::new(Vector3::new(0.0, 30.0, 0.0), Z_VECTOR));
         let terrain = Terrain::new();
-        
-        let noise_scale = 0.02;
-        let noise_offset = Vector2::new(
-            1_000_000.0 * rand::random::<f64>() + 3_141_592.0,
-            1_000_000.0 * rand::random::<f64>() + 3_141_592.0,
-        );
-        let perlin = Perlin::new();
-        let noise_config = NoiseConfig {
-            perlin,
-            noise_scale,
-            noise_offset,
-        };
+        let noise_config = NoiseConfig::default();
 
         Self {
             player: Arc::new(RwLock::new(player)),
@@ -280,7 +269,7 @@ impl Engine {
                 // Generate data for the new chunks that are in range
                 for chunk_index in chunk_update_list.iter() {
                     let mut chunk = Box::new(Chunk::new());
-                    Terrain::gen_surface_terrain(chunk_index, &mut chunk, &noise_config_gen.read().unwrap());
+                    generation::generate_surface(chunk_index, &mut chunk, &noise_config_gen.read().unwrap());
                     {
                         let mut terrain = terrain_gen.write().unwrap();
                         terrain.insert_chunk(*chunk_index, chunk);

@@ -1,6 +1,6 @@
-use cgmath::Vector3;
 
-use super::{BlockIndex, block::Block};
+
+use super::{BlockIndex};
 
 pub(crate) const CHUNK_WIDTH: usize = 16;
 pub(crate) const CHUNK_HEIGHT: usize = 256;

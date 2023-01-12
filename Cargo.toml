@@ -8,7 +8,8 @@ gl = "*"
 image = "*"
 cgmath = "*"
 rand = "0.7.3"
-noise = "0.7.0"
+noise = "0.8.2"
+splines = "4.1.1"
 
 jni = { version = "0.5", default-features = false, optional = true }
 android_log = { version = "*", optional = true }
