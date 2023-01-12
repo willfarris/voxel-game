@@ -277,7 +277,7 @@ impl Engine {
                 
                 // Generate data for the new chunks that are in range
                 for chunk_index in chunk_update_list.iter() {
-                    let mut chunk = Chunk::new();
+                    let mut chunk = Box::new(Chunk::new());
                     Terrain::gen_surface_terrain(&chunk_index, &mut chunk, &noise_config_gen.read().unwrap());
                     {
                         let mut terrain = terrain_gen.write().unwrap();

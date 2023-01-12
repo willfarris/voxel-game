@@ -16,7 +16,7 @@ pub type ChunkIndex = Vector2<isize>;
 pub type BlockIndex = Vector3<usize>; 
 
 pub struct Terrain {
-    chunks: HashMap<ChunkIndex, Chunk>,
+    chunks: HashMap<ChunkIndex, Box<Chunk>>,
 }
 
 impl Terrain {
@@ -60,7 +60,7 @@ impl Terrain {
             if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
                 chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
             } else {
-                let mut new_chunk = Chunk::new();
+                let mut new_chunk = Box::new(Chunk::new());
                 new_chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
                 self.chunks.insert(chunk_index, new_chunk);
             }
@@ -325,7 +325,7 @@ impl Terrain {
         needs_generation
     }
 
-    pub fn insert_chunk(&mut self, chunk_index: ChunkIndex, chunk: Chunk) {
+    pub fn insert_chunk(&mut self, chunk_index: ChunkIndex, chunk: Box<Chunk>) {
         self.chunks.insert(chunk_index, chunk);
     }
 
