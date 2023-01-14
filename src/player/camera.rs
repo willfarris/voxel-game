@@ -59,11 +59,11 @@ impl Camera {
     
 }
 
-pub fn perspective_matrix(width: i32, height: i32) -> Matrix4<f32> {
+pub fn perspective_matrix(width: i32, height: i32, render_distance_chunks: f32) -> Matrix4<f32> {
     let aspect_ratio = height as f32 / width as f32;
 
     let fov: f32 = std::f32::consts::PI / 2.0;
-    let zfar = 256.0;
+    let zfar = 16.0 * render_distance_chunks;
     let znear = 0.01;
 
     let f = 1.0 / (fov / 2.0).tan();

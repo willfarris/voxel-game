@@ -23,7 +23,7 @@ use entity::EntityTrait;
 use noise::Perlin;
 use physics::{vectormath::{Z_VECTOR, Vec3Direction, self}, collision::{Collider, check_world_collision_axis}, physics_update::PhysicsUpdate};
 use player::{Player, camera::perspective_matrix};
-use terrain::{Terrain, block::BLOCKS, chunk::{Chunk, CHUNK_WIDTH}, ChunkIndex, generation::{NoiseConfig, generation}};
+use terrain::{Terrain, block::BLOCKS, chunk::{Chunk, CHUNK_WIDTH}, ChunkIndex, generation::{TerrainGenConfig, generation}};
 use graphics::{resources::{GLRenderable, GLResources}, mesh::block_drop_vertices};
 
 pub use physics::vectormath::q_rsqrt;
@@ -64,18 +64,19 @@ pub struct Engine {
     elapsed_time: f32,
     play_state: PlayState,
     input_queue: Vec<PlayerInput>,
-    noise_config: Arc<RwLock<NoiseConfig>>,
+    noise_config: Arc<RwLock<TerrainGenConfig>>,
 
     width: i32,
     height: i32,
+    render_distance: isize,
     gl_resources: Arc<RwLock<GLResources>>,
 }
 
 impl Default for Engine {
     fn default() -> Self {
-        let player = Box::new(Player::new(Vector3::new(0.0, 30.0, 0.0), Z_VECTOR));
+        let player = Box::new(Player::new(Vector3::new(0.0, 64.0, 0.0), Z_VECTOR));
         let terrain = Terrain::new();
-        let noise_config = NoiseConfig::default();
+        let noise_config = TerrainGenConfig::default();
 
         Self {
             player: Arc::new(RwLock::new(player)),
@@ -89,6 +90,7 @@ impl Default for Engine {
 
             width: 0,
             height: 0,
+            render_distance: 8,
             gl_resources: Arc::new(RwLock::new(GLResources::new())),
         }
     }
@@ -229,13 +231,14 @@ impl Engine {
             debug!("Starting terrain thread");
         }
 
+        let render_distance = self.render_distance;
+
         // Create initial terrain around the player, block the main thread so the player doesn't go through the ground
-        let chunk_render_distance = 4;
         {
             let terrain = self.terrain.clone();
             let gl_resources = self.gl_resources.clone();
             let noise_config = self.noise_config.clone();
-            terrain.write().unwrap().init_worldgen(&Vector3::new(0.0, 0.0, 0.0), chunk_render_distance*2, &mut gl_resources.write().unwrap(), &noise_config.read().unwrap());
+            terrain.write().unwrap().init_worldgen(&Vector3::new(0.0, 0.0, 0.0), self.render_distance, &mut gl_resources.write().unwrap(), &noise_config.read().unwrap());
         }
         self.resume();
 
@@ -256,7 +259,7 @@ impl Engine {
                 };
 
                 let chunk_update_list = {
-                    let chunks_to_generate = terrain_gen.read().unwrap().get_indices_to_generate(chunk_render_distance, 200, &player_chunk);
+                    let chunks_to_generate = terrain_gen.read().unwrap().get_indices_to_generate(render_distance, 200, &player_chunk);
                     chunks_to_generate
                 };
 
@@ -352,7 +355,7 @@ impl Engine {
 
         let gl_resources = self.gl_resources.read().unwrap();
 
-        let perspective_matrix = perspective_matrix(self.width, self.height);
+        let perspective_matrix = perspective_matrix(self.width, self.height, self.render_distance as f32);
         let view_matrix = player.camera_view_matrix();
 
         terrain.draw(&gl_resources, perspective_matrix, view_matrix, self.elapsed_time);
