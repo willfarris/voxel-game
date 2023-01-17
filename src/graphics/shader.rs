@@ -20,12 +20,11 @@ impl Shader {
     
             // check for shader compile errors
             let mut success = gl::FALSE as gl::types::GLint;
-            let mut info_log = Vec::with_capacity(512);
-            info_log.set_len(512 - 1); // subtract 1 to skip the trailing null character
+            let mut info_log = [0u8; 512];
             gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success);
             if success != gl::TRUE as gl::types::GLint {
-                gl::GetProgramInfoLog(vertex_shader, 512, ptr::null_mut(), info_log.as_mut_ptr() as *mut gl::types::GLchar);
-                return Err(String::from(std::str::from_utf8(&info_log).unwrap()));          
+                gl::GetShaderInfoLog(vertex_shader, 512, ptr::null_mut(), info_log.as_mut_ptr() as *mut gl::types::GLchar);
+                return Err(String::from(std::str::from_utf8(&info_log).unwrap()));
             }
     
             // fragment shader
@@ -36,7 +35,7 @@ impl Shader {
             // check for shader compile errors
             gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut success);
             if success != gl::TRUE as gl::types::GLint {
-                gl::GetProgramInfoLog(fragment_shader, 512, ptr::null_mut(), info_log.as_mut_ptr() as *mut gl::types::GLchar);
+                gl::GetShaderInfoLog(fragment_shader, 512, ptr::null_mut(), info_log.as_mut_ptr() as *mut gl::types::GLchar);
                 return Err(String::from(std::str::from_utf8(&info_log).unwrap())); 
             }
     
