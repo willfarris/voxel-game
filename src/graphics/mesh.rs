@@ -201,8 +201,8 @@ pub(crate) fn block_drop_vertices(block: &Block) -> Vec<Vertex3D> {
         let mut coords = [(0.0f32, 0.0f32); 6];
         match texture_type {
             block::TextureType::Single(x, y) => {
-                for i in 0..6 {
-                    coords[i] = (*x, *y)
+                for item in &mut coords {
+                    *item = (*x, *y);
                 }
             },
             block::TextureType::TopAndSide((x_top, y_top), (x_side, y_side)) => {

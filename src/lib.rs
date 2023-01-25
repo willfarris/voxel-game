@@ -23,7 +23,7 @@ use entity::EntityTrait;
 use noise::Perlin;
 use physics::{vectormath::{Z_VECTOR, Vec3Direction, self}, collision::{Collider, check_world_collision_axis}, physics_update::PhysicsUpdate};
 use player::{Player, camera::perspective_matrix};
-use terrain::{Terrain, block::BLOCKS, chunk::{Chunk, CHUNK_WIDTH}, ChunkIndex, generation::{TerrainGenConfig, generation}};
+use terrain::{Terrain, block::BLOCKS, chunk::{Chunk, CHUNK_WIDTH}, ChunkIndex, generation::{TerrainGenConfig, terraingen}};
 use graphics::{resources::{GLRenderable, GLResources}, mesh::block_drop_vertices};
 
 pub use physics::vectormath::q_rsqrt;
@@ -272,7 +272,7 @@ impl Engine {
                 // Generate data for the new chunks that are in range
                 for chunk_index in chunk_update_list.iter() {
                     let mut chunk = Box::new(Chunk::new());
-                    generation::generate_surface(chunk_index, &mut chunk, &noise_config_gen.read().unwrap());
+                    terraingen::generate_surface(chunk_index, &mut chunk, &noise_config_gen.read().unwrap());
                     {
                         let mut terrain = terrain_gen.write().unwrap();
                         terrain.insert_chunk(*chunk_index, chunk);

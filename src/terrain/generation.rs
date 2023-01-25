@@ -82,8 +82,8 @@ impl TerrainGenConfig {
     }
 }
 
-pub(crate) mod generation {
-    use crate::terrain::{ChunkIndex, chunk::{Chunk, CHUNK_WIDTH}, BlockWorldPos, block::{block_index_by_name, self}};
+pub(crate) mod terraingen {
+    use crate::terrain::{ChunkIndex, chunk::{Chunk, CHUNK_WIDTH}, BlockWorldPos, block::block_index_by_name};
     use super::{TerrainGenConfig, Biome};
 
     pub fn generate_surface(chunk_index: &ChunkIndex, chunk: &mut Chunk, noise_config: &TerrainGenConfig) {
@@ -122,7 +122,6 @@ pub(crate) mod generation {
                             chunk.blocks[block_x][block_y][block_z] =  block_index_by_name("Sand");
                         }
                     },
-                    _ => {}
                 }
             }
         }
@@ -137,12 +136,10 @@ pub(crate) mod generation {
                 match biome {
                     Biome::Plains => {
                         let has_grass: u8 = rand::random();
-                        match has_grass {
-                            0..=64 => chunk.blocks[block_x][surface+1][block_z] = block_index_by_name("Short Grass"),
-                            _ => {},
-                        }
+                        if let 0..=64 = has_grass { chunk.blocks[block_x][surface+1][block_z] = block_index_by_name("Short Grass"); }
                     },
-                    _ => {},
+                    Biome::Hills => {},
+                    Biome::Desert => {},
                 }
             }
         }
@@ -159,7 +156,7 @@ impl Terrain {
             for chunk_z in -chunk_radius..chunk_radius {
                 let chunk_index = start_chunk_index + ChunkIndex::new(chunk_x, chunk_z);
                 let mut cur_chunk = Box::new(Chunk::new());
-                generation::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
+                terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
                 self.chunks.insert(chunk_index, cur_chunk);
             }
         }

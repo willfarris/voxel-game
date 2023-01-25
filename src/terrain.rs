@@ -90,8 +90,8 @@ impl Terrain {
                             let mut coords = [(0.0f32, 0.0f32); 6];
                             match texture_type {
                                 block::TextureType::Single(x, y) => {
-                                    for i in 0..6 {
-                                        coords[i] = (*x, *y)
+                                    for item in &mut coords {
+                                        *item = (*x, *y);
                                     }
                                 },
                                 block::TextureType::TopAndSide((x_top, y_top), (x_side, y_side)) => {
@@ -140,11 +140,7 @@ impl Terrain {
                             MeshType::Block => {
                                 let x_right_adjacent = if x < CHUNK_WIDTH-1 {
                                     Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x+1, y, z))])
-                                } else if let Some(chunk) = x_pos {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(0, y, z))])
-                                } else {
-                                    None
-                                };
+                                } else { x_pos.map(|chunk| BLOCKS[chunk.block_in_chunk(&Vector3::new(0, y, z))]) };
                                 if let Some(adjacent_block) = x_right_adjacent {
                                     if adjacent_block.transparent {
                                         push_face(&position, 0, &mut vertices, &tex_coords[0], vertex_type);
@@ -153,11 +149,7 @@ impl Terrain {
     
                                 let x_left_adjacent = if x > 0 {
                                     Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x-1, y, z))])
-                                } else if let Some(chunk) = x_neg {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(CHUNK_WIDTH-1, y, z))])
-                                } else {
-                                    None
-                                };
+                                } else { x_neg.map(|chunk| BLOCKS[chunk.block_in_chunk(&Vector3::new(CHUNK_WIDTH-1, y, z))]) };
                                 if let Some(adjacent_block) = x_left_adjacent {
                                     if adjacent_block.transparent {
                                         push_face(&position, 1, &mut vertices, &tex_coords[1], vertex_type);
@@ -167,9 +159,7 @@ impl Terrain {
         
                                 let y_top_adjacent = if y < CHUNK_HEIGHT-1 {
                                     Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y+1, z))])
-                                } /*else if let Some(chunk) = y_pos {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x,0, z))])
-                                }*/ else {
+                                } else {
                                     None
                                 };
                                 if let Some(adjacent_block) = y_top_adjacent {
@@ -180,9 +170,7 @@ impl Terrain {
         
                                 let y_bottom_adjacent = if y > 0 {
                                     Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y-1, z))])
-                                } /*else if let Some(chunk) = y_neg {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x,CHUNK_SIZE-1, z))])
-                                }*/ else {
+                                } else {
                                     None
                                 };
                                 if let Some(adjacent_block) = y_bottom_adjacent {
@@ -193,11 +181,7 @@ impl Terrain {
     
                                 let z_back_adjacent = if z < CHUNK_WIDTH-1 {
                                     Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, z+1))])
-                                } else if let Some(chunk) = z_pos {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, 0))])
-                                } else {
-                                    None
-                                };
+                                } else { z_pos.map(|chunk| BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, 0))]) };
                                 if let Some(adjacent_block) = z_back_adjacent {
                                     if adjacent_block.transparent {
                                         push_face(&position, 4, &mut vertices, &tex_coords[4], vertex_type);
@@ -207,11 +191,7 @@ impl Terrain {
     
                                 let z_front_adjacent = if z > 0 {
                                     Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, z-1))])
-                                } else if let Some(chunk) = z_neg {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, CHUNK_WIDTH-1))])
-                                } else {
-                                    None
-                                };
+                                } else { z_neg.map(|chunk| BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, CHUNK_WIDTH-1))]) };
                                 if let Some(adjacent_block) = z_front_adjacent {
                                     if adjacent_block.transparent {
                                         push_face(&position, 5, &mut vertices, &tex_coords[5], vertex_type);

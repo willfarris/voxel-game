@@ -34,15 +34,11 @@ impl GLResources {
     }
 
     pub fn get_texture(&self, key: &str) -> Option<Texture> {
-        if let Some(texture) = self.textures.get(key) {
-            Some(texture.clone())
-        } else {
-           None
-        }   
+        self.textures.get(key).copied()   
     }
 
     pub fn get_shader(&self, key: &str) -> Option<Shader> {
-        self.shaders.get(key).map(|shader| *shader)
+        self.shaders.get(key).copied()
     }
 
     pub fn get_buffer(&self, name: String) -> Option<&BufferObject<Vertex3D>> {
@@ -59,7 +55,7 @@ impl GLResources {
 
     pub fn create_buffer_from_verts(&mut self, name: String, buffer_contents: Vec<Vertex3D>) {
         let buffer = BufferObject::new(buffer_contents);
-        self.buffers.insert(name.clone(), buffer);
+        self.buffers.insert(name, buffer);
     }
 
     pub fn update_buffer(&mut self, name: String, new_contents: Vec<Vertex3D>) {
@@ -76,13 +72,12 @@ impl GLResources {
                 }
             }
         }
-        //assert_eq!(self.buffer_update_queue.len(), 0);
     }
 
     pub fn invalidate_resources(&mut self) {
         self.shaders.clear();
         self.textures.clear();
-        for (_buffer_name, buffer) in &mut self.buffers {
+        for buffer in self.buffers.values_mut() {
             buffer.invalidate();
         }
     }
