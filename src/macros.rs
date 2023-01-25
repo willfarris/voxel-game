@@ -6,7 +6,7 @@
 macro_rules! c_str {
     ($literal:expr) => {
         std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($literal, "\0").as_bytes())
-    }
+    };
 }
 
 /// Get offset to struct member, similar to `offset_of` in C/C++
@@ -15,5 +15,5 @@ macro_rules! c_str {
 macro_rules! offset_of {
     ($ty:ty, $field:ident) => {
         &(*(ptr::null() as *const $ty)).$field as *const _ as usize
-    }
+    };
 }

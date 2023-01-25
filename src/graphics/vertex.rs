@@ -1,5 +1,5 @@
-pub(crate) use cgmath::{Vector2, Vector3};
 use cgmath::prelude::*;
+pub(crate) use cgmath::{Vector2, Vector3};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]

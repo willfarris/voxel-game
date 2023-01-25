@@ -1,17 +1,21 @@
 pub(crate) mod camera;
 mod inventory;
 
-use cgmath::{Vector3, InnerSpace, Matrix4};
+use cgmath::{InnerSpace, Matrix4, Vector3};
 
 use camera::Camera;
 
 use crate::physics::collision::{self, Collider, Rect3};
 use crate::physics::physics_update::PhysicsUpdate;
-use crate::physics::vectormath::{Y_VECTOR, q_rsqrt, Vec3Direction};
+use crate::physics::vectormath::{q_rsqrt, Vec3Direction, Y_VECTOR};
 
 use self::inventory::Inventory;
 
-pub(crate) const GRAVITY: Vector3<f32> = Vector3 {x: 0.0, y: -9.81 * 2.0, z: 0.0};
+pub(crate) const GRAVITY: Vector3<f32> = Vector3 {
+    x: 0.0,
+    y: -9.81 * 2.0,
+    z: 0.0,
+};
 
 pub(crate) struct Player {
     pub(crate) camera: Camera,
@@ -57,8 +61,10 @@ impl Player {
         self.walking = true;
         self.velocity.x += direction.x;
         self.velocity.z += direction.z;
-        self.velocity.x *= q_rsqrt(self.velocity.x * self.velocity.x + self.velocity.z * self.velocity.z);
-        self.velocity.z *= q_rsqrt(self.velocity.x * self.velocity.x + self.velocity.z * self.velocity.z);
+        self.velocity.x *=
+            q_rsqrt(self.velocity.x * self.velocity.x + self.velocity.z * self.velocity.z);
+        self.velocity.z *=
+            q_rsqrt(self.velocity.x * self.velocity.x + self.velocity.z * self.velocity.z);
     }
 
     pub fn jump(&mut self) {
@@ -88,7 +94,8 @@ impl Player {
 
 impl PhysicsUpdate for Player {
     fn update_physics(&mut self, delta_time: f32) {
-        self.camera.translate(self.position + self.height * Y_VECTOR);
+        self.camera
+            .translate(self.position + self.height * Y_VECTOR);
         if !self.grounded {
             self.acceleration.y = GRAVITY.y;
         }
@@ -106,11 +113,14 @@ impl PhysicsUpdate for Player {
         } else {
             self.move_speed
         };
-        let delta = delta_time * Vector3 {
-            x: (move_speed * self.camera.right.x * self.velocity.x as f32) + (move_speed * forward.x * self.velocity.z as f32),
-            y: self.velocity.y as f32,
-            z: (move_speed * self.camera.right.z * self.velocity.x as f32) + (move_speed * forward.z * self.velocity.z as f32),
-        };
+        let delta = delta_time
+            * Vector3 {
+                x: (move_speed * self.camera.right.x * self.velocity.x as f32)
+                    + (move_speed * forward.x * self.velocity.z as f32),
+                y: self.velocity.y as f32,
+                z: (move_speed * self.camera.right.z * self.velocity.x as f32)
+                    + (move_speed * forward.z * self.velocity.z as f32),
+            };
         self.movement_delta = delta;
     }
 
@@ -134,7 +144,7 @@ impl Collider for Player {
         match axis {
             Vec3Direction::X => {
                 self.position.x += overlap;
-            },
+            }
             Vec3Direction::Y => {
                 self.position.y += overlap;
                 if overlap.abs() > 0.0 {
@@ -143,10 +153,10 @@ impl Collider for Player {
                         self.grounded = true;
                     }
                 }
-            },
+            }
             Vec3Direction::Z => {
                 self.position.z += overlap;
-            },
+            }
         }
     }
 
@@ -154,4 +164,3 @@ impl Collider for Player {
         true
     }
 }
-

@@ -9,7 +9,7 @@ pub struct Inventory {
 
 impl Inventory {
     pub fn new() -> Self {
-        Self{
+        Self {
             items: [None; INVENTORY_SIZE],
             selected: 0,
         }
@@ -25,7 +25,7 @@ impl Inventory {
             }
         }
 
-        let mut first_free_index  = 0;
+        let mut first_free_index = 0;
         for i in 0..self.items.len() {
             if let Some(_item) = &self.items[i] {
                 first_free_index += 1;
@@ -43,7 +43,7 @@ impl Inventory {
             if *quantity == 0 {
                 self.items[self.selected] = None;
             }
-            return Some(id)
+            return Some(id);
         }
         None
     }
@@ -57,8 +57,14 @@ impl Inventory {
         for i in 0..self.items.len() {
             let label = match self.items[i] {
                 Some((block_id, quantity)) => {
-                    format!("{}{} ({}){}", if self.selected == i {"["} else {""}, BLOCKS[block_id].name, quantity, if self.selected == i {"]"} else {""})
-                },
+                    format!(
+                        "{}{} ({}){}",
+                        if self.selected == i { "[" } else { "" },
+                        BLOCKS[block_id].name,
+                        quantity,
+                        if self.selected == i { "]" } else { "" }
+                    )
+                }
                 None => " ".to_string(),
             };
             print!(" {}", label);

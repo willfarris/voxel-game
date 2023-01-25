@@ -1,4 +1,4 @@
-use std::{ptr, mem::size_of, ffi::c_void};
+use std::{ffi::c_void, mem::size_of, ptr};
 
 use gl::{self, types::GLsizeiptr};
 
@@ -41,27 +41,54 @@ impl<T> BufferObject<T> {
             gl::BufferData(gl::ARRAY_BUFFER, size, data, gl::STATIC_DRAW);
 
             let stride = size_of::<Vertex3D>() as i32;
-            
+
             // vertex Positions
-            let position_location = 0;//gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("position").as_ptr()) as u32;
+            let position_location = 0; //gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("position").as_ptr()) as u32;
             gl::EnableVertexAttribArray(position_location);
-            gl::VertexAttribPointer(position_location, 3, gl::FLOAT, gl::FALSE, stride, offset_of!(Vertex3D, position) as *const c_void);
-            
+            gl::VertexAttribPointer(
+                position_location,
+                3,
+                gl::FLOAT,
+                gl::FALSE,
+                stride,
+                offset_of!(Vertex3D, position) as *const c_void,
+            );
+
             // vertex normals
-            let normal_location = 1;//gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("normal").as_ptr()) as u32;
+            let normal_location = 1; //gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("normal").as_ptr()) as u32;
             gl::EnableVertexAttribArray(normal_location);
-            gl::VertexAttribPointer(normal_location, 3, gl::FLOAT, gl::FALSE, stride, offset_of!(Vertex3D, normal) as *const c_void);
-            
+            gl::VertexAttribPointer(
+                normal_location,
+                3,
+                gl::FLOAT,
+                gl::FALSE,
+                stride,
+                offset_of!(Vertex3D, normal) as *const c_void,
+            );
+
             // vertex texture coords
-            let tex_coords_location = 2;//gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("tex_coords").as_ptr()) as u32;
+            let tex_coords_location = 2; //gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("tex_coords").as_ptr()) as u32;
             gl::EnableVertexAttribArray(tex_coords_location);
-            gl::VertexAttribPointer(tex_coords_location, 2, gl::FLOAT, gl::FALSE, stride, offset_of!(Vertex3D, tex_coords) as *const c_void);
-            
+            gl::VertexAttribPointer(
+                tex_coords_location,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                stride,
+                offset_of!(Vertex3D, tex_coords) as *const c_void,
+            );
+
             // vertex type
-            let vertex_type_location = 3;//gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("vtype").as_ptr()) as u32;
+            let vertex_type_location = 3; //gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("vtype").as_ptr()) as u32;
             gl::EnableVertexAttribArray(vertex_type_location);
-            gl::VertexAttribPointer(vertex_type_location, 1, gl::INT, gl::FALSE, stride, offset_of!(Vertex3D, vtype) as *const c_void);
-        
+            gl::VertexAttribPointer(
+                vertex_type_location,
+                1,
+                gl::INT,
+                gl::FALSE,
+                stride,
+                offset_of!(Vertex3D, vtype) as *const c_void,
+            );
         }
 
         (vao, vbo)

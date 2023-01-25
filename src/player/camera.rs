@@ -1,4 +1,4 @@
-pub(crate) use cgmath::{Matrix4, Vector3, Vector4, InnerSpace};
+pub(crate) use cgmath::{InnerSpace, Matrix4, Vector3, Vector4};
 
 use crate::physics::vectormath::{quaternion_rotate, Y_VECTOR};
 
@@ -24,9 +24,15 @@ impl Camera {
 
     pub fn view_matrix(&self) -> Matrix4<f32> {
         let p: Vector3<f32> = Vector3::new(
-            -self.position.x * self.right.x - self.position.y * self.right.y - self.position.z * self.right.z,            
-            -self.position.x * self.up.x - self.position.y * self.up.y - self.position.z * self.up.z,
-            -self.position.x * self.forward.x - self.position.y * self.forward.y - self.position.z * self.forward.z,
+            -self.position.x * self.right.x
+                - self.position.y * self.right.y
+                - self.position.z * self.right.z,
+            -self.position.x * self.up.x
+                - self.position.y * self.up.y
+                - self.position.z * self.up.z,
+            -self.position.x * self.forward.x
+                - self.position.y * self.forward.y
+                - self.position.z * self.forward.z,
         );
 
         Matrix4::from_cols(
@@ -56,7 +62,6 @@ impl Camera {
         self.forward = quaternion_rotate(self.forward, angle, self.right);
         self.calculate_normals();
     }
-    
 }
 
 pub fn perspective_matrix(width: i32, height: i32, render_distance_chunks: f32) -> Matrix4<f32> {

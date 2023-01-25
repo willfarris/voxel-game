@@ -1,6 +1,6 @@
 use cgmath::Vector3;
 
-use crate::terrain::{Terrain, BlockWorldPos};
+use crate::terrain::{BlockWorldPos, Terrain};
 
 use super::vectormath::Vec3Direction;
 
@@ -12,43 +12,56 @@ pub trait Collider {
 }
 
 // Returns the overlap of `entity` with `world` along the specified axis
-pub fn check_world_collision_axis(axis: Vec3Direction, bounding_box: Rect3, world: &Terrain) -> f32 {
-    for block_x in (bounding_box.pos.x.floor() as isize - 1) ..= ((bounding_box.pos.x + bounding_box.size.x).floor() as isize + 1) {
-        for block_y in (bounding_box.pos.y.floor() as isize - 1) ..= ((bounding_box.pos.y + bounding_box.size.y).floor() as isize + 2) {
-            for block_z in (bounding_box.pos.z.floor() as isize - 1) ..= ((bounding_box.pos.z + bounding_box.size.z).floor() as isize + 1) {
+pub fn check_world_collision_axis(
+    axis: Vec3Direction,
+    bounding_box: Rect3,
+    world: &Terrain,
+) -> f32 {
+    for block_x in (bounding_box.pos.x.floor() as isize - 1)
+        ..=((bounding_box.pos.x + bounding_box.size.x).floor() as isize + 1)
+    {
+        for block_y in (bounding_box.pos.y.floor() as isize - 1)
+            ..=((bounding_box.pos.y + bounding_box.size.y).floor() as isize + 2)
+        {
+            for block_z in (bounding_box.pos.z.floor() as isize - 1)
+                ..=((bounding_box.pos.z + bounding_box.size.z).floor() as isize + 1)
+            {
                 if !world.solid_block_at_world_pos(&BlockWorldPos::new(block_x, block_y, block_z)) {
                     continue;
                 }
                 let block_bounding_box = Rect3 {
                     pos: Vector3::new(block_x as f32, block_y as f32, block_z as f32),
-                    size: Vector3::new(1.0, 1.0, 1.0)
+                    size: Vector3::new(1.0, 1.0, 1.0),
                 };
                 if rect_vs_rect(&bounding_box, &block_bounding_box) {
                     match axis {
                         Vec3Direction::X => {
                             let x_overlap = if bounding_box.pos.x > block_bounding_box.pos.x {
-                                (block_bounding_box.pos.x + 1.0) - bounding_box.pos.x 
+                                (block_bounding_box.pos.x + 1.0) - bounding_box.pos.x
                             } else {
-                                -1.0 * (bounding_box.pos.x + bounding_box.size.x - block_bounding_box.pos.x)
+                                -1.0 * (bounding_box.pos.x + bounding_box.size.x
+                                    - block_bounding_box.pos.x)
                             };
                             return x_overlap;
-                        },
+                        }
                         Vec3Direction::Y => {
                             let y_overlap = if bounding_box.pos.y > block_bounding_box.pos.y {
                                 (block_bounding_box.pos.y + 1.0) - bounding_box.pos.y
                             } else {
-                                -1.0 * (bounding_box.pos.y + bounding_box.size.y - block_bounding_box.pos.y)
+                                -1.0 * (bounding_box.pos.y + bounding_box.size.y
+                                    - block_bounding_box.pos.y)
                             };
                             return y_overlap;
-                        },
+                        }
                         Vec3Direction::Z => {
                             let z_overlap = if bounding_box.pos.z > block_bounding_box.pos.z {
                                 (block_bounding_box.pos.z + 1.0) - bounding_box.pos.z
                             } else {
-                                -1.0 * (bounding_box.pos.z + bounding_box.size.z - block_bounding_box.pos.z)
+                                -1.0 * (bounding_box.pos.z + bounding_box.size.z
+                                    - block_bounding_box.pos.z)
                             };
                             return z_overlap;
-                        },
+                        }
                     }
                 }
             }
@@ -58,17 +71,21 @@ pub fn check_world_collision_axis(axis: Vec3Direction, bounding_box: Rect3, worl
 }
 
 #[allow(unused)]
-pub fn check_collision_axis(axis: Vec3Direction, bounding_box1: Rect3, bounding_box2: Rect3) -> f32 {
+pub fn check_collision_axis(
+    axis: Vec3Direction,
+    bounding_box1: Rect3,
+    bounding_box2: Rect3,
+) -> f32 {
     if rect_vs_rect(&bounding_box1, &bounding_box2) {
         match axis {
             Vec3Direction::X => {
                 let x_overlap = if bounding_box1.pos.x > bounding_box2.pos.x {
-                    (bounding_box2.pos.x + bounding_box2.size.x) - bounding_box1.pos.x 
+                    (bounding_box2.pos.x + bounding_box2.size.x) - bounding_box1.pos.x
                 } else {
                     -1.0 * (bounding_box1.pos.x + bounding_box1.size.x - bounding_box2.pos.x)
                 };
                 return x_overlap;
-            },
+            }
             Vec3Direction::Y => {
                 let y_overlap = if bounding_box1.pos.y > bounding_box2.pos.y {
                     (bounding_box2.pos.y + bounding_box2.size.y) - bounding_box1.pos.y
@@ -76,7 +93,7 @@ pub fn check_collision_axis(axis: Vec3Direction, bounding_box1: Rect3, bounding_
                     -1.0 * (bounding_box1.pos.y + bounding_box1.size.y - bounding_box2.pos.y)
                 };
                 return y_overlap;
-            },
+            }
             Vec3Direction::Z => {
                 let z_overlap = if bounding_box1.pos.z > bounding_box2.pos.z {
                     (bounding_box2.pos.z + bounding_box2.size.z) - bounding_box1.pos.z
@@ -84,7 +101,7 @@ pub fn check_collision_axis(axis: Vec3Direction, bounding_box1: Rect3, bounding_
                     -1.0 * (bounding_box1.pos.z + bounding_box1.size.z - bounding_box2.pos.z)
                 };
                 return z_overlap;
-            },
+            }
         }
     }
     0f32
@@ -98,27 +115,27 @@ pub struct Rect3 {
 
 impl Rect3 {
     pub fn new(pos: Vector3<f32>, size: Vector3<f32>) -> Rect3 {
-        Rect3 {
-            pos,
-            size,
-        }
+        Rect3 { pos, size }
     }
 }
 
-/*pub fn point_vs_rect(p: &Vector3<f32>, r: &Rect3) -> bool { 
+/*pub fn point_vs_rect(p: &Vector3<f32>, r: &Rect3) -> bool {
     p.x >= r.pos.x &&
     p.y >= r.pos.y &&
     p.z >= r.pos.z &&
-    
+
     p.x <= (r.pos.x + r.size.x) &&
     p.y <= (r.pos.y + r.size.y) &&
     p.z <= (r.pos.z + r.size.z)
 }*/
 
 pub fn rect_vs_rect(r1: &Rect3, r2: &Rect3) -> bool {
-    r1.pos.x < (r2.pos.x + r2.size.x) && (r1.pos.x + r1.size.x) > r2.pos.x &&
-    r1.pos.y < (r2.pos.y + r2.size.y) && (r1.pos.y + r1.size.y) > r2.pos.y &&
-    r1.pos.z < (r2.pos.z + r2.size.z) && (r1.pos.z + r1.size.z) > r2.pos.z
+    r1.pos.x < (r2.pos.x + r2.size.x)
+        && (r1.pos.x + r1.size.x) > r2.pos.x
+        && r1.pos.y < (r2.pos.y + r2.size.y)
+        && (r1.pos.y + r1.size.y) > r2.pos.y
+        && r1.pos.z < (r2.pos.z + r2.size.z)
+        && (r1.pos.z + r1.size.z) > r2.pos.z
 }
 
 /*fn ray_vs_rect(
@@ -167,7 +184,7 @@ pub fn rect_vs_rect(r1: &Rect3, r2: &Rect3) -> bool {
         }
 
         *contact_point = ray_origin + *t_hit_near * ray_dir;
-        
+
         if t_near.x > t_near.y && t_near.x > t_near.z {
             if invdir.x < 0.0 {
                 *contact_normal = Vector3::new(1.0, 0.0, 0.0);
@@ -186,7 +203,7 @@ pub fn rect_vs_rect(r1: &Rect3, r2: &Rect3) -> bool {
             } else {
                 *contact_normal = Vector3::new(0.0, 0.0, -1.0);
             }
-        } 
+        }
 
         true
 }*/

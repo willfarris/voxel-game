@@ -2,12 +2,13 @@ use std::collections::HashMap;
 
 use cgmath::Matrix4;
 
-use super::{shader::Shader, texture::Texture, buffer::BufferObject, vertex::Vertex3D};
+use super::{buffer::BufferObject, shader::Shader, texture::Texture, vertex::Vertex3D, framebuffer::Framebuffer};
 
 pub struct GLResources {
     textures: HashMap<&'static str, Texture>,
     shaders: HashMap<&'static str, Shader>,
     buffers: HashMap<String, BufferObject<Vertex3D>>,
+    pub(crate) gbuffer: Option<Framebuffer>,
 
     buffer_update_queue: Vec<(String, Vec<Vertex3D>)>,
 }
@@ -18,12 +19,18 @@ impl GLResources {
             textures: HashMap::new(),
             shaders: HashMap::new(),
             buffers: HashMap::new(),
+            gbuffer: None,
 
             buffer_update_queue: Vec::new(),
         }
     }
 
-    pub fn create_shader(&mut self, key: &'static str, vert_shader_src: &str, frag_shader_src: &str) {
+    pub fn create_shader(
+        &mut self,
+        key: &'static str,
+        vert_shader_src: &str,
+        frag_shader_src: &str,
+    ) {
         let shader = Shader::new(vert_shader_src, frag_shader_src).unwrap();
         self.shaders.insert(key, shader);
     }
@@ -34,7 +41,7 @@ impl GLResources {
     }
 
     pub fn get_texture(&self, key: &str) -> Option<Texture> {
-        self.textures.get(key).copied()   
+        self.textures.get(key).copied()
     }
 
     pub fn get_shader(&self, key: &str) -> Option<Shader> {
@@ -67,7 +74,7 @@ impl GLResources {
             if let Some((buffer_name, new_contents)) = self.buffer_update_queue.pop() {
                 if let Some(buffer) = self.buffers.get_mut(&buffer_name) {
                     buffer.update_buffer(new_contents);
-                }  else {
+                } else {
                     self.create_buffer_from_verts(buffer_name, new_contents);
                 }
             }
@@ -81,11 +88,15 @@ impl GLResources {
             buffer.invalidate();
         }
     }
-
 }
 
 pub trait GLRenderable {
     fn init_gl_resources(&self, gl_resources: &mut GLResources);
-    fn draw(&self, gl_resources: &GLResources, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32);
+    fn draw(
+        &self,
+        gl_resources: &GLResources,
+        perspective_matrix: Matrix4<f32>,
+        view_matrix: Matrix4<f32>,
+        elapsed_time: f32,
+    );
 }
-
