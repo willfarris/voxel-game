@@ -425,7 +425,7 @@ impl GLRenderable for Terrain {
         let shader = gl_resources.get_shader("terrain").unwrap();
         let texture = gl_resources.get_texture("terrain").unwrap();
 
-        texture.bind();
+        texture.use_as_framebuffer_texture(0);
 
         shader.use_program();
         shader.set_mat4(unsafe { c_str!("perspective_matrix") }, &perspective_matrix);

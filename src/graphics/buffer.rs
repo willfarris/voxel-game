@@ -15,7 +15,7 @@ pub struct BufferObject<T> {
 
 impl<T> BufferObject<T> {
     pub fn new(buffer_contents: Vec<T>) -> Self {
-        let (vao, vbo) = Self::crate_objects(&buffer_contents);
+        let (vao, vbo) = Self::create_objects(&buffer_contents);
 
         Self {
             buffer_gl_object: vbo,
@@ -25,7 +25,7 @@ impl<T> BufferObject<T> {
         }
     }
 
-    fn crate_objects(buffer_contents: &Vec<T>) -> (u32, u32) {
+    fn create_objects(buffer_contents: &Vec<T>) -> (u32, u32) {
         let mut vao = 0;
         let mut vbo = 0;
 
@@ -111,7 +111,7 @@ impl<T> BufferObject<T> {
     }
 
     pub fn recreate_buffer(&mut self) {
-        let (vao, vbo) = Self::crate_objects(&self.buffer_contents);
+        let (vao, vbo) = Self::create_objects(&self.buffer_contents);
         self.attribute_gl_object = vao;
         self.buffer_gl_object = vbo;
         self.needs_update = false;
@@ -126,9 +126,7 @@ impl<T> BufferObject<T> {
     pub fn is_valid(&self) -> bool {
         !self.needs_update
     }
-}
-
-impl BufferObject<Vertex3D> {
+    
     pub fn bind_vertex_array(&self) {
         unsafe {
             gl::BindVertexArray(self.attribute_gl_object);

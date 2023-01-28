@@ -1,0 +1,52 @@
+#version 310 es
+
+precision mediump float;
+
+in vec2 v_tex_coords;
+
+layout (location = 0) uniform sampler2D position;
+layout (location = 1) uniform sampler2D normal;
+layout (location = 2) uniform sampler2D albedo;
+layout (location = 3) uniform sampler2D ssao_noise;
+
+uniform vec3 samples[64];
+uniform mat4 projection;
+
+const vec2 noise_scale = vec2(1600.0/4.0, 900.0/4.0);
+
+out vec4 color;
+
+void main() {
+    
+    // Sample textures from GBuffer
+    vec3 f_position = texture(position, v_tex_coords).xyz;
+    vec3 f_normal = texture(normal, v_tex_coords).xyz;
+    vec4 f_albedo =  texture(albedo, v_tex_coords).rgba;
+    vec3 random_vec = texture(ssao_noise, v_tex_coords * noise_scale).xyz;
+
+    // Calculate lighting
+    vec3 sunlight_dir = vec3(sqrt(2.0));
+    vec3 diffuse_color = f_albedo.rgb * min(1.0, max(dot(sunlight_dir, f_normal), 0.0) + 0.5);
+
+    // Calculate SSAO
+    vec3 tangent = normalize(random_vec - f_normal * dot(random_vec, f_normal));
+    vec3 bitangent = cross(f_normal, tangent);
+    mat3 TBN = mat3(tangent, bitangent, f_normal);
+
+    float occlusion = 0.0;
+    for(int i=0;i<64;++i) {
+        vec3 sample_pos = TBN * samples[i];
+        sample_pos = f_position + sample_pos * 0.5;
+
+        vec4 offset = vec4(sample_pos, 1.0);
+        offset = projection * offset;
+        offset.xyz /= offset.w;
+        offset.xyz = offset.xyz * 0.5 + 0.5;
+        
+        float sample_depth = texture(position, offset.xy).z;
+        occlusion += (sample_depth >= sample_pos.z + 0.001 ? 1.0 : 0.0);
+    }
+    occlusion /= 64.0;
+    
+    color = vec4(occlusion * f_albedo.rgb, 1.0);
+}

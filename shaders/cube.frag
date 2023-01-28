@@ -10,15 +10,15 @@ flat in float v_type;
 uniform float time;
 uniform sampler2D texture_map;
 
-out vec4 color;
+layout (location = 0) out vec4 position;
+layout (location = 1) out vec4 normal;
+layout (location = 2) out vec4 albedo;
 
 void main() {
+    vec4 color = texture(texture_map, v_tex_coords).rgba;
+    if (color.a < 0.5) { discard; }
 
-    vec3 sunlight_dir = vec3(sqrt(2.0));
-
-    vec4 albedo = texture(texture_map, v_tex_coords).rgba;
-    if (albedo.a < 0.5) { discard; }
-
-    vec3 diffuse_color = albedo.rgb * min(1.0, max(dot(sunlight_dir, v_normal), 0.0) + 0.5);
-    color = vec4(diffuse_color, 1.0);
+    position = vec4(v_position, 1.0);
+    normal = vec4(v_normal, 1.0);
+    albedo = color;
 }

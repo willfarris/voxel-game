@@ -1,5 +1,7 @@
 use std::ffi::c_void;
 
+use cgmath::Vector3;
+
 pub enum TextureFormat {
     Float,
     Color,
@@ -55,6 +57,34 @@ impl Texture {
         Texture { id: texture_id }
     }
 
+    pub fn from_vector3_array(img_bytes: &[Vector3<f32>], width: i32, height: i32) -> Texture {
+        let mut id = 0;
+        unsafe {
+            gl::GenTextures(1, &mut id);
+        }
+        let texture = Texture { id };
+        texture.bind();
+        unsafe {
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGB32F as i32,
+                width,
+                height,
+                0,
+                gl::RGB,
+                gl::FLOAT,
+                &img_bytes[0] as *const Vector3<f32> as *const c_void
+            );
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);  
+        }
+        texture.unbind();
+        texture
+    }
+
     pub fn empty(width: i32, height: i32, format: TextureFormat) -> Self {
         let mut id = 0;
         unsafe {
@@ -78,8 +108,8 @@ impl Texture {
                 typeformat,
                 std::ptr::null::<std::ffi::c_void>(),
             );
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
         }
@@ -91,6 +121,13 @@ impl Texture {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.id);
         }
+    }
+
+    pub fn use_as_framebuffer_texture(&self, index: u32) {
+        unsafe {
+            gl::ActiveTexture(gl::TEXTURE0 + index);
+        }
+        self.bind();
     }
 
     pub fn unbind(&self) {

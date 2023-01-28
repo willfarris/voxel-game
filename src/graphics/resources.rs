@@ -1,14 +1,25 @@
 use std::collections::HashMap;
 
-use cgmath::Matrix4;
+use cgmath::{Matrix4, Vector3};
 
-use super::{buffer::BufferObject, shader::Shader, texture::Texture, vertex::Vertex3D, framebuffer::Framebuffer};
+use super::{
+    buffer::BufferObject,
+    framebuffer::Framebuffer,
+    shader::Shader,
+    texture::Texture,
+    vertex::{Vertex2D, Vertex3D},
+};
 
 pub struct GLResources {
     textures: HashMap<&'static str, Texture>,
     shaders: HashMap<&'static str, Shader>,
     buffers: HashMap<String, BufferObject<Vertex3D>>,
+
     pub(crate) gbuffer: Option<Framebuffer>,
+    pub(crate) screenquad: Option<BufferObject<Vertex3D>>,
+    pub(crate) gbuffer_program: Option<Shader>,
+    pub(crate) ssao_kernel: Option<[Vector3<f32>; 64]>,
+    pub(crate) ssao_noise: Option<Texture>,
 
     buffer_update_queue: Vec<(String, Vec<Vertex3D>)>,
 }
@@ -19,7 +30,12 @@ impl GLResources {
             textures: HashMap::new(),
             shaders: HashMap::new(),
             buffers: HashMap::new(),
+
             gbuffer: None,
+            screenquad: None,
+            gbuffer_program: None,
+            ssao_kernel: None,
+            ssao_noise: None,
 
             buffer_update_queue: Vec::new(),
         }

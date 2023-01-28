@@ -18,16 +18,17 @@ mod java_interface;
 
 use std::{
     sync::{Arc, Mutex, RwLock},
-    time::Duration,
+    time::Duration, ffi::CStr,
 };
 
-use cgmath::{Vector2, Vector3};
+use cgmath::{Vector2, Vector3, Zero, InnerSpace};
 use entity::EntityTrait;
 use graphics::{
+    buffer::BufferObject,
     framebuffer::Framebuffer,
-    mesh::block_drop_vertices,
+    mesh::{block_drop_vertices, FULLSCREEN_QUAD},
     resources::{GLRenderable, GLResources},
-    texture::{Texture, TextureFormat},
+    texture::{Texture, TextureFormat}, source::{GBUFFER_FRAG_SRC, SCREENQUAD_VERT_SRC},
 };
 use noise::Perlin;
 use physics::{
@@ -385,8 +386,45 @@ impl Engine {
             ("albedo".to_string(), albedo_texture),
         ]);
 
+        let screenquad = BufferObject::new(FULLSCREEN_QUAD.into());
+        let gbuffer_program = graphics::shader::Shader::new(SCREENQUAD_VERT_SRC, GBUFFER_FRAG_SRC).unwrap();
+        
+        gbuffer_program.use_program();
+        let mut ssao_kernel = [Vector3::zero(); 64];
+        for (i, s) in &mut ssao_kernel.iter_mut().enumerate() {
+            let sample: Vector3<f32> = Vector3::new(
+                rand::random::<f32>() * 2.0 - 1.0,
+                rand::random::<f32>() * 2.0 - 1.0,
+                rand::random::<f32>(),
+            ).normalize() * rand::random();
+
+            //TODO: scale samples so they cluster near origin
+            //let scale = i as f32 / 64.0;
+            //sample *= lerp(0.1, 1.0, scale * scale);
+
+            println!("{:?}", sample);
+            let sample_name_rust = format!("samples[{}]", i);
+            let sample_name = std::ffi::CString::new(sample_name_rust.as_str()).unwrap();
+            gbuffer_program.set_vec3(&sample_name, &sample);
+            *s = sample;
+        }
+
+        let mut ssao_noise = [Vector3::zero(); 16];
+        for pixel in ssao_noise.iter_mut() {
+            *pixel = Vector3::new(
+                rand::random::<f32>() * 2.0 - 1.0,
+                rand::random::<f32>() * 2.0 - 1.0,
+                0.0
+            );
+        }
+        let ssao_noise_texture = Texture::from_vector3_array(&ssao_noise, 4, 4);
+
         {
-            self.gl_resources.write().unwrap().gbuffer = Some(gbuffer);
+            let mut gl_resources = self.gl_resources.write().unwrap();
+            gl_resources.gbuffer = Some(gbuffer);
+            gl_resources.screenquad = Some(screenquad);
+            gl_resources.gbuffer_program = Some(gbuffer_program);
+            gl_resources.ssao_noise = Some(ssao_noise_texture);
         }
 
         {
@@ -410,8 +448,7 @@ impl Engine {
         let terrain = self.terrain.read().unwrap();
 
         unsafe {
-            gl::Viewport(0, 0, self.width, self.height);
-            gl::ClearColor(0.2, 0.2, 0.7, 1.0);
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
@@ -422,7 +459,11 @@ impl Engine {
         let gl_resources = self.gl_resources.read().unwrap();
 
         gl_resources.gbuffer.as_ref().unwrap().bind();
-        gl_resources.gbuffer.as_ref().unwrap().unbind();
+
+        unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
 
         let perspective_matrix =
             perspective_matrix(self.width, self.height, self.render_distance as f32);
@@ -443,6 +484,23 @@ impl Engine {
                 self.elapsed_time,
             );
         }
+
+        gl_resources.gbuffer.as_ref().unwrap().unbind();
+
+        gl_resources.gbuffer.as_ref().unwrap().bind_render_textures_to_current_fb();
+        gl_resources.ssao_noise.as_ref().unwrap().use_as_framebuffer_texture(3);
+
+        gl_resources.gbuffer_program.as_ref().unwrap().use_program();
+        gl_resources.gbuffer_program.as_ref().unwrap().set_texture(unsafe {c_str!("position")}, 0);
+        gl_resources.gbuffer_program.as_ref().unwrap().set_texture(unsafe {c_str!("normal")}, 1);
+        gl_resources.gbuffer_program.as_ref().unwrap().set_texture(unsafe {c_str!("albedo")}, 2);
+        gl_resources.gbuffer_program.as_ref().unwrap().set_texture(unsafe {c_str!("ssao_noise")}, 3);
+
+        gl_resources.gbuffer_program.as_ref().unwrap().set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
+
+        gl_resources.screenquad.as_ref().unwrap().draw_vertex_buffer();
+
+
     }
 
     pub fn pause(&mut self) {
