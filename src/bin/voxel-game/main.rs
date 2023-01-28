@@ -5,7 +5,7 @@ use glfw::Context;
 use voxel::q_rsqrt;
 use voxel::{Engine, PlayerInput};
 
-const WIDTH: i32 = 1600;
+const WIDTH: i32 = 1920;
 const HEIGHT: i32 = 900;
 
 fn main() {

@@ -28,7 +28,7 @@ use graphics::{
     framebuffer::Framebuffer,
     mesh::{block_drop_vertices, FULLSCREEN_QUAD},
     resources::{GLRenderable, GLResources},
-    texture::{Texture, TextureFormat}, source::{GBUFFER_FRAG_SRC, SCREENQUAD_VERT_SRC},
+    texture::{Texture, TextureFormat}, source::{GBUFFER_FRAG_SRC, SCREENQUAD_VERT_SRC}, depthbuffer::Depthbuffer,
 };
 use noise::Perlin;
 use physics::{
@@ -384,7 +384,7 @@ impl Engine {
             ("position".to_string(), position_texture),
             ("normal".to_string(), normal_texture),
             ("albedo".to_string(), albedo_texture),
-        ]);
+        ], Some(Depthbuffer::new(self.width, self.height)));
 
         let screenquad = BufferObject::new(FULLSCREEN_QUAD.into());
         let gbuffer_program = graphics::shader::Shader::new(SCREENQUAD_VERT_SRC, GBUFFER_FRAG_SRC).unwrap();
@@ -497,6 +497,7 @@ impl Engine {
         gl_resources.gbuffer_program.as_ref().unwrap().set_texture(unsafe {c_str!("ssao_noise")}, 3);
 
         gl_resources.gbuffer_program.as_ref().unwrap().set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
+        gl_resources.gbuffer_program.as_ref().unwrap().set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
 
         gl_resources.screenquad.as_ref().unwrap().draw_vertex_buffer();
 

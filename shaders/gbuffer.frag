@@ -11,12 +11,14 @@ layout (location = 3) uniform sampler2D ssao_noise;
 
 uniform vec3 samples[64];
 uniform mat4 projection;
+uniform vec2 resolution;
 
-const vec2 noise_scale = vec2(1600.0/4.0, 900.0/4.0);
 
 out vec4 color;
 
 void main() {
+
+    vec2 noise_scale = resolution / 4.;
     
     // Sample textures from GBuffer
     vec3 f_position = texture(position, v_tex_coords).xyz;
