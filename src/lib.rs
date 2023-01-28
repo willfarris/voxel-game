@@ -402,7 +402,6 @@ impl Engine {
             //let scale = i as f32 / 64.0;
             //sample *= lerp(0.1, 1.0, scale * scale);
 
-            println!("{:?}", sample);
             let sample_name_rust = format!("samples[{}]", i);
             let sample_name = std::ffi::CString::new(sample_name_rust.as_str()).unwrap();
             gbuffer_program.set_vec3(&sample_name, &sample);
@@ -487,7 +486,12 @@ impl Engine {
 
         gl_resources.gbuffer.as_ref().unwrap().unbind();
 
-        gl_resources.gbuffer.as_ref().unwrap().bind_render_textures_to_current_fb();
+        unsafe {
+            gl::ClearColor(0.4, 0.6, 1.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
+
+        gl_resources.gbuffer.as_ref().unwrap().bind_render_textures_to_current_fb(vec!["position".to_string(), "normal".to_string(), "albedo".to_string()]);
         gl_resources.ssao_noise.as_ref().unwrap().use_as_framebuffer_texture(3);
 
         gl_resources.gbuffer_program.as_ref().unwrap().use_program();
@@ -498,6 +502,7 @@ impl Engine {
 
         gl_resources.gbuffer_program.as_ref().unwrap().set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
         gl_resources.gbuffer_program.as_ref().unwrap().set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
+        gl_resources.gbuffer_program.as_ref().unwrap().set_float(unsafe {c_str!("time")}, self.elapsed_time);
 
         gl_resources.screenquad.as_ref().unwrap().draw_vertex_buffer();
 

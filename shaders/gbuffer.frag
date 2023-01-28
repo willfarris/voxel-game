@@ -12,7 +12,7 @@ layout (location = 3) uniform sampler2D ssao_noise;
 uniform vec3 samples[64];
 uniform mat4 projection;
 uniform vec2 resolution;
-
+uniform float time;
 
 out vec4 color;
 
@@ -46,9 +46,11 @@ void main() {
         offset.xyz = offset.xyz * 0.5 + 0.5;
         
         float sample_depth = texture(position, offset.xy).z;
-        occlusion += (sample_depth >= sample_pos.z + 0.001 ? 1.0 : 0.0);
+        float range_check = smoothstep(0.0, 1.0, 0.5 / abs(f_position.z - sample_depth));
+        occlusion += (sample_depth >= sample_pos.z + 0.025 ? 1.0 : 0.0) * 1.0;
     }
     occlusion /= 64.0;
+
     
-    color = vec4(occlusion * f_albedo.rgb, 1.0);
+    color = vec4(occlusion * f_albedo.rgb, f_albedo.a);
 }

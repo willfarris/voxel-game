@@ -33,7 +33,6 @@ impl Framebuffer {
 
             framebuffer.textures.insert(name, texture);
             let attachment = gl::COLOR_ATTACHMENT0 + i as u32;
-            println!("{}", attachment);
             draw_buffers.push(attachment);
         }
         
@@ -67,23 +66,14 @@ impl Framebuffer {
         framebuffer
     }
 
-    pub fn bind_render_textures_to_current_fb(&self) {
-
-        /*for (i, texture) in self.textures.values().enumerate() {
-            unsafe {
-                gl::ActiveTexture(gl::TEXTURE0 + i as u32);
-                gl::BindTexture(gl::TEXTURE_2D, texture.id);
+    pub fn bind_render_textures_to_current_fb(&self, texture_names: Vec<String>) {
+        for (i, name) in texture_names.iter().enumerate() {
+            if let Some(texture) = self.textures.get(name) {
+                unsafe {
+                    gl::ActiveTexture(gl::TEXTURE0 + i as u32);
+                    gl::BindTexture(gl::TEXTURE_2D, texture.id);
+                }
             }
-        }*/
-        unsafe {
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, self.textures.get("position").unwrap().id);
-            
-            gl::ActiveTexture(gl::TEXTURE1);
-            gl::BindTexture(gl::TEXTURE_2D, self.textures.get("normal").unwrap().id);
-
-            gl::ActiveTexture(gl::TEXTURE2);
-            gl::BindTexture(gl::TEXTURE_2D, self.textures.get("albedo").unwrap().id);
         }
     }
 
