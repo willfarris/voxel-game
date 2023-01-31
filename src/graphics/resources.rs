@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 use cgmath::{Matrix4, Vector3};
 
@@ -7,13 +7,15 @@ use super::{
     framebuffer::Framebuffer,
     shader::Shader,
     texture::Texture,
-    vertex::{Vertex2D, Vertex3D},
+    vertex::{Vertex2D, Vertex3D}, vao::VertexAttributeObject,
 };
 
 pub struct GLResources {
     textures: HashMap<&'static str, Texture>,
     shaders: HashMap<&'static str, Shader>,
-    buffers: HashMap<String, BufferObject<Vertex3D>>,
+    vaos: HashMap<String, VertexAttributeObject>,
+    
+    _buffers: HashMap<String, BufferObject<Vertex3D>>,
 
     pub(crate) gbuffer: Option<Framebuffer>,
     pub(crate) screenquad: Option<BufferObject<Vertex3D>>,
@@ -21,7 +23,7 @@ pub struct GLResources {
     pub(crate) ssao_kernel: Option<[Vector3<f32>; 64]>,
     pub(crate) ssao_noise: Option<Texture>,
 
-    buffer_update_queue: Vec<(String, Vec<Vertex3D>)>,
+    _buffer_update_queue: Vec<(String, Vec<Vertex3D>)>,
 }
 
 impl GLResources {
@@ -29,7 +31,9 @@ impl GLResources {
         Self {
             textures: HashMap::new(),
             shaders: HashMap::new(),
-            buffers: HashMap::new(),
+            vaos: HashMap::new(),
+
+            _buffers: HashMap::new(),
 
             gbuffer: None,
             screenquad: None,
@@ -37,7 +41,7 @@ impl GLResources {
             ssao_kernel: None,
             ssao_noise: None,
 
-            buffer_update_queue: Vec::new(),
+            _buffer_update_queue: Vec::new(),
         }
     }
 
@@ -65,7 +69,7 @@ impl GLResources {
     }
 
     pub fn get_buffer(&self, name: String) -> Option<&BufferObject<Vertex3D>> {
-        if let Some(buffer) = self.buffers.get(name.as_str()) {
+        if let Some(buffer) = self._buffers.get(name.as_str()) {
             if buffer.is_valid() {
                 Some(buffer)
             } else {
@@ -78,17 +82,17 @@ impl GLResources {
 
     pub fn create_buffer_from_verts(&mut self, name: String, buffer_contents: Vec<Vertex3D>) {
         let buffer = BufferObject::new(buffer_contents);
-        self.buffers.insert(name, buffer);
+        self._buffers.insert(name, buffer);
     }
 
     pub fn update_buffer(&mut self, name: String, new_contents: Vec<Vertex3D>) {
-        self.buffer_update_queue.push((name, new_contents));
+        self._buffer_update_queue.push((name, new_contents));
     }
 
     pub fn process_buffer_updates(&mut self, num_per_frame: usize) {
         for _ in 0..num_per_frame {
-            if let Some((buffer_name, new_contents)) = self.buffer_update_queue.pop() {
-                if let Some(buffer) = self.buffers.get_mut(&buffer_name) {
+            if let Some((buffer_name, new_contents)) = self._buffer_update_queue.pop() {
+                if let Some(buffer) = self._buffers.get_mut(&buffer_name) {
                     buffer.update_buffer(new_contents);
                 } else {
                     self.create_buffer_from_verts(buffer_name, new_contents);
@@ -100,7 +104,7 @@ impl GLResources {
     pub fn invalidate_resources(&mut self) {
         self.shaders.clear();
         self.textures.clear();
-        for buffer in self.buffers.values_mut() {
+        for buffer in self._buffers.values_mut() {
             buffer.invalidate();
         }
     }

@@ -135,4 +135,13 @@ impl Texture {
             gl::BindTexture(gl::TEXTURE_2D, 0);
         }
     }
+
+    pub fn delete(&mut self) {
+        if self.id != 0 {
+            unsafe {
+                gl::DeleteTextures(1, &self.id as *const u32);
+            }
+            self.id = 0;
+        }
+    }
 }
