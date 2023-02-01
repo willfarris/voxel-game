@@ -4,11 +4,11 @@ use super::{texture::Texture, depthbuffer::{Depthbuffer, self}};
 
 pub(crate) struct Framebuffer {
     id: u32,
-    textures: HashMap<String, Texture>,
+    textures: HashMap<&'static str, Texture>,
 }
 
 impl Framebuffer {
-    pub fn with_textures(textures: Vec<(String, Texture)>, depthbuffer: Option<Depthbuffer>) -> Self {
+    pub fn with_textures(textures: Vec<(&'static str, Texture)>, depthbuffer: Option<Depthbuffer>) -> Self {
         let mut id = 0;
         unsafe {
             gl::GenFramebuffers(1, &mut id);
@@ -66,7 +66,7 @@ impl Framebuffer {
         framebuffer
     }
 
-    pub fn bind_render_textures_to_current_fb(&self, texture_names: Vec<String>) {
+    pub fn bind_render_textures_to_current_fb(&self, texture_names: Vec<&'static str>) {
         for (i, name) in texture_names.iter().enumerate() {
             if let Some(texture) = self.textures.get(name) {
                 unsafe {

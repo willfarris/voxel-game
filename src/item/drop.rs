@@ -1,12 +1,13 @@
 use cgmath::Zero;
 pub(crate) use cgmath::{Deg, Matrix4, Quaternion, Rotation3, Vector3};
+use image::ImageFormat;
 
 use crate::{
     c_str,
     graphics::{
         mesh::block_drop_vertices,
         resources::{GLRenderable, GLResources},
-        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC},
+        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC}, shader::Shader, texture::Texture, vao::VertexAttributeObject, vbo::VertexBufferObject,
     },
     physics::{
         collision::{Collider, Rect3},
@@ -52,16 +53,24 @@ impl ItemDrop {
 
 impl GLRenderable for ItemDrop {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-        if gl_resources.get_shader("terrain").is_none() {
-            gl_resources.create_shader("terrain", TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC);
-        }
-        if gl_resources.get_texture("terrain").is_none() {
-            gl_resources.create_texture("terrain", TERRAIN_BITMAP);
+        if gl_resources.shaders.get("terrain").is_none() {
+            let terrain_shader = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
+            gl_resources.shaders.insert("terrain", terrain_shader);
         }
 
-        let verts = block_drop_vertices(&BLOCKS[self.block_id]);
-        let name = format!("item_{}", self.block_id);
-        gl_resources.update_buffer(name, verts);
+        if gl_resources.textures.get("terrain").is_none() {
+            let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
+            gl_resources.textures.insert("terrain", terrain_texture);
+        }
+
+        let item_drop_name = format!("item_{}", self.block_id);
+        if gl_resources.vaos.get(&item_drop_name).is_none() {
+            let verts = Box::new(block_drop_vertices(&BLOCKS[self.block_id]));
+            let vbo = VertexBufferObject::create_buffer(verts);
+            let vao = VertexAttributeObject::with_buffer(vbo);
+            gl_resources.vaos.insert(item_drop_name, vao);
+        }
+
     }
 
     fn draw(
@@ -79,10 +88,10 @@ impl GLRenderable for ItemDrop {
         let translation_matrix = Matrix4::from_translation(self.position);
         let model_matrix = translation_matrix * rotation_matrix * scale_matrix;
 
-        let shader = gl_resources.get_shader("terrain").unwrap();
-        let texture = gl_resources.get_texture("terrain").unwrap();
+        let shader = gl_resources.shaders.get("terrain").unwrap();
+        let texture = gl_resources.textures.get("terrain").unwrap();
 
-        texture.bind();
+        texture.use_as_framebuffer_texture(0);
 
         shader.use_program();
         shader.set_mat4(unsafe { c_str!("perspective_matrix") }, &perspective_matrix);
@@ -92,9 +101,9 @@ impl GLRenderable for ItemDrop {
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
         let name = format!("item_{}", self.block_id);
-        if let Some(vbo) = gl_resources.get_buffer(name) {
-            vbo.draw_vertex_buffer();
-        }
+        let vao =gl_resources.vaos.get(&name).unwrap();
+        vao.draw();
+
     }
 }
 

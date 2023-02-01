@@ -4,15 +4,45 @@ use gl::types::GLsizeiptr;
 
 use crate::offset_of;
 
-use super::vertex::Vertex3D;
+use super::vertex::{Vertex3D, VertexBufferContents};
 
-pub(crate) trait VertexBufferObject {
-    fn get_id(&self) -> u32;
-    fn setup_for_current_vao(&self);
+
+pub(crate) struct VertexBufferObject {
+    id: u32,
+    buffer: Box<dyn VertexBufferContents + Send + Sync>,
+}
+
+impl VertexBufferObject {
+    pub fn create_buffer(buffer: Box<dyn VertexBufferContents + Send + Sync>) -> Self {
+        let mut id = 0;
+        unsafe {
+            gl::GenBuffers(1, &mut id);
+        }
+        Self {
+            id,
+            buffer,
+        }
+    }
+
+    pub fn update(&mut self, new_contents: Box<dyn VertexBufferContents + Send + Sync>) {
+        self.bind();
+        let stride = self.buffer.get_stride();
+        let buffer_size = (self.buffer.get_length() * stride) as GLsizeiptr;
+        let data = self.buffer.get_raw_start_ptr();
+        unsafe {
+            gl::BufferData(gl::ARRAY_BUFFER, buffer_size, data, gl::STATIC_DRAW);
+        }
+        self.unbind();
+        self.buffer = new_contents;
+    }
+
+    pub fn get_length(&self) -> usize {
+        self.buffer.get_length()
+    }
 
     fn bind(&self) {
         unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.get_id());
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.id);
         }
     }
 
@@ -21,78 +51,10 @@ pub(crate) trait VertexBufferObject {
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         }
     }
-}
 
-struct VertexBuffer<T: Sized + Send + Sync> {
-    id: u32,
-    buffer: Vec<T>,
-}
-
-impl VertexBufferObject for VertexBuffer<Vertex3D> {
-    fn get_id(&self) -> u32 {
-        self.id
-    }
-
-    fn setup_for_current_vao(&self) {
-        let stride = size_of::<Vertex3D>();
-        let size = (self.buffer.len() * stride) as GLsizeiptr;
-        let data = &self.buffer[0] as *const Vertex3D as *const c_void;
-        unsafe {
-            gl::BufferData(gl::ARRAY_BUFFER, size, data, gl::STATIC_DRAW);
-
-            // Vertex3D-specific attributes
-            // 0 - position
-            // 1 - normal
-            // 2 - texture coords
-            // 3 - vertex type
-
-            // vertex Positions
-            let position_location = 0; //gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("position").as_ptr()) as u32;
-            gl::EnableVertexAttribArray(position_location);
-            gl::VertexAttribPointer(
-                position_location,
-                3,
-                gl::FLOAT,
-                gl::FALSE,
-                stride as i32,
-                offset_of!(Vertex3D, position) as *const c_void,
-            );
-
-            // vertex normals
-            let normal_location = 1; //gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("normal").as_ptr()) as u32;
-            gl::EnableVertexAttribArray(normal_location);
-            gl::VertexAttribPointer(
-                normal_location,
-                3,
-                gl::FLOAT,
-                gl::FALSE,
-                stride as i32,
-                offset_of!(Vertex3D, normal) as *const c_void,
-            );
-
-            // vertex texture coords
-            let tex_coords_location = 2; //gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("tex_coords").as_ptr()) as u32;
-            gl::EnableVertexAttribArray(tex_coords_location);
-            gl::VertexAttribPointer(
-                tex_coords_location,
-                2,
-                gl::FLOAT,
-                gl::FALSE,
-                stride as i32,
-                offset_of!(Vertex3D, tex_coords) as *const c_void,
-            );
-
-            // vertex type
-            let vertex_type_location = 3; //gl::GetAttribLocation(self.shader.as_ref().unwrap().id, c_str!("vtype").as_ptr()) as u32;
-            gl::EnableVertexAttribArray(vertex_type_location);
-            gl::VertexAttribPointer(
-                vertex_type_location,
-                1,
-                gl::INT,
-                gl::FALSE,
-                stride as i32,
-                offset_of!(Vertex3D, vtype) as *const c_void,
-            );
-        }
+    pub fn setup_for_current_vao(&self) {
+        self.bind();
+        self.buffer.setup_for_current_vbo();
+        self.unbind();
     }
 }

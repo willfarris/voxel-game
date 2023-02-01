@@ -1,42 +1,53 @@
-use super::vbo::VertexBufferObject;
+use super::{vbo::VertexBufferObject, vertex::{self, Vertex3D, Vertex2D, VertexBufferContents}};
 
 pub(crate) struct VertexAttributeObject {
     id: u32,
-    buffer: Option<Box<dyn VertexBufferObject + Sync + Send>>,
+    buffer: VertexBufferObject,
 }
 
 impl VertexAttributeObject {
-    pub fn with_buffers(vertex_buffer: Box<dyn VertexBufferObject + Sync + Send>) -> Self {
+    pub fn with_buffer(buffer: VertexBufferObject) -> Self {
         let mut id = 0;
         unsafe {
             gl::GenVertexArrays(1, &mut id);
         }
-        let mut vao = Self {
+        let vao = Self {
             id,
-            buffer: None,
+            buffer,
         };
-        vao.bind();
-        
-        let buffer = vao.buffer.as_ref().unwrap();
-        buffer.bind();
-        buffer.setup_for_current_vao();
-        buffer.unbind();
-        vao.unbind();
 
-        vao.buffer = Some(vertex_buffer);
+        vao.setup_vbo();
 
         vao
     }
 
-    pub fn bind(&self) {
+    pub fn update_buffer(&mut self, new_contents: Box<dyn VertexBufferContents + Send + Sync>) {
+        self.buffer.update(new_contents);
+    }
+
+    pub fn setup_vbo(&self) {
+        self.bind();
+        self.buffer.setup_for_current_vao();
+        self.unbind();
+    }
+
+    fn bind(&self) {
         unsafe {
             gl::BindVertexArray(self.id)
         }
     }
 
-    pub fn unbind(&self) {
+    fn unbind(&self) {
         unsafe {
             gl::BindVertexArray(0);
         }
+    }
+
+    pub fn draw(&self) {
+        self.bind();
+        unsafe {
+            gl::DrawArrays(gl::TRIANGLES, 0, self.buffer.get_length() as i32);
+        }
+        self.unbind();
     }
 }

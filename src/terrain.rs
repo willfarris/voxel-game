@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
 use cgmath::{Matrix4, Vector2, Vector3};
+use image::ImageFormat;
 
 use crate::{
     graphics::{
         mesh::push_face,
         resources::{GLRenderable, GLResources},
         source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC},
-        vertex::Vertex3D,
+        vertex::Vertex3D, shader::Shader, texture::Texture, vbo::VertexBufferObject, vao::VertexAttributeObject,
     },
     item::drop::ItemDrop,
 };
@@ -81,7 +82,7 @@ impl Terrain {
             }
             if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
-                gl_resources.update_buffer(name, chunk_vertices);
+                //gl_resources.vaos.get_mut(name.as_str()).unwrap().update_buffer(chunk_vertices);
             }
         }
     }
@@ -351,7 +352,12 @@ impl Terrain {
         if self.chunks.get(chunk_index).is_some() {
             if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
-                gl_resources.update_buffer(name, chunk_vertices);
+                let verts = Box::new(chunk_vertices);
+                //gl_resources.vao_update_queue.push((name, verts));
+
+                let vbo = VertexBufferObject::create_buffer(verts);
+                let vao = VertexAttributeObject::with_buffer(vbo);
+                gl_resources.vaos.insert(name, vao);
             }
         }
     }
@@ -407,11 +413,14 @@ impl Terrain {
 
 impl GLRenderable for Terrain {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-        if gl_resources.get_shader("terrain").is_none() {
-            gl_resources.create_shader("terrain", TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC);
+        if gl_resources.shaders.get("terrain").is_none() {
+            let terrain_shader = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
+            gl_resources.shaders.insert("terrain", terrain_shader);
         }
-        if gl_resources.get_texture("terrain").is_none() {
-            gl_resources.create_texture("terrain", TERRAIN_BITMAP);
+
+        if gl_resources.textures.get("terrain").is_none() {
+            let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
+            gl_resources.textures.insert("terrain", terrain_texture);
         }
     }
 
@@ -422,8 +431,8 @@ impl GLRenderable for Terrain {
         view_matrix: Matrix4<f32>,
         elapsed_time: f32,
     ) {
-        let shader = gl_resources.get_shader("terrain").unwrap();
-        let texture = gl_resources.get_texture("terrain").unwrap();
+        let shader = gl_resources.shaders.get("terrain").unwrap();
+        let texture = gl_resources.textures.get("terrain").unwrap();
 
         texture.use_as_framebuffer_texture(0);
 
@@ -442,8 +451,8 @@ impl GLRenderable for Terrain {
             shader.set_mat4(unsafe { c_str!("model_matrix") }, &model_matrix);
 
             let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
-            if let Some(vbo) = gl_resources.get_buffer(name) {
-                vbo.draw_vertex_buffer();
+            if let Some(vao) = gl_resources.vaos.get(&name) {
+                vao.draw();
             }
         }
     }

@@ -28,7 +28,7 @@ use graphics::{
     framebuffer::Framebuffer,
     mesh::{block_drop_vertices, FULLSCREEN_QUAD},
     resources::{GLRenderable, GLResources},
-    texture::{Texture, TextureFormat}, source::{GBUFFER_FRAG_SRC, SCREENQUAD_VERT_SRC}, depthbuffer::Depthbuffer,
+    texture::{Texture, TextureFormat}, source::{GBUFFER_FRAG_SRC, SCREENQUAD_VERT_SRC}, depthbuffer::Depthbuffer, vbo::{VertexBufferObject}, vao::VertexAttributeObject,
 };
 use noise::Perlin;
 use physics::{
@@ -201,10 +201,12 @@ impl Engine {
                                         .destroy_at_global_pos(&world_index, &mut gl_resources)
                                     {
                                         let boxed_drop = Box::new(drop);
-                                        let verts =
-                                            block_drop_vertices(&BLOCKS[boxed_drop.block_id]);
+                                        let verts = Box::new(block_drop_vertices(&BLOCKS[boxed_drop.block_id]));
+                                        let vbo = VertexBufferObject::create_buffer(verts);
+                                        let vao = VertexAttributeObject::with_buffer(vbo);
                                         let name = format!("item_{}", boxed_drop.block_id);
-                                        gl_resources.update_buffer(name, verts);
+                                        
+                                        gl_resources.vaos.insert(name, vao);
                                         self.entities.push(boxed_drop);
                                     }
                                 }
@@ -377,18 +379,11 @@ impl Engine {
             gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut framebuffer_id);
         }
 
-        let position_texture = Texture::empty(self.width, self.height, TextureFormat::Float);
-        let normal_texture = Texture::empty(self.width, self.height, TextureFormat::Float);
-        let albedo_texture = Texture::empty(self.width, self.height, TextureFormat::Color);
-        let gbuffer = Framebuffer::with_textures(vec![
-            ("position".to_string(), position_texture),
-            ("normal".to_string(), normal_texture),
-            ("albedo".to_string(), albedo_texture),
-        ], Some(Depthbuffer::new(self.width, self.height)));
-
-        let screenquad = BufferObject::new(FULLSCREEN_QUAD.into());
-        let gbuffer_program = graphics::shader::Shader::new(SCREENQUAD_VERT_SRC, GBUFFER_FRAG_SRC).unwrap();
+        let screenquad_vbo = VertexBufferObject::create_buffer(Box::new(Vec::from(FULLSCREEN_QUAD)));
+        let screenquad_vao = VertexAttributeObject::with_buffer(screenquad_vbo);
         
+        let gbuffer_program = graphics::shader::Shader::new(SCREENQUAD_VERT_SRC, GBUFFER_FRAG_SRC).unwrap();
+
         gbuffer_program.use_program();
         let mut ssao_kernel = [Vector3::zero(); 64];
         for (i, s) in &mut ssao_kernel.iter_mut().enumerate() {
@@ -397,11 +392,6 @@ impl Engine {
                 rand::random::<f32>() * 2.0 - 1.0,
                 rand::random::<f32>(),
             ).normalize() * rand::random();
-
-            //TODO: scale samples so they cluster near origin
-            //let scale = i as f32 / 64.0;
-            //sample *= lerp(0.1, 1.0, scale * scale);
-
             let sample_name_rust = format!("samples[{}]", i);
             let sample_name = std::ffi::CString::new(sample_name_rust.as_str()).unwrap();
             gbuffer_program.set_vec3(&sample_name, &sample);
@@ -418,12 +408,19 @@ impl Engine {
         }
         let ssao_noise_texture = Texture::from_vector3_array(&ssao_noise, 4, 4);
 
+        let gbuffer_position = Texture::empty(self.width, self.height, TextureFormat::Float);
+        let gbuffer_normal = Texture::empty(self.width, self.height, TextureFormat::Float);
+        let gbuffer_albedo = Texture::empty(self.width, self.height, TextureFormat::Color);
+        let gbuffer_depthbuffer = Depthbuffer::new(self.width, self.height);
+        let gbuffer_textures = vec![("position", gbuffer_position), ("normal", gbuffer_normal), ("albedo", gbuffer_albedo)];
+        let gbuffer = Framebuffer::with_textures(gbuffer_textures, Some(gbuffer_depthbuffer));
+
         {
             let mut gl_resources = self.gl_resources.write().unwrap();
-            gl_resources.gbuffer = Some(gbuffer);
-            gl_resources.screenquad = Some(screenquad);
-            gl_resources.gbuffer_program = Some(gbuffer_program);
-            gl_resources.ssao_noise = Some(ssao_noise_texture);
+            gl_resources.vaos.insert("screenquad".to_string(), screenquad_vao);
+            gl_resources.framebuffers.insert("gbuffer", gbuffer);
+            gl_resources.textures.insert("ssao_noise", ssao_noise_texture);
+            gl_resources.shaders.insert("gbuffer", gbuffer_program);
         }
 
         {
@@ -439,25 +436,21 @@ impl Engine {
     }
 
     pub fn reset_gl_resources(&mut self) {
-        self.gl_resources.write().unwrap().invalidate_resources();
+        //self.gl_resources.write().unwrap().invalidate_resources();
     }
 
     pub fn draw(&mut self) {
         let player = self.player.read().unwrap();
         let terrain = self.terrain.read().unwrap();
 
-        unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
-
         {
-            self.gl_resources.write().unwrap().process_buffer_updates(8);
+            self.gl_resources.write().unwrap().process_vao_buffer_updates(1);
         }
 
         let gl_resources = self.gl_resources.read().unwrap();
 
-        gl_resources.gbuffer.as_ref().unwrap().bind();
+        let gbuffer_fbo = gl_resources.framebuffers.get("gbuffer").unwrap();
+        gbuffer_fbo.bind();
 
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
@@ -484,28 +477,33 @@ impl Engine {
             );
         }
 
-        gl_resources.gbuffer.as_ref().unwrap().unbind();
+        gbuffer_fbo.unbind();
+
 
         unsafe {
             gl::ClearColor(0.4, 0.6, 1.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        gl_resources.gbuffer.as_ref().unwrap().bind_render_textures_to_current_fb(vec!["position".to_string(), "normal".to_string(), "albedo".to_string()]);
-        gl_resources.ssao_noise.as_ref().unwrap().use_as_framebuffer_texture(3);
+        let gbuffer_shader = gl_resources.shaders.get("gbuffer").unwrap();
+        let ssao_noise_texture = gl_resources.textures.get("ssao_noise").unwrap();
+        let screenquad = gl_resources.vaos.get("screenquad").unwrap();
+        
+        gbuffer_fbo.bind_render_textures_to_current_fb(vec!["position", "normal", "albedo"]);
 
-        gl_resources.gbuffer_program.as_ref().unwrap().use_program();
-        gl_resources.gbuffer_program.as_ref().unwrap().set_texture(unsafe {c_str!("position")}, 0);
-        gl_resources.gbuffer_program.as_ref().unwrap().set_texture(unsafe {c_str!("normal")}, 1);
-        gl_resources.gbuffer_program.as_ref().unwrap().set_texture(unsafe {c_str!("albedo")}, 2);
-        gl_resources.gbuffer_program.as_ref().unwrap().set_texture(unsafe {c_str!("ssao_noise")}, 3);
+        ssao_noise_texture.use_as_framebuffer_texture(3);
 
-        gl_resources.gbuffer_program.as_ref().unwrap().set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
-        gl_resources.gbuffer_program.as_ref().unwrap().set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
-        gl_resources.gbuffer_program.as_ref().unwrap().set_float(unsafe {c_str!("time")}, self.elapsed_time);
+        gbuffer_shader.use_program();
+        gbuffer_shader.set_texture(unsafe {c_str!("position")}, 0);
+        gbuffer_shader.set_texture(unsafe {c_str!("normal")}, 1);
+        gbuffer_shader.set_texture(unsafe {c_str!("albedo")}, 2);
+        gbuffer_shader.set_texture(unsafe {c_str!("ssao_noise")}, 3);
 
-        gl_resources.screenquad.as_ref().unwrap().draw_vertex_buffer();
+        gbuffer_shader.set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
+        gbuffer_shader.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
+        gbuffer_shader.set_float(unsafe {c_str!("time")}, self.elapsed_time);
 
+        screenquad.draw();
 
     }
 

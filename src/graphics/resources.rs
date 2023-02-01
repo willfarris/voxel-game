@@ -7,23 +7,16 @@ use super::{
     framebuffer::Framebuffer,
     shader::Shader,
     texture::Texture,
-    vertex::{Vertex2D, Vertex3D}, vao::VertexAttributeObject,
+    vertex::{Vertex2D, Vertex3D, VertexBufferContents}, vao::VertexAttributeObject, vbo::VertexBufferObject,
 };
 
 pub struct GLResources {
-    textures: HashMap<&'static str, Texture>,
-    shaders: HashMap<&'static str, Shader>,
-    vaos: HashMap<String, VertexAttributeObject>,
+    pub(crate) textures: HashMap<&'static str, Texture>,
+    pub(crate) shaders: HashMap<&'static str, Shader>,
+    pub(crate) vaos: HashMap<String, VertexAttributeObject>,
+    pub(crate) framebuffers: HashMap<&'static str, Framebuffer>,
     
-    _buffers: HashMap<String, BufferObject<Vertex3D>>,
-
-    pub(crate) gbuffer: Option<Framebuffer>,
-    pub(crate) screenquad: Option<BufferObject<Vertex3D>>,
-    pub(crate) gbuffer_program: Option<Shader>,
-    pub(crate) ssao_kernel: Option<[Vector3<f32>; 64]>,
-    pub(crate) ssao_noise: Option<Texture>,
-
-    _buffer_update_queue: Vec<(String, Vec<Vertex3D>)>,
+    pub(crate) vao_update_queue: Vec<(String, Box<dyn VertexBufferContents + Send + Sync>)>,
 }
 
 impl GLResources {
@@ -32,82 +25,26 @@ impl GLResources {
             textures: HashMap::new(),
             shaders: HashMap::new(),
             vaos: HashMap::new(),
-
-            _buffers: HashMap::new(),
-
-            gbuffer: None,
-            screenquad: None,
-            gbuffer_program: None,
-            ssao_kernel: None,
-            ssao_noise: None,
-
-            _buffer_update_queue: Vec::new(),
+            framebuffers: HashMap::new(),
+            
+            vao_update_queue: Vec::new(),
         }
     }
 
-    pub fn create_shader(
-        &mut self,
-        key: &'static str,
-        vert_shader_src: &str,
-        frag_shader_src: &str,
-    ) {
-        let shader = Shader::new(vert_shader_src, frag_shader_src).unwrap();
-        self.shaders.insert(key, shader);
-    }
-
-    pub fn create_texture(&mut self, key: &'static str, bitmap: &[u8]) {
-        let texture = Texture::from_dynamic_image_bytes(bitmap, image::ImageFormat::Png);
-        self.textures.insert(key, texture);
-    }
-
-    pub fn get_texture(&self, key: &str) -> Option<Texture> {
-        self.textures.get(key).copied()
-    }
-
-    pub fn get_shader(&self, key: &str) -> Option<Shader> {
-        self.shaders.get(key).copied()
-    }
-
-    pub fn get_buffer(&self, name: String) -> Option<&BufferObject<Vertex3D>> {
-        if let Some(buffer) = self._buffers.get(name.as_str()) {
-            if buffer.is_valid() {
-                Some(buffer)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn create_buffer_from_verts(&mut self, name: String, buffer_contents: Vec<Vertex3D>) {
-        let buffer = BufferObject::new(buffer_contents);
-        self._buffers.insert(name, buffer);
-    }
-
-    pub fn update_buffer(&mut self, name: String, new_contents: Vec<Vertex3D>) {
-        self._buffer_update_queue.push((name, new_contents));
-    }
-
-    pub fn process_buffer_updates(&mut self, num_per_frame: usize) {
+    pub fn process_vao_buffer_updates(&mut self, num_per_frame: usize) {
         for _ in 0..num_per_frame {
-            if let Some((buffer_name, new_contents)) = self._buffer_update_queue.pop() {
-                if let Some(buffer) = self._buffers.get_mut(&buffer_name) {
-                    buffer.update_buffer(new_contents);
+            if let Some((buffer_name, new_contents)) = self.vao_update_queue.pop() {
+                if let Some(vao) = self.vaos.get_mut(&buffer_name) {
+                    vao.update_buffer(new_contents);
                 } else {
-                    self.create_buffer_from_verts(buffer_name, new_contents);
+                    let vbo = VertexBufferObject::create_buffer(new_contents);
+                    let vao = VertexAttributeObject::with_buffer(vbo);
+                    self.vaos.insert(buffer_name, vao);
                 }
             }
         }
     }
-
-    pub fn invalidate_resources(&mut self) {
-        self.shaders.clear();
-        self.textures.clear();
-        for buffer in self._buffers.values_mut() {
-            buffer.invalidate();
-        }
-    }
+    
 }
 
 pub trait GLRenderable {

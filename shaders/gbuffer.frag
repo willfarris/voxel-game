@@ -9,7 +9,9 @@ layout (location = 1) uniform sampler2D normal;
 layout (location = 2) uniform sampler2D albedo;
 layout (location = 3) uniform sampler2D ssao_noise;
 
-uniform vec3 samples[64];
+#define NUM_SAMPLES 16
+
+uniform vec3 samples[NUM_SAMPLES];
 uniform mat4 projection;
 uniform vec2 resolution;
 uniform float time;
@@ -36,7 +38,7 @@ void main() {
     mat3 TBN = mat3(tangent, bitangent, f_normal);
 
     float occlusion = 0.0;
-    for(int i=0;i<64;++i) {
+    for(int i=0;i<NUM_SAMPLES;++i) {
         vec3 sample_pos = TBN * samples[i];
         sample_pos = f_position + sample_pos * 0.5;
 
@@ -46,10 +48,11 @@ void main() {
         offset.xyz = offset.xyz * 0.5 + 0.5;
         
         float sample_depth = texture(position, offset.xy).z;
+        float sample_alpha = texture(albedo, offset.xy).a;
         float range_check = smoothstep(0.0, 1.0, 0.5 / abs(f_position.z - sample_depth));
-        occlusion += (sample_depth >= sample_pos.z + 0.025 ? 1.0 : 0.0) * 1.0;
+        occlusion += (sample_depth >= sample_pos.z + 0.025 ? 1.0 : 0.0 + (1.0 - sample_alpha));
     }
-    occlusion /= 64.0;
+    occlusion /= float(NUM_SAMPLES);
 
     
     color = vec4(occlusion * f_albedo.rgb, f_albedo.a);
