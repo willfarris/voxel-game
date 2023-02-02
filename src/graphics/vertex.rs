@@ -38,7 +38,7 @@ pub struct Vertex2D {
 
 //pub(crate) trait VertexBufferArrayContents = VertexBufferArray + Sized + Send + Sync;
 
-pub(crate) trait VertexBufferContents {
+pub trait VertexBufferContents {
     fn setup_for_current_vbo(&self);
     fn get_length(&self) -> usize;
     fn get_raw_start_ptr(&self) -> *const c_void;

@@ -7,7 +7,7 @@ use crate::offset_of;
 use super::vertex::{Vertex3D, VertexBufferContents};
 
 
-pub(crate) struct VertexBufferObject {
+pub struct VertexBufferObject {
     id: u32,
     buffer: Box<dyn VertexBufferContents + Send + Sync>,
 }

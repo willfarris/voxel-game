@@ -53,23 +53,10 @@ impl ItemDrop {
 
 impl GLRenderable for ItemDrop {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-        if gl_resources.shaders.get("terrain").is_none() {
-            let terrain_shader = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
-            gl_resources.shaders.insert("terrain", terrain_shader);
-        }
-
-        if gl_resources.textures.get("terrain").is_none() {
-            let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
-            gl_resources.textures.insert("terrain", terrain_texture);
-        }
 
         let item_drop_name = format!("item_{}", self.block_id);
-        if gl_resources.vaos.get(&item_drop_name).is_none() {
-            let verts = Box::new(block_drop_vertices(&BLOCKS[self.block_id]));
-            let vbo = VertexBufferObject::create_buffer(verts);
-            let vao = VertexAttributeObject::with_buffer(vbo);
-            gl_resources.vaos.insert(item_drop_name, vao);
-        }
+        let verts = Box::new(block_drop_vertices(&BLOCKS[self.block_id]));
+        gl_resources.update_vao_buffer(item_drop_name, verts);
 
     }
 
@@ -88,8 +75,8 @@ impl GLRenderable for ItemDrop {
         let translation_matrix = Matrix4::from_translation(self.position);
         let model_matrix = translation_matrix * rotation_matrix * scale_matrix;
 
-        let shader = gl_resources.shaders.get("terrain").unwrap();
-        let texture = gl_resources.textures.get("terrain").unwrap();
+        let shader = gl_resources.get_shader("terrain").unwrap();
+        let texture = gl_resources.get_texture("terrain").unwrap();
 
         texture.use_as_framebuffer_texture(0);
 
@@ -101,8 +88,7 @@ impl GLRenderable for ItemDrop {
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
         let name = format!("item_{}", self.block_id);
-        let vao =gl_resources.vaos.get(&name).unwrap();
-        vao.draw();
+        gl_resources.get_vao(&name).unwrap().draw();
 
     }
 }

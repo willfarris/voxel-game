@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::{texture::Texture, depthbuffer::{Depthbuffer, self}};
 
-pub(crate) struct Framebuffer {
+pub struct Framebuffer {
     id: u32,
     textures: HashMap<&'static str, Texture>,
 }

@@ -28,8 +28,9 @@ use graphics::{
     framebuffer::Framebuffer,
     mesh::{block_drop_vertices, FULLSCREEN_QUAD},
     resources::{GLRenderable, GLResources},
-    texture::{Texture, TextureFormat}, source::{GBUFFER_FRAG_SRC, SCREENQUAD_VERT_SRC}, depthbuffer::Depthbuffer, vbo::{VertexBufferObject}, vao::VertexAttributeObject,
+    texture::{Texture, TextureFormat}, source::{GBUFFER_FRAG_SRC, SCREENQUAD_VERT_SRC, TERRAIN_BITMAP, TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC}, depthbuffer::Depthbuffer, vbo::{VertexBufferObject}, vao::VertexAttributeObject, shader::Shader,
 };
+use image::ImageFormat;
 use noise::Perlin;
 use physics::{
     collision::{check_world_collision_axis, Collider},
@@ -202,11 +203,9 @@ impl Engine {
                                     {
                                         let boxed_drop = Box::new(drop);
                                         let verts = Box::new(block_drop_vertices(&BLOCKS[boxed_drop.block_id]));
-                                        let vbo = VertexBufferObject::create_buffer(verts);
-                                        let vao = VertexAttributeObject::with_buffer(vbo);
                                         let name = format!("item_{}", boxed_drop.block_id);
-                                        
-                                        gl_resources.vaos.insert(name, vao);
+
+                                        gl_resources.update_vao_buffer(name, verts);
                                         self.entities.push(boxed_drop);
                                     }
                                 }
@@ -378,9 +377,6 @@ impl Engine {
 
             gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut framebuffer_id);
         }
-
-        let screenquad_vbo = VertexBufferObject::create_buffer(Box::new(Vec::from(FULLSCREEN_QUAD)));
-        let screenquad_vao = VertexAttributeObject::with_buffer(screenquad_vbo);
         
         let gbuffer_program = graphics::shader::Shader::new(SCREENQUAD_VERT_SRC, GBUFFER_FRAG_SRC).unwrap();
 
@@ -415,12 +411,21 @@ impl Engine {
         let gbuffer_textures = vec![("position", gbuffer_position), ("normal", gbuffer_normal), ("albedo", gbuffer_albedo)];
         let gbuffer = Framebuffer::with_textures(gbuffer_textures, Some(gbuffer_depthbuffer));
 
+        let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
+        let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
+
         {
             let mut gl_resources = self.gl_resources.write().unwrap();
-            gl_resources.vaos.insert("screenquad".to_string(), screenquad_vao);
-            gl_resources.framebuffers.insert("gbuffer", gbuffer);
-            gl_resources.textures.insert("ssao_noise", ssao_noise_texture);
-            gl_resources.shaders.insert("gbuffer", gbuffer_program);
+            gl_resources.add_vao("screenquad".to_string(), Box::new(Vec::from(FULLSCREEN_QUAD)));
+            
+            gl_resources.add_framebuffer("gbuffer", gbuffer);
+            
+            gl_resources.add_texture("ssao_noise", ssao_noise_texture);
+            gl_resources.add_texture("terrain", terrain_texture);
+
+            gl_resources.add_shader("gbuffer", gbuffer_program);
+            gl_resources.add_shader("terrain", terrain_program);
+
         }
 
         {
@@ -436,7 +441,7 @@ impl Engine {
     }
 
     pub fn reset_gl_resources(&mut self) {
-        //self.gl_resources.write().unwrap().invalidate_resources();
+        self.gl_resources.write().unwrap().invalidate_resources();
     }
 
     pub fn draw(&mut self) {
@@ -444,12 +449,12 @@ impl Engine {
         let terrain = self.terrain.read().unwrap();
 
         {
-            self.gl_resources.write().unwrap().process_vao_buffer_updates(1);
+            self.gl_resources.write().unwrap().process_vao_buffer_updates(8);
         }
 
         let gl_resources = self.gl_resources.read().unwrap();
 
-        let gbuffer_fbo = gl_resources.framebuffers.get("gbuffer").unwrap();
+        let gbuffer_fbo = gl_resources.get_framebuffer("gbuffer").unwrap();
         gbuffer_fbo.bind();
 
         unsafe {
@@ -485,9 +490,9 @@ impl Engine {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        let gbuffer_shader = gl_resources.shaders.get("gbuffer").unwrap();
-        let ssao_noise_texture = gl_resources.textures.get("ssao_noise").unwrap();
-        let screenquad = gl_resources.vaos.get("screenquad").unwrap();
+        let gbuffer_shader = gl_resources.get_shader("gbuffer").unwrap();
+        let ssao_noise_texture = gl_resources.get_texture("ssao_noise").unwrap();
+        let screenquad = gl_resources.get_vao("screenquad").unwrap();
         
         gbuffer_fbo.bind_render_textures_to_current_fb(vec!["position", "normal", "albedo"]);
 

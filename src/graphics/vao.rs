@@ -1,6 +1,6 @@
 use super::{vbo::VertexBufferObject, vertex::{self, Vertex3D, Vertex2D, VertexBufferContents}};
 
-pub(crate) struct VertexAttributeObject {
+pub struct VertexAttributeObject {
     id: u32,
     buffer: VertexBufferObject,
 }
