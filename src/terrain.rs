@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 
 use cgmath::{Matrix4, Vector2, Vector3};
-use image::ImageFormat;
 
 use crate::{
     graphics::{
         mesh::push_face,
         resources::{GLRenderable, GLResources},
-        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC},
-        vertex::Vertex3D, shader::Shader, texture::Texture, vbo::VertexBufferObject, vao::VertexAttributeObject,
+        vertex::Vertex3D,
     },
     item::drop::ItemDrop,
 };
@@ -82,7 +80,7 @@ impl Terrain {
             }
             if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
-                //gl_resources.vaos.get_mut(name.as_str()).unwrap().update_buffer(chunk_vertices);
+                gl_resources.update_vao_buffer(name, Box::new(chunk_vertices));
             }
         }
     }
@@ -408,16 +406,8 @@ impl Terrain {
 }
 
 impl GLRenderable for Terrain {
-    fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-        /*if gl_resources.shaders.get("terrain").is_none() {
-            let terrain_shader = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
-            gl_resources.shaders.insert("terrain", terrain_shader);
-        }
+    fn init_gl_resources(&self, _gl_resources: &mut GLResources) {
 
-        if gl_resources.textures.get("terrain").is_none() {
-            let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
-            gl_resources.textures.insert("terrain", terrain_texture);
-        }*/
     }
 
     fn draw(

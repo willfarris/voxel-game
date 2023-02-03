@@ -18,20 +18,19 @@ mod java_interface;
 
 use std::{
     sync::{Arc, Mutex, RwLock},
-    time::Duration, ffi::CStr,
+    time::Duration,
 };
 
 use cgmath::{Vector2, Vector3, Zero, InnerSpace};
 use entity::EntityTrait;
 use graphics::{
-    buffer::BufferObject,
     framebuffer::Framebuffer,
     mesh::{block_drop_vertices, FULLSCREEN_QUAD},
     resources::{GLRenderable, GLResources},
-    texture::{Texture, TextureFormat}, source::{GBUFFER_FRAG_SRC, SCREENQUAD_VERT_SRC, TERRAIN_BITMAP, TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC}, depthbuffer::Depthbuffer, vbo::{VertexBufferObject}, vao::VertexAttributeObject, shader::Shader,
+    texture::{Texture, TextureFormat}, source::{SCREENQUAD_VERT_SRC, TERRAIN_BITMAP, TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, POSTPROCESS_FRAG_SRC, SSAO_FRAG_SRC}, depthbuffer::Depthbuffer, shader::Shader,
 };
 use image::ImageFormat;
-use noise::Perlin;
+
 use physics::{
     collision::{check_world_collision_axis, Collider},
     physics_update::PhysicsUpdate,
@@ -64,13 +63,13 @@ pub enum PlayerInput {
 }
 
 pub struct EngineLock {
-    engine: Mutex<Engine>,
+    _engine: Mutex<Engine>,
 }
 
 impl Default for EngineLock {
     fn default() -> Self {
         Self {
-            engine: Mutex::new(Engine::default()),
+            _engine: Mutex::new(Engine::default()),
         }
     }
 }
@@ -378,9 +377,9 @@ impl Engine {
             gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut framebuffer_id);
         }
         
-        let gbuffer_program = graphics::shader::Shader::new(SCREENQUAD_VERT_SRC, GBUFFER_FRAG_SRC).unwrap();
+        let ssao_program = graphics::shader::Shader::new(SCREENQUAD_VERT_SRC, SSAO_FRAG_SRC).unwrap();
 
-        gbuffer_program.use_program();
+        ssao_program.use_program();
         let mut ssao_kernel = [Vector3::zero(); 64];
         for (i, s) in &mut ssao_kernel.iter_mut().enumerate() {
             let sample: Vector3<f32> = Vector3::new(
@@ -390,11 +389,12 @@ impl Engine {
             ).normalize() * rand::random();
             let sample_name_rust = format!("samples[{}]", i);
             let sample_name = std::ffi::CString::new(sample_name_rust.as_str()).unwrap();
-            gbuffer_program.set_vec3(&sample_name, &sample);
+            ssao_program.set_vec3(&sample_name, &sample);
             *s = sample;
         }
 
-        let mut ssao_noise = [Vector3::zero(); 16];
+        const SSAO_NOISE_SIZE: usize = 8;
+        let mut ssao_noise = [Vector3::zero(); SSAO_NOISE_SIZE*SSAO_NOISE_SIZE];
         for pixel in ssao_noise.iter_mut() {
             *pixel = Vector3::new(
                 rand::random::<f32>() * 2.0 - 1.0,
@@ -402,7 +402,7 @@ impl Engine {
                 0.0
             );
         }
-        let ssao_noise_texture = Texture::from_vector3_array(&ssao_noise, 4, 4);
+        let ssao_noise_texture = Texture::from_vector3_array(&ssao_noise, SSAO_NOISE_SIZE as i32, SSAO_NOISE_SIZE as i32);
 
         let gbuffer_position = Texture::empty(self.width, self.height, TextureFormat::Float);
         let gbuffer_normal = Texture::empty(self.width, self.height, TextureFormat::Float);
@@ -410,6 +410,11 @@ impl Engine {
         let gbuffer_depthbuffer = Depthbuffer::new(self.width, self.height);
         let gbuffer_textures = vec![("position", gbuffer_position), ("normal", gbuffer_normal), ("albedo", gbuffer_albedo)];
         let gbuffer = Framebuffer::with_textures(gbuffer_textures, Some(gbuffer_depthbuffer));
+
+        let ssao_output_texture = Texture::empty(self.width, self.height, TextureFormat::SingleChannel);
+        let ssao_output_framebuffer = Framebuffer::with_textures(vec![("ssao", ssao_output_texture)], None);
+
+        let postprocess_program = Shader::new(SCREENQUAD_VERT_SRC, POSTPROCESS_FRAG_SRC).unwrap();
 
         let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
         let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
@@ -419,12 +424,14 @@ impl Engine {
             gl_resources.add_vao("screenquad".to_string(), Box::new(Vec::from(FULLSCREEN_QUAD)));
             
             gl_resources.add_framebuffer("gbuffer", gbuffer);
+            gl_resources.add_framebuffer("ssao", ssao_output_framebuffer);
             
             gl_resources.add_texture("ssao_noise", ssao_noise_texture);
             gl_resources.add_texture("terrain", terrain_texture);
 
-            gl_resources.add_shader("gbuffer", gbuffer_program);
+            gl_resources.add_shader("ssao", ssao_program);
             gl_resources.add_shader("terrain", terrain_program);
+            gl_resources.add_shader("postprocess", postprocess_program);
 
         }
 
@@ -458,6 +465,7 @@ impl Engine {
         gbuffer_fbo.bind();
 
         unsafe {
+            gl::Viewport(0, 0, self.width, self.height);
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
@@ -484,31 +492,52 @@ impl Engine {
 
         gbuffer_fbo.unbind();
 
+        //let ssao_fbo = gl_resources.get_framebuffer("ssao").unwrap();
+        //ssao_fbo.bind();
 
         unsafe {
             gl::ClearColor(0.4, 0.6, 1.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        let gbuffer_shader = gl_resources.get_shader("gbuffer").unwrap();
+        let ssao_program = gl_resources.get_shader("ssao").unwrap();
         let ssao_noise_texture = gl_resources.get_texture("ssao_noise").unwrap();
         let screenquad = gl_resources.get_vao("screenquad").unwrap();
         
-        gbuffer_fbo.bind_render_textures_to_current_fb(vec!["position", "normal", "albedo"]);
-
+        gbuffer_fbo.bind_render_textures_to_current_fb(vec![("position", 0), ("normal", 1), ("albedo", 2)]);
         ssao_noise_texture.use_as_framebuffer_texture(3);
 
-        gbuffer_shader.use_program();
-        gbuffer_shader.set_texture(unsafe {c_str!("position")}, 0);
-        gbuffer_shader.set_texture(unsafe {c_str!("normal")}, 1);
-        gbuffer_shader.set_texture(unsafe {c_str!("albedo")}, 2);
-        gbuffer_shader.set_texture(unsafe {c_str!("ssao_noise")}, 3);
+        ssao_program.use_program();
+        ssao_program.set_texture(unsafe {c_str!("position")}, 0);
+        ssao_program.set_texture(unsafe {c_str!("normal")}, 1);
+        ssao_program.set_texture(unsafe {c_str!("albedo")}, 2);
+        ssao_program.set_texture(unsafe {c_str!("ssao_noise")}, 3);
 
-        gbuffer_shader.set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
-        gbuffer_shader.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
-        gbuffer_shader.set_float(unsafe {c_str!("time")}, self.elapsed_time);
+        ssao_program.set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
+        ssao_program.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
+        ssao_program.set_float(unsafe {c_str!("time")}, self.elapsed_time);
 
         screenquad.draw();
+
+        /*ssao_fbo.unbind();
+
+        unsafe {
+            gl::ClearColor(0.4, 0.6, 1.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
+
+        let postprocess_shader = gl_resources.get_shader("postprocess").unwrap();
+        postprocess_shader.use_program();
+        
+        ssao_fbo.bind_render_textures_to_current_fb(vec![("ssao", 0)]);
+        gbuffer_fbo.bind_render_textures_to_current_fb(vec![("albedo", 1)]);
+
+        postprocess_shader.set_texture(unsafe {c_str!("ssao")}, 0);
+        postprocess_shader.set_texture(unsafe {c_str!("albedo")}, 1);
+        postprocess_shader.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
+
+        screenquad.draw();*/
+
 
     }
 

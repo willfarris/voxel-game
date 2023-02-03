@@ -5,6 +5,7 @@ use cgmath::Vector3;
 pub enum TextureFormat {
     Float,
     Color,
+    SingleChannel,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -94,6 +95,7 @@ impl Texture {
         let (internalformat, format, typeformat) = match format {
             TextureFormat::Float => (gl::RGB16F as i32, gl::RGB, gl::FLOAT),
             TextureFormat::Color => (gl::RGBA as i32, gl::RGBA, gl::UNSIGNED_BYTE),
+            TextureFormat::SingleChannel => (gl::R32F as i32, gl::RED, gl::FLOAT),
         };
         texture.bind();
         unsafe {
@@ -111,7 +113,7 @@ impl Texture {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
         }
         texture.unbind();
         texture
@@ -136,7 +138,7 @@ impl Texture {
         }
     }
 
-    pub fn delete(&mut self) {
+    pub fn _delete(&mut self) {
         if self.id != 0 {
             unsafe {
                 gl::DeleteTextures(1, &self.id as *const u32);

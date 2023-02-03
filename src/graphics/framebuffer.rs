@@ -66,11 +66,11 @@ impl Framebuffer {
         framebuffer
     }
 
-    pub fn bind_render_textures_to_current_fb(&self, texture_names: Vec<&'static str>) {
-        for (i, name) in texture_names.iter().enumerate() {
+    pub fn bind_render_textures_to_current_fb(&self, textures: Vec<(&'static str, u32)>) {
+        for (name, texture_index) in textures {
             if let Some(texture) = self.textures.get(name) {
                 unsafe {
-                    gl::ActiveTexture(gl::TEXTURE0 + i as u32);
+                    gl::ActiveTexture(gl::TEXTURE0 + texture_index);
                     gl::BindTexture(gl::TEXTURE_2D, texture.id);
                 }
             }

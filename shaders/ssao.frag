@@ -10,6 +10,7 @@ layout (location = 2) uniform sampler2D albedo;
 layout (location = 3) uniform sampler2D ssao_noise;
 
 #define NUM_SAMPLES 16
+#define SSAO_NOISE_SIZE 8
 
 uniform vec3 samples[NUM_SAMPLES];
 uniform mat4 projection;
@@ -20,17 +21,14 @@ out vec4 color;
 
 void main() {
 
-    vec2 noise_scale = resolution / 4.;
+    vec2 uv = v_tex_coords;
+    vec2 noise_scale = resolution / float(SSAO_NOISE_SIZE);
     
     // Sample textures from GBuffer
-    vec3 f_position = texture(position, v_tex_coords).xyz;
-    vec3 f_normal = texture(normal, v_tex_coords).xyz;
-    vec4 f_albedo =  texture(albedo, v_tex_coords).rgba;
-    vec3 random_vec = texture(ssao_noise, v_tex_coords * noise_scale).xyz;
-
-    // Calculate lighting
-    vec3 sunlight_dir = vec3(sqrt(2.0));
-    vec3 diffuse_color = f_albedo.rgb * min(1.0, max(dot(sunlight_dir, f_normal), 0.0) + 0.5);
+    vec3 f_position = texture(position, uv).xyz;
+    vec3 f_normal = texture(normal, uv).xyz;
+    vec4 f_albedo =  texture(albedo, uv).rgba;
+    vec3 random_vec = texture(ssao_noise, uv * noise_scale).xyz;
 
     // Calculate SSAO
     vec3 tangent = normalize(random_vec - f_normal * dot(random_vec, f_normal));
@@ -49,11 +47,10 @@ void main() {
         
         float sample_depth = texture(position, offset.xy).z;
         float sample_alpha = texture(albedo, offset.xy).a;
-        float range_check = smoothstep(0.0, 1.0, 0.5 / abs(f_position.z - sample_depth));
+        //float range_check = smoothstep(0.0, 1.0, 0.5 / abs(f_position.z - sample_depth));
         occlusion += (sample_depth >= sample_pos.z + 0.025 ? 1.0 : 0.0 + (1.0 - sample_alpha));
     }
     occlusion /= float(NUM_SAMPLES);
-
     
     color = vec4(occlusion * f_albedo.rgb, f_albedo.a);
 }

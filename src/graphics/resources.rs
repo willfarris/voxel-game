@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::{HashMap, VecDeque}, hash::Hash};
 
 use cgmath::{Matrix4, Vector3};
 
@@ -16,7 +16,7 @@ pub struct GLResources {
     vaos: HashMap<String, VertexAttributeObject>,
     framebuffers: HashMap<&'static str, Framebuffer>,
     
-    vao_update_queue: Vec<(String, Box<dyn VertexBufferContents + Send + Sync>)>,
+    vao_update_queue: VecDeque<(String, Box<dyn VertexBufferContents + Send + Sync>)>,
 }
 
 impl GLResources {
@@ -27,7 +27,7 @@ impl GLResources {
             vaos: HashMap::new(),
             framebuffers: HashMap::new(),
             
-            vao_update_queue: Vec::new(),
+            vao_update_queue: VecDeque::new(),
         }
     }
 
@@ -74,12 +74,12 @@ impl GLResources {
     }
 
     pub fn update_vao_buffer(&mut self, name: String, buffer_contents: Box<dyn VertexBufferContents + Send + Sync>) {
-        self.vao_update_queue.push((name, buffer_contents));
+        self.vao_update_queue.push_back((name, buffer_contents));
     }
 
     pub fn process_vao_buffer_updates(&mut self, num_per_frame: usize) {
         for _ in 0..num_per_frame {
-            if let Some((buffer_name, new_contents)) = self.vao_update_queue.pop() {
+            if let Some((buffer_name, new_contents)) = self.vao_update_queue.pop_front() {
                 if let Some(vao) = self.vaos.get_mut(&buffer_name) {
                     vao.update_buffer(new_contents);
                 } else {
