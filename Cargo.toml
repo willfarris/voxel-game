@@ -24,9 +24,9 @@ crate-type = ["dylib","lib"]
 required-features = ["android-lib"]
 
 [features]
-desktop-binary = ["glfw"]
+desktop = ["glfw"]
 android-lib = ["jni", "android_log", "log", "egli"]
 
 [[bin]]
 name = "voxel-game"
-required-features = ["desktop-binary"]
+required-features = ["desktop"]
