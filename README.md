@@ -10,7 +10,7 @@ This project was written in Rust and requires the Rust toolchain (available at [
 ```
 git clone git@github.com:WillFarris/voxel-game.git
 cd voxel-game
-cargo run --release --features=desktop-binary
+cargo run --release --features=desktop
 ```
 
 ## Android
