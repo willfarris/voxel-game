@@ -18,7 +18,7 @@ mod java_interface;
 
 use std::{
     sync::{Arc, Mutex, RwLock},
-    time::Duration,
+    time::Duration, ffi::CStr,
 };
 
 use cgmath::{Vector2, Vector3, Zero, InnerSpace};
@@ -27,7 +27,7 @@ use graphics::{
     framebuffer::Framebuffer,
     mesh::{block_drop_vertices, FULLSCREEN_QUAD},
     resources::{GLRenderable, GLResources},
-    texture::{Texture, TextureFormat}, source::{SCREENQUAD_VERT_SRC, TERRAIN_BITMAP, TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, POSTPROCESS_FRAG_SRC, SSAO_FRAG_SRC}, depthbuffer::Depthbuffer, shader::Shader,
+    texture::{Texture, TextureFormat}, source::{SCREENQUAD_VERT_SRC, TERRAIN_BITMAP, TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, POSTPROCESS_FRAG_SRC, SSAO_FRAG_SRC}, depthbuffer::Depthbuffer, shader::Shader, uniform::Uniform,
 };
 use image::ImageFormat;
 
@@ -63,13 +63,13 @@ pub enum PlayerInput {
 }
 
 pub struct EngineLock {
-    _engine: Mutex<Engine>,
+    engine: Mutex<Engine>,
 }
 
 impl Default for EngineLock {
     fn default() -> Self {
         Self {
-            _engine: Mutex::new(Engine::default()),
+            engine: Mutex::new(Engine::default()),
         }
     }
 }
@@ -393,7 +393,8 @@ impl Engine {
             *s = sample;
         }
 
-        const SSAO_NOISE_SIZE: usize = 8;
+        const SSAO_NOISE_SIZE: usize = 4;
+        ssao_program.set_float(unsafe {c_str!("ssao_noise_size")}, SSAO_NOISE_SIZE as f32);
         let mut ssao_noise = [Vector3::zero(); SSAO_NOISE_SIZE*SSAO_NOISE_SIZE];
         for pixel in ssao_noise.iter_mut() {
             *pixel = Vector3::new(
@@ -415,6 +416,8 @@ impl Engine {
         let ssao_output_framebuffer = Framebuffer::with_textures(vec![("ssao", ssao_output_texture)], None);
 
         let postprocess_program = Shader::new(SCREENQUAD_VERT_SRC, POSTPROCESS_FRAG_SRC).unwrap();
+        postprocess_program.use_program();
+        postprocess_program.set_float(unsafe {c_str!("ssao_noise_size")}, SSAO_NOISE_SIZE as f32);
 
         let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
         let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
@@ -492,8 +495,10 @@ impl Engine {
 
         gbuffer_fbo.unbind();
 
-        //let ssao_fbo = gl_resources.get_framebuffer("ssao").unwrap();
-        //ssao_fbo.bind();
+        let screenquad = gl_resources.get_vao("screenquad").unwrap();
+
+        /*let ssao_fbo = gl_resources.get_framebuffer("ssao").unwrap();
+        ssao_fbo.bind();
 
         unsafe {
             gl::ClearColor(0.4, 0.6, 1.0, 1.0);
@@ -502,7 +507,7 @@ impl Engine {
 
         let ssao_program = gl_resources.get_shader("ssao").unwrap();
         let ssao_noise_texture = gl_resources.get_texture("ssao_noise").unwrap();
-        let screenquad = gl_resources.get_vao("screenquad").unwrap();
+        
         
         gbuffer_fbo.bind_render_textures_to_current_fb(vec![("position", 0), ("normal", 1), ("albedo", 2)]);
         ssao_noise_texture.use_as_framebuffer_texture(3);
@@ -515,11 +520,12 @@ impl Engine {
 
         ssao_program.set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
         ssao_program.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
-        ssao_program.set_float(unsafe {c_str!("time")}, self.elapsed_time);
+        //perspective_matrix.set_as_uniform(ssao_program, "projection");
+        //Vector2::new(self.width as f32, self.height as f32).set_as_uniform(ssao_program, "resolution");
 
         screenquad.draw();
 
-        /*ssao_fbo.unbind();
+        ssao_fbo.unbind();*/
 
         unsafe {
             gl::ClearColor(0.4, 0.6, 1.0, 1.0);
@@ -529,14 +535,14 @@ impl Engine {
         let postprocess_shader = gl_resources.get_shader("postprocess").unwrap();
         postprocess_shader.use_program();
         
-        ssao_fbo.bind_render_textures_to_current_fb(vec![("ssao", 0)]);
+        //ssao_fbo.bind_render_textures_to_current_fb(vec![("ssao", 0)]);
         gbuffer_fbo.bind_render_textures_to_current_fb(vec![("albedo", 1)]);
 
         postprocess_shader.set_texture(unsafe {c_str!("ssao")}, 0);
         postprocess_shader.set_texture(unsafe {c_str!("albedo")}, 1);
         postprocess_shader.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
 
-        screenquad.draw();*/
+        screenquad.draw();
 
 
     }

@@ -95,7 +95,7 @@ impl Texture {
         let (internalformat, format, typeformat) = match format {
             TextureFormat::Float => (gl::RGB16F as i32, gl::RGB, gl::FLOAT),
             TextureFormat::Color => (gl::RGBA as i32, gl::RGBA, gl::UNSIGNED_BYTE),
-            TextureFormat::SingleChannel => (gl::R32F as i32, gl::RED, gl::FLOAT),
+            TextureFormat::SingleChannel => (gl::R16F as i32, gl::RED, gl::FLOAT),
         };
         texture.bind();
         unsafe {
