@@ -1,7 +1,23 @@
 use cgmath::Zero;
-pub(crate) use cgmath::{Vector3, Matrix4, Quaternion, Rotation3, Deg};
+pub(crate) use cgmath::{Deg, Matrix4, Quaternion, Rotation3, Vector3};
+use image::ImageFormat;
 
-use crate::{graphics::{resources::{GLRenderable, GLResources}, mesh::block_drop_vertices, source::{TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, TERRAIN_BITMAP}}, c_str, physics::{collision::{Rect3, Collider}, vectormath::Vec3Direction, physics_update::PhysicsUpdate}, player::GRAVITY, terrain::block::BLOCKS, EntityTrait};
+use crate::{
+    c_str,
+    graphics::{
+        mesh::block_drop_vertices,
+        resources::{GLRenderable, GLResources},
+        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC}, shader::Shader, texture::Texture, vao::VertexAttributeObject, vbo::VertexBufferObject,
+    },
+    physics::{
+        collision::{Collider, Rect3},
+        physics_update::PhysicsUpdate,
+        vectormath::Vec3Direction,
+    },
+    player::GRAVITY,
+    terrain::block::BLOCKS,
+    EntityTrait,
+};
 
 pub struct ItemDrop {
     // Persists across OpenGL context creation
@@ -19,10 +35,7 @@ pub struct ItemDrop {
 }
 
 impl ItemDrop {
-    pub fn new(
-        block_id: usize,
-        position: Vector3<f32>,
-    ) -> ItemDrop {
+    pub fn new(block_id: usize, position: Vector3<f32>) -> ItemDrop {
         ItemDrop {
             block_id,
             position,
@@ -40,21 +53,24 @@ impl ItemDrop {
 
 impl GLRenderable for ItemDrop {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-        if gl_resources.get_shader("terrain").is_none() {
-            gl_resources.create_shader("terrain", TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC);
-        }
-        if gl_resources.get_texture("terrain").is_none() {
-            gl_resources.create_texture("terrain", TERRAIN_BITMAP);
-        }
 
-        let verts = block_drop_vertices(&BLOCKS[self.block_id]);
-        let name = format!("item_{}", self.block_id);
-        gl_resources.update_buffer(name, verts);
+        let item_drop_name = format!("item_{}", self.block_id);
+        let verts = Box::new(block_drop_vertices(&BLOCKS[self.block_id]));
+        gl_resources.update_vao_buffer(item_drop_name, verts);
+
     }
 
-    fn draw(&self, gl_resources: &mut GLResources, perspective_matrix: Matrix4<f32>, view_matrix: Matrix4<f32>, elapsed_time: f32) {
+    fn draw(
+        &self,
+        gl_resources: &GLResources,
+        perspective_matrix: Matrix4<f32>,
+        view_matrix: Matrix4<f32>,
+        elapsed_time: f32,
+    ) {
         let scale_matrix = Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
-        let rotation = Quaternion::from_angle_x(Deg(self.rotation.x)) * Quaternion::from_angle_y(Deg(self.rotation.y)) * Quaternion::from_angle_z(Deg(self.rotation.z));
+        let rotation = Quaternion::from_angle_x(Deg(self.rotation.x))
+            * Quaternion::from_angle_y(Deg(self.rotation.y))
+            * Quaternion::from_angle_z(Deg(self.rotation.z));
         let rotation_matrix = Matrix4::from(rotation);
         let translation_matrix = Matrix4::from_translation(self.position);
         let model_matrix = translation_matrix * rotation_matrix * scale_matrix;
@@ -62,19 +78,17 @@ impl GLRenderable for ItemDrop {
         let shader = gl_resources.get_shader("terrain").unwrap();
         let texture = gl_resources.get_texture("terrain").unwrap();
 
-        texture.bind();
+        texture.use_as_framebuffer_texture(0);
 
         shader.use_program();
-        shader.set_mat4(unsafe {c_str!("perspective_matrix")}, &perspective_matrix);
-        shader.set_mat4(unsafe {c_str!("view_matrix")}, &view_matrix);
-        shader.set_mat4(unsafe {c_str!("model_matrix")}, &model_matrix);
-        shader.set_float(unsafe {c_str!("time")}, elapsed_time);
-        shader.set_texture(unsafe {c_str!("texture_map")}, 0);
+        shader.set_mat4(unsafe { c_str!("perspective_matrix") }, &perspective_matrix);
+        shader.set_mat4(unsafe { c_str!("view_matrix") }, &view_matrix);
+        shader.set_mat4(unsafe { c_str!("model_matrix") }, &model_matrix);
+        shader.set_float(unsafe { c_str!("time") }, elapsed_time);
+        shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
         let name = format!("item_{}", self.block_id);
-        if let Some(vbo) = gl_resources.get_buffer(name) {
-            vbo.draw_vertex_buffer();
-        }
+        gl_resources.get_vao(&name).unwrap().draw();
 
     }
 }
@@ -97,7 +111,7 @@ impl Collider for ItemDrop {
         match axis {
             Vec3Direction::X => {
                 self.position.x += overlap;
-            },
+            }
             Vec3Direction::Y => {
                 self.position.y += overlap;
                 if overlap.abs() > 0.0 {
@@ -106,10 +120,10 @@ impl Collider for ItemDrop {
                         self.grounded = true;
                     }
                 }
-            },
+            }
             Vec3Direction::Z => {
                 self.position.z += overlap;
-            },
+            }
         }
     }
 
@@ -125,11 +139,12 @@ impl PhysicsUpdate for ItemDrop {
         }
         self.velocity += self.acceleration * delta_time;
 
-        self.movement_delta = delta_time * Vector3 {
-            x: 0.0,
-            y: self.velocity.y as f32,
-            z: 0.0,
-        };
+        self.movement_delta = delta_time
+            * Vector3 {
+                x: 0.0,
+                y: self.velocity.y as f32,
+                z: 0.0,
+            };
     }
 
     fn translate_relative(&mut self, translation: Vector3<f32>) {

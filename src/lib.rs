@@ -1,14 +1,14 @@
-
-mod graphics;
-mod macros;
-mod terrain;
-mod player;
-mod physics;
-mod item;
 mod entity;
+mod graphics;
+mod item;
+mod macros;
+mod physics;
+mod player;
+mod terrain;
 
 #[cfg(feature = "android-lib")]
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 #[cfg(feature = "android-lib")]
 extern crate android_log;
 #[cfg(feature = "android-lib")]
@@ -16,15 +16,33 @@ extern crate jni;
 #[cfg(feature = "android-lib")]
 mod java_interface;
 
-use std::{sync::{Mutex, Arc, RwLock}, time::{Instant, Duration}};
+use std::{
+    sync::{Arc, Mutex, RwLock},
+    time::Duration, ffi::CStr,
+};
 
-use cgmath::{Vector3, Zero, Vector2};
+use cgmath::{Vector2, Vector3, Zero, InnerSpace};
 use entity::EntityTrait;
-use noise::Perlin;
-use physics::{vectormath::{Z_VECTOR, Vec3Direction, self}, collision::{Collider, check_world_collision_axis, check_collision_axis}, physics_update::PhysicsUpdate};
-use player::{Player, camera::perspective_matrix};
-use terrain::{Terrain, block::BLOCKS, chunk::Chunk, ChunkIndex, generation::NoiseConfig};
-use graphics::{resources::{GLRenderable, GLResources}, mesh::block_drop_vertices};
+use graphics::{
+    framebuffer::Framebuffer,
+    mesh::{block_drop_vertices, FULLSCREEN_QUAD},
+    resources::{GLRenderable, GLResources},
+    texture::{Texture, TextureFormat}, source::{SCREENQUAD_VERT_SRC, TERRAIN_BITMAP, TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, POSTPROCESS_FRAG_SRC, SSAO_FRAG_SRC}, depthbuffer::Depthbuffer, shader::Shader, uniform::Uniform,
+};
+use image::ImageFormat;
+
+use physics::{
+    collision::{check_world_collision_axis, Collider},
+    physics_update::PhysicsUpdate,
+    vectormath::{self, Vec3Direction, Z_VECTOR},
+};
+use player::{camera::perspective_matrix, Player};
+use terrain::{
+    block::BLOCKS,
+    chunk::{Chunk, CHUNK_WIDTH},
+    generation::{terraingen, TerrainGenConfig},
+    ChunkIndex, Terrain,
+};
 
 pub use physics::vectormath::q_rsqrt;
 
@@ -48,10 +66,10 @@ pub struct EngineLock {
     engine: Mutex<Engine>,
 }
 
-impl EngineLock {
-    pub fn new() -> Self {
+impl Default for EngineLock {
+    fn default() -> Self {
         Self {
-            engine: Mutex::new(Engine::new()),
+            engine: Mutex::new(Engine::default()),
         }
     }
 }
@@ -64,29 +82,19 @@ pub struct Engine {
     elapsed_time: f32,
     play_state: PlayState,
     input_queue: Vec<PlayerInput>,
-    noise_config: Arc<Mutex<NoiseConfig>>,
+    noise_config: Arc<RwLock<TerrainGenConfig>>,
 
     width: i32,
     height: i32,
-    gl_resources: Arc<Mutex<GLResources>>,
+    render_distance: isize,
+    gl_resources: Arc<RwLock<GLResources>>,
 }
 
-impl Engine {
-    pub fn new() -> Self {
-        let player = Box::new(Player::new(Vector3::new(0.0, 30.0, 0.0), Z_VECTOR));
+impl Default for Engine {
+    fn default() -> Self {
+        let player = Box::new(Player::new(Vector3::new(0.0, 64.0, 0.0), Z_VECTOR));
         let terrain = Terrain::new();
-        
-        let noise_scale = 0.02;
-        let noise_offset = Vector2::new(
-            1_000_000.0 * rand::random::<f64>() + 3_141_592.0,
-            1_000_000.0 * rand::random::<f64>() + 3_141_592.0,
-        );
-        let perlin = Perlin::new();
-        let noise_config = NoiseConfig {
-            perlin,
-            noise_scale,
-            noise_offset,
-        };
+        let noise_config = TerrainGenConfig::default();
 
         Self {
             player: Arc::new(RwLock::new(player)),
@@ -96,17 +104,19 @@ impl Engine {
             elapsed_time: 0.0,
             play_state: PlayState::Paused,
             input_queue: Vec::new(),
-            noise_config: Arc::new(Mutex::new(noise_config)),
+            noise_config: Arc::new(RwLock::new(noise_config)),
 
             width: 0,
             height: 0,
-            gl_resources: Arc::new(Mutex::new(GLResources::new())),
+            render_distance: 8,
+            gl_resources: Arc::new(RwLock::new(GLResources::new())),
         }
     }
+}
 
+impl Engine {
     pub fn update(&mut self, delta_time: f32) {
         if self.play_state == PlayState::Running {
-
             {
                 let mut player = self.player.write().unwrap();
                 let terrain = self.terrain.read().unwrap();
@@ -116,15 +126,18 @@ impl Engine {
                 let movement_delta = player.movement_delta();
 
                 player.position.x += movement_delta.x;
-                let overlap_x = check_world_collision_axis(Vec3Direction::X, player.bounding_box(), &terrain);
+                let overlap_x =
+                    check_world_collision_axis(Vec3Direction::X, player.bounding_box(), &terrain);
                 player.correct_position_axis(Vec3Direction::X, overlap_x);
 
                 player.position.y += movement_delta.y;
-                let overlap_y = check_world_collision_axis(Vec3Direction::Y, player.bounding_box(), &terrain);
+                let overlap_y =
+                    check_world_collision_axis(Vec3Direction::Y, player.bounding_box(), &terrain);
                 player.correct_position_axis(Vec3Direction::Y, overlap_y);
-                
+
                 player.position.z += movement_delta.z;
-                let overlap_z = check_world_collision_axis(Vec3Direction::Z, player.bounding_box(), &terrain);
+                let overlap_z =
+                    check_world_collision_axis(Vec3Direction::Z, player.bounding_box(), &terrain);
                 player.correct_position_axis(Vec3Direction::Z, overlap_z);
             }
 
@@ -135,58 +148,74 @@ impl Engine {
                 let movement_delta = entity.movement_delta();
 
                 entity.translate_relative(Vector3::new(movement_delta.x, 0.0, 0.0));
-                let overlap_x = check_world_collision_axis(Vec3Direction::X, entity.bounding_box(), &terrain);
+                let overlap_x =
+                    check_world_collision_axis(Vec3Direction::X, entity.bounding_box(), &terrain);
                 entity.correct_position_axis(Vec3Direction::X, overlap_x);
 
                 entity.translate_relative(Vector3::new(0.0, movement_delta.y, 0.0));
-                let overlap_y = check_world_collision_axis(Vec3Direction::Y, entity.bounding_box(), &terrain);
+                let overlap_y =
+                    check_world_collision_axis(Vec3Direction::Y, entity.bounding_box(), &terrain);
                 entity.correct_position_axis(Vec3Direction::Y, overlap_y);
-                
+
                 entity.translate_relative(Vector3::new(0.0, 0.0, movement_delta.z));
-                let overlap_z = check_world_collision_axis(Vec3Direction::Z, entity.bounding_box(), &terrain);
+                let overlap_z =
+                    check_world_collision_axis(Vec3Direction::Z, entity.bounding_box(), &terrain);
                 entity.correct_position_axis(Vec3Direction::Z, overlap_z);
             }
 
             self.elapsed_time += delta_time;
-            
+
             {
                 let mut player = self.player.write().unwrap();
                 let mut terrain = self.terrain.write().unwrap();
-                let mut gl_resources = self.gl_resources.lock().unwrap();
+                let mut gl_resources = self.gl_resources.write().unwrap();
 
                 while !self.input_queue.is_empty() {
                     let input = self.input_queue.remove(0);
                     match input {
                         PlayerInput::Look(dx, dy) => {
-                            player.camera.rotate_on_x_axis(f32::from(dx));
-                            player.camera.rotate_on_y_axis(f32::from(dy));
-                        },
+                            player.camera.rotate_on_x_axis(dx);
+                            player.camera.rotate_on_y_axis(dy);
+                        }
                         PlayerInput::Walk(dx, dy, dz) => {
                             player.move_direction(Vector3::new(dx, dy, dz));
-                        },
+                        }
                         PlayerInput::Jump => {
                             player.jump();
-                        },
+                        }
                         PlayerInput::Stop => {
                             player.stop_move();
                         }
                         PlayerInput::Inventory(selected) => {
                             player.select_inventory(selected);
-                        },
+                        }
                         PlayerInput::Interact(left_hand, right_hand) => {
                             if right_hand {
-                                if let Some((_world_pos, world_index)) = vectormath::dda(&terrain, &player.camera.position, &player.camera.forward, 6.0) {
-                                    if let Some(drop) = terrain.destroy_at_global_pos(&world_index, &mut gl_resources) {
+                                if let Some((_world_pos, world_index)) = vectormath::dda(
+                                    &terrain,
+                                    &player.camera.position,
+                                    &player.camera.forward,
+                                    6.0,
+                                ) {
+                                    if let Some(drop) = terrain
+                                        .destroy_at_global_pos(&world_index, &mut gl_resources)
+                                    {
                                         let boxed_drop = Box::new(drop);
-                                        let verts = block_drop_vertices(&BLOCKS[boxed_drop.block_id]);
+                                        let verts = Box::new(block_drop_vertices(&BLOCKS[boxed_drop.block_id]));
                                         let name = format!("item_{}", boxed_drop.block_id);
-                                        gl_resources.update_buffer(name, verts);
+
+                                        gl_resources.update_vao_buffer(name, verts);
                                         self.entities.push(boxed_drop);
                                     }
                                 }
                             }
                             if left_hand {
-                                if let Some((world_pos, world_index)) = vectormath::dda(&terrain, &player.camera.position, &player.camera.forward, 6.0) {
+                                if let Some((world_pos, world_index)) = vectormath::dda(
+                                    &terrain,
+                                    &player.camera.position,
+                                    &player.camera.forward,
+                                    6.0,
+                                ) {
                                     let mut diff = Vector3::new(
                                         world_pos.x - world_index.x as f32,
                                         world_pos.y - world_index.y as f32,
@@ -222,8 +251,11 @@ impl Engine {
                                         diff.y as isize,
                                         diff.z as isize,
                                     );
-                                    terrain.place_block(1, &(world_index + offset), &mut gl_resources);
-                                    
+                                    terrain.place_block(
+                                        1,
+                                        &(world_index + offset),
+                                        &mut gl_resources,
+                                    );
                                 }
                             }
                         }
@@ -234,76 +266,95 @@ impl Engine {
     }
 
     pub fn start_terrain_thread(&mut self) {
-        #[cfg(feature = "android-lib")] {
+        #[cfg(feature = "android-lib")]
+        {
             debug!("Starting terrain thread");
         }
-        let terrain = self.terrain.clone();
-        let player = self.player.clone();
-        let gl_resources = self.gl_resources.clone();
-        let noise_config = self.noise_config.clone();
 
+        let render_distance = self.render_distance;
+
+        // Create initial terrain around the player, block the main thread so the player doesn't go through the ground
         {
-            terrain.write().unwrap().init_worldgen(&Vector3::new(0.0, 0.0, 0.0), 2, &mut gl_resources.lock().unwrap(), &noise_config.lock().unwrap());
+            let terrain = self.terrain.clone();
+            let gl_resources = self.gl_resources.clone();
+            let noise_config = self.noise_config.clone();
+            terrain.write().unwrap().init_worldgen(
+                &Vector3::new(0.0, 0.0, 0.0),
+                self.render_distance,
+                &mut gl_resources.write().unwrap(),
+                &noise_config.read().unwrap(),
+            );
         }
-
         self.resume();
 
+        let terrain_gen = self.terrain.clone();
+        let player_gen = self.player.clone();
+        let noise_config_gen = self.noise_config.clone();
+        let gl_resources_gen = self.gl_resources.clone();
         std::thread::spawn(move || {
             loop {
-                // Only bother generating terrain every few hundred ms to reduce lock contention
-                std::thread::sleep(Duration::from_millis(100));
-
                 // Get the list of chunks which need generation
-                let chunk_indices = {
-                    let player = player.read().unwrap();
-                    let terrain = terrain.read().unwrap();
+                let player_chunk = {
+                    let player = player_gen.read().unwrap();
                     let player_position = player.position;
-                    let player_world_pos = Vector3::new(
-                        player_position.x.floor() as isize,
-                        player_position.y.floor() as isize,
-                        player_position.z.floor() as isize,
+                    ChunkIndex::new(
+                        player_position.x.floor() as isize / CHUNK_WIDTH as isize,
+                        player_position.z.floor() as isize / CHUNK_WIDTH as isize,
+                    )
+                };
+
+                let chunk_update_list = {
+                    let chunks_to_generate = terrain_gen.read().unwrap().get_indices_to_generate(
+                        render_distance,
+                        200,
+                        &player_chunk,
                     );
-                    if player.position.y < 0.0 {
-                        continue;
-                    }
-                    let (player_chunk_index, _block_index) = Terrain::chunk_and_block_index(&player_world_pos);
-                    let chunks_to_generate = terrain.get_needed_update_indices(8, &player_chunk_index);
                     chunks_to_generate
                 };
 
-                let mut new_chunks: Vec<(ChunkIndex, Chunk)> = Vec::new();
-                for chunk_index in &chunk_indices {
-                    let mut chunk = Chunk::new();
-                    Terrain::gen_surface_terrain(&chunk_index, &mut chunk, &noise_config.lock().unwrap());
-                    new_chunks.push((chunk_index.clone(), chunk));
+                // Sleep the thread for a bit if no chunks need to generate
+                if chunk_update_list.is_empty() {
+                    std::thread::sleep(Duration::from_millis(100));
+                    continue;
                 }
 
-                for (chunk_index, chunk) in new_chunks {
-                    terrain.write().unwrap().insert_chunk(chunk_index, chunk);
-                }       
+                // Generate data for the new chunks that are in range
+                for chunk_index in chunk_update_list.iter() {
+                    let mut chunk = Box::new(Chunk::new());
+                    terraingen::generate_surface(
+                        chunk_index,
+                        &mut chunk,
+                        &noise_config_gen.read().unwrap(),
+                    );
+                    {
+                        let mut terrain = terrain_gen.write().unwrap();
+                        terrain.insert_chunk(*chunk_index, chunk);
+                    }
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+
+                for chunk_index in chunk_update_list.iter() {
+                    let mut terrain = terrain_gen.write().unwrap();
+                    let mut gl_resources = gl_resources_gen.write().unwrap();
+
+                    let x_pos = chunk_index + ChunkIndex::new(1, 0);
+                    let x_neg = chunk_index + ChunkIndex::new(-1, 0);
+                    let z_pos = chunk_index + ChunkIndex::new(0, 1);
+                    let z_neg = chunk_index + ChunkIndex::new(0, -1);
+
+                    terrain.update_single_chunk_mesh(chunk_index, &mut gl_resources);
+                    terrain.update_single_chunk_mesh(&x_pos, &mut gl_resources);
+                    terrain.update_single_chunk_mesh(&x_neg, &mut gl_resources);
+                    terrain.update_single_chunk_mesh(&z_pos, &mut gl_resources);
+                    terrain.update_single_chunk_mesh(&z_neg, &mut gl_resources);
+                }
             }
         });
     }
 
-    /*pub fn start_physics_thread(&self) {
-        let engine_physics = self.engine.clone();
-        std::thread::spawn(move || {
-            let mut last_time = Instant::now();
-            loop {
-                let cur_time = Instant::now();
-                let delta_time = cur_time - last_time;
-                last_time = cur_time;
-                {
-                    engine_physics.lock().unwrap().update(delta_time.as_secs_f32());
-                }
-                std::thread::sleep(Duration::from_millis(1));
-            }
-        });
-    }*/
-
     pub fn init_gl(&mut self, width: i32, height: i32) {
-
-        #[cfg(target_os = "android")] {
+        #[cfg(target_os = "android")]
+        {
             gl::load_with(|s| unsafe { std::mem::transmute(egli::egl::get_proc_address(s)) });
             debug!("Loaded GL pointer");
         }
@@ -317,62 +368,197 @@ impl Engine {
 
             gl::Enable(gl::CULL_FACE);
             gl::CullFace(gl::BACK);
-            
+
             gl::FrontFace(gl::CW);
-    
+
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
             gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut framebuffer_id);
         }
+        
+        let ssao_program = graphics::shader::Shader::new(SCREENQUAD_VERT_SRC, SSAO_FRAG_SRC).unwrap();
+
+        ssao_program.use_program();
+        let mut ssao_kernel = [Vector3::zero(); 64];
+        for (i, s) in &mut ssao_kernel.iter_mut().enumerate() {
+            let sample: Vector3<f32> = Vector3::new(
+                rand::random::<f32>() * 2.0 - 1.0,
+                rand::random::<f32>() * 2.0 - 1.0,
+                rand::random::<f32>(),
+            ).normalize() * rand::random();
+            let sample_name_rust = format!("samples[{}]", i);
+            let sample_name = std::ffi::CString::new(sample_name_rust.as_str()).unwrap();
+            ssao_program.set_vec3(&sample_name, &sample);
+            *s = sample;
+        }
+
+        const SSAO_NOISE_SIZE: usize = 4;
+        ssao_program.set_float(unsafe {c_str!("ssao_noise_size")}, SSAO_NOISE_SIZE as f32);
+        let mut ssao_noise = [Vector3::zero(); SSAO_NOISE_SIZE*SSAO_NOISE_SIZE];
+        for pixel in ssao_noise.iter_mut() {
+            *pixel = Vector3::new(
+                rand::random::<f32>() * 2.0 - 1.0,
+                rand::random::<f32>() * 2.0 - 1.0,
+                0.0
+            );
+        }
+        let ssao_noise_texture = Texture::from_vector3_array(&ssao_noise, SSAO_NOISE_SIZE as i32, SSAO_NOISE_SIZE as i32);
+
+        let gbuffer_position = Texture::empty(self.width, self.height, TextureFormat::Float);
+        let gbuffer_normal = Texture::empty(self.width, self.height, TextureFormat::Float);
+        let gbuffer_albedo = Texture::empty(self.width, self.height, TextureFormat::Color);
+        let gbuffer_depthbuffer = Depthbuffer::new(self.width, self.height);
+        let gbuffer_textures = vec![("position", gbuffer_position), ("normal", gbuffer_normal), ("albedo", gbuffer_albedo)];
+        let gbuffer = Framebuffer::with_textures(gbuffer_textures, Some(gbuffer_depthbuffer));
+
+        let ssao_output_texture = Texture::empty(self.width, self.height, TextureFormat::SingleChannel);
+        let ssao_output_framebuffer = Framebuffer::with_textures(vec![("ssao", ssao_output_texture)], None);
+
+        let postprocess_program = Shader::new(SCREENQUAD_VERT_SRC, POSTPROCESS_FRAG_SRC).unwrap();
+        postprocess_program.use_program();
+        postprocess_program.set_float(unsafe {c_str!("ssao_noise_size")}, SSAO_NOISE_SIZE as f32);
+
+        let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
+        let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
 
         {
-            self.terrain.write().unwrap().init_gl_resources(&mut self.gl_resources.lock().unwrap());
+            let mut gl_resources = self.gl_resources.write().unwrap();
+            gl_resources.add_vao("screenquad".to_string(), Box::new(Vec::from(FULLSCREEN_QUAD)));
+            
+            gl_resources.add_framebuffer("gbuffer", gbuffer);
+            gl_resources.add_framebuffer("ssao", ssao_output_framebuffer);
+            
+            gl_resources.add_texture("ssao_noise", ssao_noise_texture);
+            gl_resources.add_texture("terrain", terrain_texture);
+
+            gl_resources.add_shader("ssao", ssao_program);
+            gl_resources.add_shader("terrain", terrain_program);
+            gl_resources.add_shader("postprocess", postprocess_program);
+
+        }
+
+        {
+            self.terrain
+                .write()
+                .unwrap()
+                .init_gl_resources(&mut self.gl_resources.write().unwrap());
         }
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
-        
     }
 
     pub fn reset_gl_resources(&mut self) {
-        self.gl_resources.lock().unwrap().invalidate_resources();
+        self.gl_resources.write().unwrap().invalidate_resources();
     }
 
     pub fn draw(&mut self) {
         let player = self.player.read().unwrap();
         let terrain = self.terrain.read().unwrap();
-        let mut gl_resources = self.gl_resources.lock().unwrap();
+
+        {
+            self.gl_resources.write().unwrap().process_vao_buffer_updates(8);
+        }
+
+        let gl_resources = self.gl_resources.read().unwrap();
+
+        let gbuffer_fbo = gl_resources.get_framebuffer("gbuffer").unwrap();
+        gbuffer_fbo.bind();
 
         unsafe {
             gl::Viewport(0, 0, self.width, self.height);
-            gl::ClearColor(0.2, 0.2, 0.7, 1.0);
+            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        gl_resources.process_buffer_updates();
-
-        let perspective_matrix = perspective_matrix(self.width, self.height);
+        let perspective_matrix =
+            perspective_matrix(self.width, self.height, self.render_distance as f32);
         let view_matrix = player.camera_view_matrix();
 
-        terrain.draw(&mut gl_resources, perspective_matrix, view_matrix, self.elapsed_time);
+        terrain.draw(
+            &gl_resources,
+            perspective_matrix,
+            view_matrix,
+            self.elapsed_time,
+        );
 
         for entity in &self.entities {
-            entity.draw(&mut gl_resources, perspective_matrix, view_matrix, self.elapsed_time);
+            entity.draw(
+                &gl_resources,
+                perspective_matrix,
+                view_matrix,
+                self.elapsed_time,
+            );
         }
+
+        gbuffer_fbo.unbind();
+
+        let screenquad = gl_resources.get_vao("screenquad").unwrap();
+
+        /*let ssao_fbo = gl_resources.get_framebuffer("ssao").unwrap();
+        ssao_fbo.bind();
+
+        unsafe {
+            gl::ClearColor(0.4, 0.6, 1.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
+
+        let ssao_program = gl_resources.get_shader("ssao").unwrap();
+        let ssao_noise_texture = gl_resources.get_texture("ssao_noise").unwrap();
+        
+        
+        gbuffer_fbo.bind_render_textures_to_current_fb(vec![("position", 0), ("normal", 1), ("albedo", 2)]);
+        ssao_noise_texture.use_as_framebuffer_texture(3);
+
+        ssao_program.use_program();
+        ssao_program.set_texture(unsafe {c_str!("position")}, 0);
+        ssao_program.set_texture(unsafe {c_str!("normal")}, 1);
+        ssao_program.set_texture(unsafe {c_str!("albedo")}, 2);
+        ssao_program.set_texture(unsafe {c_str!("ssao_noise")}, 3);
+
+        ssao_program.set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
+        ssao_program.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
+        //perspective_matrix.set_as_uniform(ssao_program, "projection");
+        //Vector2::new(self.width as f32, self.height as f32).set_as_uniform(ssao_program, "resolution");
+
+        screenquad.draw();
+
+        ssao_fbo.unbind();*/
+
+        unsafe {
+            gl::ClearColor(0.4, 0.6, 1.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
+
+        let postprocess_shader = gl_resources.get_shader("postprocess").unwrap();
+        postprocess_shader.use_program();
+        
+        //ssao_fbo.bind_render_textures_to_current_fb(vec![("ssao", 0)]);
+        gbuffer_fbo.bind_render_textures_to_current_fb(vec![("albedo", 1)]);
+
+        postprocess_shader.set_texture(unsafe {c_str!("ssao")}, 0);
+        postprocess_shader.set_texture(unsafe {c_str!("albedo")}, 1);
+        postprocess_shader.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
+
+        screenquad.draw();
+
+
     }
 
     pub fn pause(&mut self) {
         self.play_state = PlayState::Paused;
-        #[cfg(feature = "android-lib")] {
+        #[cfg(feature = "android-lib")]
+        {
             debug!("Paused");
         }
     }
 
     pub fn resume(&mut self) {
         self.play_state = PlayState::Running;
-        #[cfg(feature = "android-lib")] {
+        #[cfg(feature = "android-lib")]
+        {
             debug!("Running");
         }
     }
@@ -386,5 +572,4 @@ impl Engine {
             self.input_queue.push(movement);
         }
     }
-
 }

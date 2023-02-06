@@ -1,15 +1,15 @@
-use crate::terrain::{Terrain, BlockWorldPos};
-use cgmath::{Vector3, Quaternion, Rotation, InnerSpace};
+use crate::terrain::{BlockWorldPos, Terrain};
+use cgmath::{InnerSpace, Quaternion, Rotation, Vector3};
 
 pub const X_VECTOR: Vector3<f32> = Vector3::new(1.0, 0.0, 0.0);
 pub const Y_VECTOR: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0);
 pub const Z_VECTOR: Vector3<f32> = Vector3::new(0.0, 0.0, 1.0);
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum Vec3Direction {
     X,
     Y,
-    Z
+    Z,
 }
 
 pub fn quaternion_rotate(vec: Vector3<f32>, angle: f32, axis: Vector3<f32>) -> Vector3<f32> {
@@ -18,23 +18,37 @@ pub fn quaternion_rotate(vec: Vector3<f32>, angle: f32, axis: Vector3<f32>) -> V
 
 // Fast inverse square root <3
 // https://en.wikipedia.org/wiki/Fast_inverse_square_root
-pub fn q_rsqrt(number: f32)  -> f32 {
+pub fn q_rsqrt(number: f32) -> f32 {
     let x2 = number * 0.5f32;
     let threehalfs = 1.5f32;
-    let mut i: u32 = unsafe { std::mem::transmute(number) };
+    let mut i: u32 = number.to_bits();
     i = 0x5f375a86 - (i >> 1);
-    let mut y: f32 = unsafe {std::mem::transmute(i) };
-    y = y * ( threehalfs - (x2 * y * y ) );
-    return y;
+    let mut y: f32 = f32::from_bits(i);
+    y = y * (threehalfs - (x2 * y * y));
+    y
 }
 
-pub fn dda(world: &Terrain, start: &Vector3<f32>, dir: &Vector3<f32>, max_dist: f32) -> Option<(Vector3<f32>, BlockWorldPos)> {
+pub fn dda(
+    world: &Terrain,
+    start: &Vector3<f32>,
+    dir: &Vector3<f32>,
+    max_dist: f32,
+) -> Option<(Vector3<f32>, BlockWorldPos)> {
     let ray_dir = dir.normalize();
 
     let mut ray_unit_step_size = Vector3 {
-        x: (1.0 + (ray_dir.y/ray_dir.x)*(ray_dir.y/ray_dir.x) + (ray_dir.z/ray_dir.x)*(ray_dir.z/ray_dir.x)).sqrt(),
-        y: ((ray_dir.x/ray_dir.y)*(ray_dir.x/ray_dir.y) + 1.0 + (ray_dir.z/ray_dir.y)*(ray_dir.z/ray_dir.y)).sqrt(),
-        z: ((ray_dir.x/ray_dir.z)*(ray_dir.x/ray_dir.z) + (ray_dir.y/ray_dir.z)*(ray_dir.y/ray_dir.z) + 1.0).sqrt(),
+        x: (1.0
+            + (ray_dir.y / ray_dir.x) * (ray_dir.y / ray_dir.x)
+            + (ray_dir.z / ray_dir.x) * (ray_dir.z / ray_dir.x))
+            .sqrt(),
+        y: ((ray_dir.x / ray_dir.y) * (ray_dir.x / ray_dir.y)
+            + 1.0
+            + (ray_dir.z / ray_dir.y) * (ray_dir.z / ray_dir.y))
+            .sqrt(),
+        z: ((ray_dir.x / ray_dir.z) * (ray_dir.x / ray_dir.z)
+            + (ray_dir.y / ray_dir.z) * (ray_dir.y / ray_dir.z)
+            + 1.0)
+            .sqrt(),
     };
 
     if ray_unit_step_size.x.is_nan() {
@@ -52,8 +66,12 @@ pub fn dda(world: &Terrain, start: &Vector3<f32>, dir: &Vector3<f32>, max_dist: 
         y: start.y.floor() as isize,
         z: start.z.floor() as isize,
     };
-    let mut ray_length_1d = Vector3 {x: 0.0, y: 0.0, z: 0.0 };
-    let mut step = Vector3 {x: 0, y: 0, z: 0};
+    let mut ray_length_1d = Vector3 {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
+    let mut step = Vector3 { x: 0, y: 0, z: 0 };
 
     if ray_dir.x < 0.0 {
         step.x = -1;
@@ -81,12 +99,17 @@ pub fn dda(world: &Terrain, start: &Vector3<f32>, dir: &Vector3<f32>, max_dist: 
 
     let mut dist = 0.0;
     while dist < max_dist {
-
         let mut min_dist = ray_length_1d.x;
         let mut min_dir = Vec3Direction::X;
-        if ray_length_1d.y < min_dist { min_dist = ray_length_1d.y; min_dir = Vec3Direction::Y }
+        if ray_length_1d.y < min_dist {
+            min_dist = ray_length_1d.y;
+            min_dir = Vec3Direction::Y
+        }
         #[allow(unused_assignments)]
-        if ray_length_1d.z < min_dist { min_dist = ray_length_1d.z; min_dir = Vec3Direction::Z }
+        if ray_length_1d.z < min_dist {
+            min_dist = ray_length_1d.z;
+            min_dir = Vec3Direction::Z
+        }
 
         if min_dir == Vec3Direction::X {
             map_check.x += step.x;
@@ -102,9 +125,14 @@ pub fn dda(world: &Terrain, start: &Vector3<f32>, dir: &Vector3<f32>, max_dist: 
             ray_length_1d.z += ray_unit_step_size.z;
         }
         if world.collision_at_world_pos(&map_check) {
-            return Some(
-                (start + ray_dir * dist, Vector3 { x: map_check.x, y: map_check.y, z: map_check.z})
-            );
+            return Some((
+                start + ray_dir * dist,
+                Vector3 {
+                    x: map_check.x,
+                    y: map_check.y,
+                    z: map_check.z,
+                },
+            ));
         }
     }
     None
