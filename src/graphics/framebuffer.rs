@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use super::{texture::Texture, depthbuffer::{Depthbuffer, self}};
 
-pub(crate) struct Framebuffer {
+pub struct Framebuffer {
     id: u32,
-    textures: HashMap<String, Texture>,
+    textures: HashMap<&'static str, Texture>,
 }
 
 impl Framebuffer {
-    pub fn with_textures(textures: Vec<(String, Texture)>, depthbuffer: Option<Depthbuffer>) -> Self {
+    pub fn with_textures(textures: Vec<(&'static str, Texture)>, depthbuffer: Option<Depthbuffer>) -> Self {
         let mut id = 0;
         unsafe {
             gl::GenFramebuffers(1, &mut id);
@@ -66,11 +66,11 @@ impl Framebuffer {
         framebuffer
     }
 
-    pub fn bind_render_textures_to_current_fb(&self, texture_names: Vec<String>) {
-        for (i, name) in texture_names.iter().enumerate() {
+    pub fn bind_render_textures_to_current_fb(&self, textures: Vec<(&'static str, u32)>) {
+        for (name, texture_index) in textures {
             if let Some(texture) = self.textures.get(name) {
                 unsafe {
-                    gl::ActiveTexture(gl::TEXTURE0 + i as u32);
+                    gl::ActiveTexture(gl::TEXTURE0 + texture_index);
                     gl::BindTexture(gl::TEXTURE_2D, texture.id);
                 }
             }

@@ -62,6 +62,10 @@ impl Camera {
         self.forward = quaternion_rotate(self.forward, angle, self.right);
         self.calculate_normals();
     }
+
+    pub fn get_forward(&self) -> Vector3<f32> {
+        self.forward
+    }
 }
 
 pub fn perspective_matrix(width: i32, height: i32, render_distance_chunks: f32) -> Matrix4<f32> {

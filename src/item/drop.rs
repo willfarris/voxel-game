@@ -1,12 +1,13 @@
 use cgmath::Zero;
 pub(crate) use cgmath::{Deg, Matrix4, Quaternion, Rotation3, Vector3};
+use image::ImageFormat;
 
 use crate::{
     c_str,
     graphics::{
         mesh::block_drop_vertices,
         resources::{GLRenderable, GLResources},
-        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC},
+        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC}, shader::Shader, texture::Texture, vao::VertexAttributeObject, vbo::VertexBufferObject,
     },
     physics::{
         collision::{Collider, Rect3},
@@ -52,16 +53,11 @@ impl ItemDrop {
 
 impl GLRenderable for ItemDrop {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-        if gl_resources.get_shader("terrain").is_none() {
-            gl_resources.create_shader("terrain", TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC);
-        }
-        if gl_resources.get_texture("terrain").is_none() {
-            gl_resources.create_texture("terrain", TERRAIN_BITMAP);
-        }
 
-        let verts = block_drop_vertices(&BLOCKS[self.block_id]);
-        let name = format!("item_{}", self.block_id);
-        gl_resources.update_buffer(name, verts);
+        let item_drop_name = format!("item_{}", self.block_id);
+        let verts = Box::new(block_drop_vertices(&BLOCKS[self.block_id]));
+        gl_resources.update_vao_buffer(item_drop_name, verts);
+
     }
 
     fn draw(
@@ -82,7 +78,7 @@ impl GLRenderable for ItemDrop {
         let shader = gl_resources.get_shader("terrain").unwrap();
         let texture = gl_resources.get_texture("terrain").unwrap();
 
-        texture.bind();
+        texture.use_as_framebuffer_texture(0);
 
         shader.use_program();
         shader.set_mat4(unsafe { c_str!("perspective_matrix") }, &perspective_matrix);
@@ -92,9 +88,8 @@ impl GLRenderable for ItemDrop {
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
         let name = format!("item_{}", self.block_id);
-        if let Some(vbo) = gl_resources.get_buffer(name) {
-            vbo.draw_vertex_buffer();
-        }
+        gl_resources.get_vao(&name).unwrap().draw();
+
     }
 }
 

@@ -1,27 +1,22 @@
-use std::collections::HashMap;
+use std::{collections::{HashMap, VecDeque}, hash::Hash};
 
 use cgmath::{Matrix4, Vector3};
 
 use super::{
     buffer::BufferObject,
-    framebuffer::Framebuffer,
+    framebuffer::{Framebuffer, self},
     shader::Shader,
     texture::Texture,
-    vertex::{Vertex2D, Vertex3D},
+    vertex::{Vertex2D, Vertex3D, VertexBufferContents}, vao::VertexAttributeObject, vbo::VertexBufferObject,
 };
 
 pub struct GLResources {
     textures: HashMap<&'static str, Texture>,
     shaders: HashMap<&'static str, Shader>,
-    buffers: HashMap<String, BufferObject<Vertex3D>>,
-
-    pub(crate) gbuffer: Option<Framebuffer>,
-    pub(crate) screenquad: Option<BufferObject<Vertex3D>>,
-    pub(crate) gbuffer_program: Option<Shader>,
-    pub(crate) ssao_kernel: Option<[Vector3<f32>; 64]>,
-    pub(crate) ssao_noise: Option<Texture>,
-
-    buffer_update_queue: Vec<(String, Vec<Vertex3D>)>,
+    vaos: HashMap<String, VertexAttributeObject>,
+    framebuffers: HashMap<&'static str, Framebuffer>,
+    
+    vao_update_queue: VecDeque<(String, Box<dyn VertexBufferContents + Send + Sync>)>,
 }
 
 impl GLResources {
@@ -29,81 +24,71 @@ impl GLResources {
         Self {
             textures: HashMap::new(),
             shaders: HashMap::new(),
-            buffers: HashMap::new(),
-
-            gbuffer: None,
-            screenquad: None,
-            gbuffer_program: None,
-            ssao_kernel: None,
-            ssao_noise: None,
-
-            buffer_update_queue: Vec::new(),
-        }
-    }
-
-    pub fn create_shader(
-        &mut self,
-        key: &'static str,
-        vert_shader_src: &str,
-        frag_shader_src: &str,
-    ) {
-        let shader = Shader::new(vert_shader_src, frag_shader_src).unwrap();
-        self.shaders.insert(key, shader);
-    }
-
-    pub fn create_texture(&mut self, key: &'static str, bitmap: &[u8]) {
-        let texture = Texture::from_dynamic_image_bytes(bitmap, image::ImageFormat::Png);
-        self.textures.insert(key, texture);
-    }
-
-    pub fn get_texture(&self, key: &str) -> Option<Texture> {
-        self.textures.get(key).copied()
-    }
-
-    pub fn get_shader(&self, key: &str) -> Option<Shader> {
-        self.shaders.get(key).copied()
-    }
-
-    pub fn get_buffer(&self, name: String) -> Option<&BufferObject<Vertex3D>> {
-        if let Some(buffer) = self.buffers.get(name.as_str()) {
-            if buffer.is_valid() {
-                Some(buffer)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn create_buffer_from_verts(&mut self, name: String, buffer_contents: Vec<Vertex3D>) {
-        let buffer = BufferObject::new(buffer_contents);
-        self.buffers.insert(name, buffer);
-    }
-
-    pub fn update_buffer(&mut self, name: String, new_contents: Vec<Vertex3D>) {
-        self.buffer_update_queue.push((name, new_contents));
-    }
-
-    pub fn process_buffer_updates(&mut self, num_per_frame: usize) {
-        for _ in 0..num_per_frame {
-            if let Some((buffer_name, new_contents)) = self.buffer_update_queue.pop() {
-                if let Some(buffer) = self.buffers.get_mut(&buffer_name) {
-                    buffer.update_buffer(new_contents);
-                } else {
-                    self.create_buffer_from_verts(buffer_name, new_contents);
-                }
-            }
+            vaos: HashMap::new(),
+            framebuffers: HashMap::new(),
+            
+            vao_update_queue: VecDeque::new(),
         }
     }
 
     pub fn invalidate_resources(&mut self) {
-        self.shaders.clear();
         self.textures.clear();
-        for buffer in self.buffers.values_mut() {
-            buffer.invalidate();
+        self.shaders.clear();
+        self.vaos.clear();
+        self.framebuffers.clear();
+        self.vao_update_queue.clear();
+    }
+
+    pub fn add_shader(&mut self, name: &'static str, shader: Shader) {
+        self.shaders.insert(name, shader);
+    }
+
+    pub fn add_texture(&mut self, name: &'static str, texture: Texture) {
+        self.textures.insert(name, texture);
+    }
+
+    pub fn add_framebuffer(&mut self, name: &'static str, framebuffer: Framebuffer) {
+        self.framebuffers.insert(name, framebuffer);
+    }
+
+    pub fn add_vao(&mut self, name: String, buffer_contents: Box<dyn VertexBufferContents + Send + Sync>) {
+        let vbo = VertexBufferObject::create_buffer(buffer_contents);
+        let vao = VertexAttributeObject::with_buffer(vbo);
+        self.vaos.insert(name, vao);
+    }
+
+    pub fn get_shader(&self, name: &str) -> Option<&Shader> {
+        self.shaders.get(name)
+    }
+
+    pub fn get_texture(&self, name: &str) -> Option<&Texture> {
+        self.textures.get(name)
+    }
+
+    pub fn get_vao(&self, name: &str) -> Option<&VertexAttributeObject> {
+        self.vaos.get(name)
+    }
+
+    pub fn get_framebuffer(&self, name: &str) -> Option<&Framebuffer> {
+        self.framebuffers.get(name)
+    }
+
+    pub fn update_vao_buffer(&mut self, name: String, buffer_contents: Box<dyn VertexBufferContents + Send + Sync>) {
+        self.vao_update_queue.push_back((name, buffer_contents));
+    }
+
+    pub fn process_vao_buffer_updates(&mut self, num_per_frame: usize) {
+        for _ in 0..num_per_frame {
+            if let Some((buffer_name, new_contents)) = self.vao_update_queue.pop_front() {
+                if let Some(vao) = self.vaos.get_mut(&buffer_name) {
+                    vao.update_buffer(new_contents);
+                } else {
+                    self.add_vao(buffer_name, new_contents);
+                }
+            }
         }
     }
+    
 }
 
 pub trait GLRenderable {

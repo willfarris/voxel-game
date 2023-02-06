@@ -6,7 +6,6 @@ use crate::{
     graphics::{
         mesh::push_face,
         resources::{GLRenderable, GLResources},
-        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC},
         vertex::Vertex3D,
     },
     item::drop::ItemDrop,
@@ -81,7 +80,7 @@ impl Terrain {
             }
             if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
-                gl_resources.update_buffer(name, chunk_vertices);
+                gl_resources.update_vao_buffer(name, Box::new(chunk_vertices));
             }
         }
     }
@@ -351,7 +350,8 @@ impl Terrain {
         if self.chunks.get(chunk_index).is_some() {
             if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
-                gl_resources.update_buffer(name, chunk_vertices);
+                let verts = Box::new(chunk_vertices);
+                gl_resources.update_vao_buffer(name, verts);
             }
         }
     }
@@ -406,13 +406,8 @@ impl Terrain {
 }
 
 impl GLRenderable for Terrain {
-    fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-        if gl_resources.get_shader("terrain").is_none() {
-            gl_resources.create_shader("terrain", TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC);
-        }
-        if gl_resources.get_texture("terrain").is_none() {
-            gl_resources.create_texture("terrain", TERRAIN_BITMAP);
-        }
+    fn init_gl_resources(&self, _gl_resources: &mut GLResources) {
+
     }
 
     fn draw(
@@ -442,8 +437,8 @@ impl GLRenderable for Terrain {
             shader.set_mat4(unsafe { c_str!("model_matrix") }, &model_matrix);
 
             let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
-            if let Some(vbo) = gl_resources.get_buffer(name) {
-                vbo.draw_vertex_buffer();
+            if let Some(vao) = gl_resources.get_vao(&name) {
+                vao.draw();
             }
         }
     }

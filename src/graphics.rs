@@ -7,3 +7,6 @@ pub(crate) mod source;
 pub(crate) mod texture;
 pub(crate) mod vertex;
 pub(crate) mod depthbuffer;
+pub(crate) mod vao;
+pub(crate) mod vbo;
+pub(crate) mod uniform;
