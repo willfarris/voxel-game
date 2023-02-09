@@ -26,12 +26,14 @@ pub type BlockIndex = Vector3<usize>;
 
 pub struct Terrain {
     chunks: HashMap<ChunkIndex, Box<Chunk>>,
+    placement_queue: HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>,
 }
 
 impl Terrain {
     pub fn new() -> Self {
         Self {
             chunks: HashMap::new(),
+            placement_queue: HashMap::new(),
         }
     }
 

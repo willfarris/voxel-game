@@ -6,7 +6,7 @@ use crate::graphics::resources::GLResources;
 
 use super::{
     chunk::{Chunk, CHUNK_WIDTH},
-    ChunkIndex, Terrain,
+    ChunkIndex, Terrain, BlockWorldPos,
 };
 
 pub struct TerrainGenConfig {
@@ -87,21 +87,25 @@ impl TerrainGenConfig {
 }
 
 pub(crate) mod terraingen {
+    use std::collections::LinkedList;
+
     use super::{Biome, TerrainGenConfig};
     use crate::terrain::{
         block::block_index_by_name,
         chunk::{Chunk, CHUNK_WIDTH},
-        BlockWorldPos, ChunkIndex,
+        BlockWorldPos, ChunkIndex, BlockIndex,
     };
 
     pub fn generate_surface(
         chunk_index: &ChunkIndex,
         chunk: &mut Chunk,
         noise_config: &TerrainGenConfig,
-    ) {
+    ) -> Vec<(BlockWorldPos, usize)> {
         shape_terrain(chunk_index, chunk, noise_config);
         place_biomes(chunk_index, chunk, noise_config);
-        place_features(chunk_index, chunk, noise_config);
+        let queued_features = place_features(chunk_index, chunk, noise_config);
+
+        queued_features
     }
 
     fn shape_terrain(chunk_index: &ChunkIndex, chunk: &mut Chunk, noise_config: &TerrainGenConfig) {
@@ -148,7 +152,9 @@ pub(crate) mod terraingen {
         chunk_index: &ChunkIndex,
         chunk: &mut Chunk,
         noise_config: &TerrainGenConfig,
-    ) {
+    ) -> Vec<(BlockWorldPos, usize)> {
+        let mut placement_queue = Vec::new();
+
         for block_x in 0..CHUNK_WIDTH {
             for block_z in 0..CHUNK_WIDTH {
                 let global_coords = [
@@ -161,8 +167,12 @@ pub(crate) mod terraingen {
                     Biome::Plains => {
                         let has_grass: u8 = rand::random();
                         if let 0..=64 = has_grass {
-                            chunk.blocks[block_x][surface + 1][block_z] =
-                                block_index_by_name("Short Grass");
+                            /*chunk.blocks[block_x][surface + 1][block_z] =
+                                block_index_by_name("Short Grass");*/
+                            placement_queue.push((BlockWorldPos::new(global_coords[0] as isize, surface as isize + 1, global_coords[1] as isize), block_index_by_name("Short Grass")));
+
+                        } else if let 65 = has_grass {
+                            //place_tree(chunk_index, chunk, BlockWorldPos::new(global_coords[0] as isize, surface as isize, global_coords[1] as isize));
                         }
                     }
                     Biome::Hills => {}
@@ -170,8 +180,11 @@ pub(crate) mod terraingen {
                 }
             }
         }
+
+        placement_queue
     }
 }
+
 impl Terrain {
     pub(crate) fn init_worldgen(
         &mut self,
@@ -198,6 +211,21 @@ impl Terrain {
             for chunk_z in -chunk_radius..chunk_radius {
                 let chunk_index = start_chunk_index + ChunkIndex::new(chunk_x, chunk_z);
                 self.update_chunk_mesh(&chunk_index, gl_resources);
+            }
+        }
+    }
+
+    pub(crate) fn place_features(&mut self, feature_blocks: Vec<(BlockWorldPos, usize)>) {
+        //todo!("place the blocks in feature_blocks in the world and place the rest in the placement queue");
+
+        for (world_pos, block_id) in feature_blocks {
+            if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(&world_pos) {
+                if let Some(chunk) = self.chunks.get(&chunk_index) {
+                    todo!("Place the block in the chunk if it exists")
+                } else {
+                    todo!("If the chunk does not yet exist, place the block into the placement queue")
+                    //self.placement_queue.insert(chunk_index, (block_index, block_id));
+                }
             }
         }
     }

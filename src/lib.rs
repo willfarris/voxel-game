@@ -321,7 +321,7 @@ impl Engine {
                 // Generate data for the new chunks that are in range
                 for chunk_index in chunk_update_list.iter() {
                     let mut chunk = Box::new(Chunk::new());
-                    terraingen::generate_surface(
+                    let placement_queue = terraingen::generate_surface(
                         chunk_index,
                         &mut chunk,
                         &noise_config_gen.read().unwrap(),
@@ -329,6 +329,7 @@ impl Engine {
                     {
                         let mut terrain = terrain_gen.write().unwrap();
                         terrain.insert_chunk(*chunk_index, chunk);
+                        terrain.place_features(placement_queue);
                     }
                     std::thread::sleep(Duration::from_millis(1));
                 }
