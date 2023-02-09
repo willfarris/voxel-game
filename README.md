@@ -22,9 +22,17 @@ cd voxel-game
 ./link_android.py $HOME/AndroidStudioProjects/VoxelGameAndroid
 ```
 
+Then build `VoxelGameAndroid` in Android Studio.
+
 # Content
 
-So far there isn't much to do in the game besides walk around and break blocks. The following are roughly planned for the future:
-* Proper inventory system + the ability to break and collect blocks
+So far there isn't much to do in the game besides walk around. Features so far include:
+* Simple 3D engine
+* Infinite terrain
+
+The following are roughly planned for the future:
+* Deferred rendering pipeline + postprocessing effects
+* Proper inventory system + the ability to break and collect blocks (WIP)
 * Simple AI/mobs
 * Persistent storage for worlds
+* Better shaders/rendering pipeline
