@@ -343,7 +343,7 @@ impl Terrain {
     }
 
     pub(crate) fn update_single_chunk_mesh(
-        &mut self,
+        &self,
         chunk_index: &ChunkIndex,
         gl_resources: &mut GLResources,
     ) {
@@ -406,8 +406,10 @@ impl Terrain {
 }
 
 impl GLRenderable for Terrain {
-    fn init_gl_resources(&self, _gl_resources: &mut GLResources) {
-
+    fn init_gl_resources(&self, gl_resources: &mut GLResources) {
+        for chunk_index in self.chunks.keys() {
+            self.update_single_chunk_mesh(chunk_index, gl_resources);
+        }
     }
 
     fn draw(
