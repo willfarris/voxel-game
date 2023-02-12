@@ -17,6 +17,8 @@ void main() {
 
     vec4 albedo = texture(albedo, uv);
 
+    //float vignette = 1.0 - 0.5 *length(uv - 0.5);
+
     //float ssao_avg = texture(ssao, uv).r;
     
     /*float ssao_avg = 0.0;

@@ -359,7 +359,7 @@ impl Terrain {
     }
 
     pub(crate) fn update_chunk_mesh(
-        &mut self,
+        &self,
         chunk_index: &ChunkIndex,
         gl_resources: &mut GLResources,
     ) {
@@ -435,7 +435,7 @@ impl GLRenderable for Terrain {
         for chunk_index in self.chunks.keys() {
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
-                0f32, //(chunk_index.y * CHUNK_SIZE as isize) as f32,
+                0f32,
                 (chunk_index.y * CHUNK_WIDTH as isize) as f32,
             ));
             shader.set_mat4(unsafe { c_str!("model_matrix") }, &model_matrix);

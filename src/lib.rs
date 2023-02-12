@@ -82,7 +82,7 @@ pub struct Engine {
     elapsed_time: f32,
     play_state: PlayState,
     input_queue: Vec<PlayerInput>,
-    noise_config: Arc<RwLock<TerrainGenConfig>>,
+    terrain_config: Arc<RwLock<TerrainGenConfig>>,
 
     width: i32,
     height: i32,
@@ -94,7 +94,8 @@ impl Default for Engine {
     fn default() -> Self {
         let player = Box::new(Player::new(Vector3::new(0.0, 64.0, 0.0), Z_VECTOR));
         let terrain = Terrain::new();
-        let noise_config = TerrainGenConfig::default();
+        let mut terrain_config = TerrainGenConfig::default();
+        terrain_config.load_features(include_str!("../assets/features/world_features.json"));
 
         Self {
             player: Arc::new(RwLock::new(player)),
@@ -104,7 +105,7 @@ impl Default for Engine {
             elapsed_time: 0.0,
             play_state: PlayState::Paused,
             input_queue: Vec::new(),
-            noise_config: Arc::new(RwLock::new(noise_config)),
+            terrain_config: Arc::new(RwLock::new(terrain_config)),
 
             width: 0,
             height: 0,
@@ -274,7 +275,7 @@ impl Engine {
         let render_distance = self.render_distance;
 
         // Create initial terrain around the player, block the main thread so the player doesn't go through the ground
-        {
+        /*{
             let terrain = self.terrain.clone();
             let gl_resources = self.gl_resources.clone();
             let noise_config = self.noise_config.clone();
@@ -284,12 +285,12 @@ impl Engine {
                 &mut gl_resources.write().unwrap(),
                 &noise_config.read().unwrap(),
             );
-        }
+        }*/
         self.resume();
 
         let terrain_gen = self.terrain.clone();
         let player_gen = self.player.clone();
-        let noise_config_gen = self.noise_config.clone();
+        let terrain_config_gen = self.terrain_config.clone();
         let gl_resources_gen = self.gl_resources.clone();
         std::thread::spawn(move || {
             loop {
@@ -324,7 +325,7 @@ impl Engine {
                     let placement_queue = terraingen::generate_surface(
                         chunk_index,
                         &mut chunk,
-                        &noise_config_gen.read().unwrap(),
+                        &terrain_config_gen.read().unwrap(),
                     );
                     {
                         let mut terrain = terrain_gen.write().unwrap();
@@ -335,19 +336,20 @@ impl Engine {
                 }
 
                 for chunk_index in chunk_update_list.iter() {
-                    let mut terrain = terrain_gen.write().unwrap();
+                    let terrain = terrain_gen.read().unwrap();
                     let mut gl_resources = gl_resources_gen.write().unwrap();
+                    terrain.update_chunk_mesh(chunk_index, &mut gl_resources)
 
-                    let x_pos = chunk_index + ChunkIndex::new(1, 0);
+                    /*let x_pos = chunk_index + ChunkIndex::new(1, 0);
                     let x_neg = chunk_index + ChunkIndex::new(-1, 0);
                     let z_pos = chunk_index + ChunkIndex::new(0, 1);
                     let z_neg = chunk_index + ChunkIndex::new(0, -1);
 
-                    terrain.update_single_chunk_mesh(chunk_index, &mut gl_resources);
                     terrain.update_single_chunk_mesh(&x_pos, &mut gl_resources);
                     terrain.update_single_chunk_mesh(&x_neg, &mut gl_resources);
                     terrain.update_single_chunk_mesh(&z_pos, &mut gl_resources);
                     terrain.update_single_chunk_mesh(&z_neg, &mut gl_resources);
+                    terrain.update_single_chunk_mesh(chunk_index, &mut gl_resources);*/
                 }
             }
         });
@@ -544,8 +546,6 @@ impl Engine {
         postprocess_shader.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
 
         screenquad.draw();
-
-
     }
 
     pub fn pause(&mut self) {

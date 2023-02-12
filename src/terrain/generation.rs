@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cgmath::{Vector2, Vector3};
 use noise::{NoiseFn, Perlin};
 use splines::Spline;
@@ -6,7 +8,7 @@ use crate::graphics::resources::GLResources;
 
 use super::{
     chunk::{Chunk, CHUNK_WIDTH},
-    ChunkIndex, Terrain, BlockWorldPos,
+    ChunkIndex, Terrain, BlockWorldPos, block::BLOCKS,
 };
 
 pub struct TerrainGenConfig {
@@ -16,6 +18,8 @@ pub struct TerrainGenConfig {
 
     biome_table: [Biome; 2],
     cont_map_spline: Spline<f64, f64>,
+
+    world_features: HashMap<String, Vec<Vec<Vec<usize>>>>,
 }
 
 impl Default for TerrainGenConfig {
@@ -44,6 +48,8 @@ impl Default for TerrainGenConfig {
 
             biome_table: [Biome::Plains, Biome::Hills],
             cont_map_spline: splines::Spline::from_vec(biome_cont_map),
+
+            world_features: HashMap::new(),
         }
     }
 }
@@ -84,16 +90,46 @@ impl TerrainGenConfig {
         let surface_noise = 0.5 * self.get_perlin([offset[0] * 0.02, offset[1] * 0.02]) + 0.5;
         32.0 * surface_noise * continentalness + 32.0
     }
+
+    pub(crate) fn load_features(&mut self, features_json: &'static str) {
+        let features = json::parse(features_json).unwrap();
+        for (feature_name, feature) in features.entries() {
+            let dimensions = &feature["feature_dimensions"];
+            let dimensions = (dimensions[0].as_usize().unwrap(), dimensions[1].as_usize().unwrap(), dimensions[2].as_usize().unwrap());
+            let mut feature_vec: Vec<Vec<Vec<usize>>> = vec![];
+            
+            let feature_blocks = &feature["block_data"];
+            for y in 0..dimensions.1 {
+                let feature_slice_y = &feature_blocks[y];
+                let mut z_vec = Vec::new();
+                for z in 0..dimensions.2 {
+                    let feature_slice_z = &feature_slice_y[z];
+                    let mut x_vec = Vec::new();
+                    for x in 0..dimensions.0 {
+                        let feature_block = feature_slice_z[x].as_usize().unwrap();
+                        x_vec.push(feature_block);
+                    }
+                    z_vec.push(x_vec);
+                }
+                feature_vec.push(z_vec);
+            }
+            println!("{} : {:?}", feature_name, feature_vec);
+            self.world_features.insert(feature_name.to_string(), feature_vec);
+        }
+    }
+
+    fn get_feature_blueprint(&self, feature_name: &str) -> Option<&Vec<Vec<Vec<usize>>>> {
+        self.world_features.get(feature_name)
+    }
+    
 }
 
 pub(crate) mod terraingen {
-    use std::collections::LinkedList;
-
     use super::{Biome, TerrainGenConfig};
     use crate::terrain::{
         block::block_index_by_name,
         chunk::{Chunk, CHUNK_WIDTH},
-        BlockWorldPos, ChunkIndex, BlockIndex,
+        BlockWorldPos, ChunkIndex,
     };
 
     pub fn generate_surface(
@@ -103,9 +139,8 @@ pub(crate) mod terraingen {
     ) -> Vec<(BlockWorldPos, usize)> {
         shape_terrain(chunk_index, chunk, noise_config);
         place_biomes(chunk_index, chunk, noise_config);
-        let queued_features = place_features(chunk_index, chunk, noise_config);
 
-        queued_features
+        enqueue_features(chunk_index, noise_config)
     }
 
     fn shape_terrain(chunk_index: &ChunkIndex, chunk: &mut Chunk, noise_config: &TerrainGenConfig) {
@@ -148,10 +183,9 @@ pub(crate) mod terraingen {
         }
     }
 
-    fn place_features(
+    fn enqueue_features(
         chunk_index: &ChunkIndex,
-        chunk: &mut Chunk,
-        noise_config: &TerrainGenConfig,
+        terrain_config: &TerrainGenConfig,
     ) -> Vec<(BlockWorldPos, usize)> {
         let mut placement_queue = Vec::new();
 
@@ -161,18 +195,17 @@ pub(crate) mod terraingen {
                     chunk_index.x as f64 * 16.0 + block_x as f64,
                     chunk_index.y as f64 * 16.0 + block_z as f64,
                 ];
-                let surface = noise_config.get_surface(global_coords).round() as usize;
-                let biome = noise_config.get_biome(global_coords);
+                let surface = terrain_config.get_surface(global_coords).round() as usize;
+                let global_index = BlockWorldPos::new(global_coords[0] as isize, surface as isize, global_coords[1] as isize);
+                
+                let biome = terrain_config.get_biome(global_coords);
                 match biome {
                     Biome::Plains => {
                         let has_grass: u8 = rand::random();
                         if let 0..=64 = has_grass {
-                            /*chunk.blocks[block_x][surface + 1][block_z] =
-                                block_index_by_name("Short Grass");*/
-                            placement_queue.push((BlockWorldPos::new(global_coords[0] as isize, surface as isize + 1, global_coords[1] as isize), block_index_by_name("Short Grass")));
-
+                            instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue);
                         } else if let 65 = has_grass {
-                            //place_tree(chunk_index, chunk, BlockWorldPos::new(global_coords[0] as isize, surface as isize, global_coords[1] as isize));
+                            instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "oak_tree", terrain_config, &mut placement_queue);
                         }
                     }
                     Biome::Hills => {}
@@ -182,6 +215,27 @@ pub(crate) mod terraingen {
         }
 
         placement_queue
+    }
+
+    fn instantiate_feature(world_position: &BlockWorldPos, feature_name: &str, terrain_config: &TerrainGenConfig, placement_queue: &mut Vec<(BlockWorldPos, usize)>) {
+        if let Some(feature) = terrain_config.get_feature_blueprint(feature_name) {
+            let y_len = feature.len();
+            for y in 0..y_len {
+                let slice = &feature[y];
+                let z_len = slice.len();
+                for z in 0..z_len {
+                    let row = &slice[z];
+                    let x_len = row.len();
+                    for x in 0..x_len {
+                        let block_id = row[x];
+                        if block_id != 0 {
+                            let block_world_pos = world_position + BlockWorldPos::new(x as isize, y as isize, z as isize);
+                            placement_queue.push((block_world_pos, block_id));
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -216,17 +270,34 @@ impl Terrain {
     }
 
     pub(crate) fn place_features(&mut self, feature_blocks: Vec<(BlockWorldPos, usize)>) {
-        //todo!("place the blocks in feature_blocks in the world and place the rest in the placement queue");
 
+        // Update the placement queue with blocks that are part of the new feature
         for (world_pos, block_id) in feature_blocks {
             if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(&world_pos) {
-                if let Some(chunk) = self.chunks.get(&chunk_index) {
-                    todo!("Place the block in the chunk if it exists")
+                if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
+                    // Place the block in the chunk if it exists
+                    chunk.blocks[block_index.x][block_index.y][block_index.z] = block_id;
                 } else {
-                    todo!("If the chunk does not yet exist, place the block into the placement queue")
-                    //self.placement_queue.insert(chunk_index, (block_index, block_id));
+                    // If the chunk does not yet exist, place the block into the placement queue
+                    if let Some(block_vec) = self.placement_queue.get_mut(&chunk_index) {
+                        block_vec.push((block_index, block_id));
+                    } else {
+                        self.placement_queue.insert(chunk_index, vec![(block_index, block_id)]);
+                    }
                 }
             }
         }
+
+        // Place all blocks in the placement queue which have a corresponding chunk
+        self.placement_queue.retain(|key, blocks_queue| {
+            if let Some(chunk) = self.chunks.get_mut(key) {
+                for (block_index, block_id) in blocks_queue {
+                    chunk.blocks[block_index.x][block_index.y][block_index.z] = *block_id;
+                }
+                false
+            } else {
+                true
+            }
+        });
     }
 }

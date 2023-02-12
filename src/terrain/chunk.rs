@@ -5,7 +5,7 @@ pub(crate) const CHUNK_HEIGHT: usize = 256;
 
 pub(crate) type BlockDataArray = [[[usize; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
 
-#[derive(Clone)]
+
 pub struct Chunk {
     pub blocks: BlockDataArray,
     pub metadata: BlockDataArray,
