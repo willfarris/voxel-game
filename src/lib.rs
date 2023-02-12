@@ -18,7 +18,7 @@ mod java_interface;
 
 use std::{
     sync::{Arc, Mutex, RwLock},
-    time::Duration, ffi::CStr,
+    time::{Duration, Instant}, ffi::CStr,
 };
 
 use cgmath::{Vector2, Vector3, Zero, InnerSpace};
@@ -79,7 +79,9 @@ pub struct Engine {
     terrain: Arc<RwLock<Terrain>>,
     entities: Vec<Box<dyn EntityTrait>>,
 
-    elapsed_time: f32,
+    elapsed_time: Duration,
+    last_update: Instant,
+
     play_state: PlayState,
     input_queue: Vec<PlayerInput>,
     terrain_config: Arc<RwLock<TerrainGenConfig>>,
@@ -102,7 +104,9 @@ impl Default for Engine {
             terrain: Arc::new(RwLock::new(terrain)),
             entities: Vec::new(),
 
-            elapsed_time: 0.0,
+            elapsed_time: Duration::ZERO,
+            last_update: Instant::now(),
+
             play_state: PlayState::Paused,
             input_queue: Vec::new(),
             terrain_config: Arc::new(RwLock::new(terrain_config)),
@@ -116,13 +120,18 @@ impl Default for Engine {
 }
 
 impl Engine {
-    pub fn update(&mut self, delta_time: f32) {
+    pub fn update(&mut self) {
         if self.play_state == PlayState::Running {
+            let now = std::time::Instant::now();
+            let delta_time = now - self.last_update;
+            self.last_update = now;
+            self.elapsed_time += delta_time;
+
             {
                 let mut player = self.player.write().unwrap();
                 let terrain = self.terrain.read().unwrap();
 
-                player.update_physics(delta_time);
+                player.update_physics(delta_time.as_secs_f32());
 
                 let movement_delta = player.movement_delta();
 
@@ -144,7 +153,7 @@ impl Engine {
 
             for entity in &mut self.entities {
                 let terrain = self.terrain.read().unwrap();
-                entity.update_physics(delta_time);
+                entity.update_physics(delta_time.as_secs_f32());
 
                 let movement_delta = entity.movement_delta();
 
@@ -275,17 +284,17 @@ impl Engine {
         let render_distance = self.render_distance;
 
         // Create initial terrain around the player, block the main thread so the player doesn't go through the ground
-        /*{
+        {
             let terrain = self.terrain.clone();
             let gl_resources = self.gl_resources.clone();
-            let noise_config = self.noise_config.clone();
+            let terrain_config = self.terrain_config.clone();
             terrain.write().unwrap().init_worldgen(
                 &Vector3::new(0.0, 0.0, 0.0),
                 self.render_distance,
                 &mut gl_resources.write().unwrap(),
-                &noise_config.read().unwrap(),
+                &terrain_config.read().unwrap(),
             );
-        }*/
+        }
         self.resume();
 
         let terrain_gen = self.terrain.clone();
@@ -339,23 +348,13 @@ impl Engine {
                     let terrain = terrain_gen.read().unwrap();
                     let mut gl_resources = gl_resources_gen.write().unwrap();
                     terrain.update_chunk_mesh(chunk_index, &mut gl_resources)
-
-                    /*let x_pos = chunk_index + ChunkIndex::new(1, 0);
-                    let x_neg = chunk_index + ChunkIndex::new(-1, 0);
-                    let z_pos = chunk_index + ChunkIndex::new(0, 1);
-                    let z_neg = chunk_index + ChunkIndex::new(0, -1);
-
-                    terrain.update_single_chunk_mesh(&x_pos, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(&x_neg, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(&z_pos, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(&z_neg, &mut gl_resources);
-                    terrain.update_single_chunk_mesh(chunk_index, &mut gl_resources);*/
                 }
             }
         });
     }
 
     pub fn init_gl(&mut self, width: i32, height: i32) {
+        self.pause();
         #[cfg(target_os = "android")]
         {
             gl::load_with(|s| unsafe { std::mem::transmute(egli::egl::get_proc_address(s)) });
@@ -451,6 +450,7 @@ impl Engine {
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
+        self.resume();
     }
 
     pub fn reset_gl_resources(&mut self) {
@@ -462,7 +462,7 @@ impl Engine {
         let terrain = self.terrain.read().unwrap();
 
         {
-            self.gl_resources.write().unwrap().process_vao_buffer_updates(8);
+            self.gl_resources.write().unwrap().process_vao_buffer_updates(2);
         }
 
         let gl_resources = self.gl_resources.read().unwrap();
@@ -484,7 +484,7 @@ impl Engine {
             &gl_resources,
             perspective_matrix,
             view_matrix,
-            self.elapsed_time,
+            self.elapsed_time.as_secs_f32(),
         );
 
         for entity in &self.entities {
@@ -492,7 +492,7 @@ impl Engine {
                 &gl_resources,
                 perspective_matrix,
                 view_matrix,
-                self.elapsed_time,
+                self.elapsed_time.as_secs_f32(),
             );
         }
 
@@ -531,7 +531,8 @@ impl Engine {
         ssao_fbo.unbind();*/
 
         unsafe {
-            gl::ClearColor(0.4, 0.6, 1.0, 1.0);
+            //gl::ClearColor(0.4, 0.6, 1.0, 1.0);
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
@@ -539,10 +540,12 @@ impl Engine {
         postprocess_shader.use_program();
         
         //ssao_fbo.bind_render_textures_to_current_fb(vec![("ssao", 0)]);
-        gbuffer_fbo.bind_render_textures_to_current_fb(vec![("albedo", 1)]);
+        gbuffer_fbo.bind_render_textures_to_current_fb(vec![("albedo", 1), ("position", 2), ("normal", 3)]);
 
         postprocess_shader.set_texture(unsafe {c_str!("ssao")}, 0);
         postprocess_shader.set_texture(unsafe {c_str!("albedo")}, 1);
+        postprocess_shader.set_texture(unsafe {c_str!("position")}, 2);
+        postprocess_shader.set_texture(unsafe {c_str!("normal")},3);
         postprocess_shader.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
 
         screenquad.draw();
@@ -558,6 +561,7 @@ impl Engine {
 
     pub fn resume(&mut self) {
         self.play_state = PlayState::Running;
+        self.last_update = Instant::now();
         #[cfg(feature = "android-lib")]
         {
             debug!("Running");

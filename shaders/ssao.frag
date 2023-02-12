@@ -4,6 +4,7 @@ precision mediump float;
 
 in vec2 v_tex_coords;
 
+// TODO: convert position + normal coords to view space
 layout (location = 0) uniform sampler2D position;
 layout (location = 1) uniform sampler2D normal;
 layout (location = 2) uniform sampler2D albedo;

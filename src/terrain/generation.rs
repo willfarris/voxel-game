@@ -256,8 +256,9 @@ impl Terrain {
             for chunk_z in -chunk_radius..chunk_radius {
                 let chunk_index = start_chunk_index + ChunkIndex::new(chunk_x, chunk_z);
                 let mut cur_chunk = Box::new(Chunk::new());
-                terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
+                let placement_queue = terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
                 self.chunks.insert(chunk_index, cur_chunk);
+                self.place_features(placement_queue);
             }
         }
 

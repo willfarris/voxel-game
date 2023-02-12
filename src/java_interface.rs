@@ -44,10 +44,9 @@ pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_updateNative
     _env: JNIEnv,
     _: JClass,
     ptr: jlong,
-    delta_time: jfloat,
 ) {
     let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
-    engine.update(delta_time);
+    engine.update();
 }
 
 #[no_mangle]

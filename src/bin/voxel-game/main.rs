@@ -69,7 +69,7 @@ fn main() {
         };
         last_time = current_time;
 
-        voxel_game.update(delta_time);
+        voxel_game.update();
         voxel_game.draw();
         window.swap_buffers();
 
