@@ -25,6 +25,7 @@ impl VertexBufferObject {
     }
 
     pub fn update(&mut self, new_contents: Box<dyn VertexBufferContents + Send + Sync>) {
+        self.buffer = new_contents;
         self.bind();
         let stride = self.buffer.get_stride();
         let buffer_size = (self.buffer.get_length() * stride) as GLsizeiptr;
@@ -33,7 +34,6 @@ impl VertexBufferObject {
             gl::BufferData(gl::ARRAY_BUFFER, buffer_size, data, gl::STATIC_DRAW);
         }
         self.unbind();
-        self.buffer = new_contents;
     }
 
     pub fn get_length(&self) -> usize {
