@@ -167,11 +167,16 @@ pub(crate) mod terraingen {
                 let surface = noise_config.get_surface(global_coords).round() as usize;
                 let biome = noise_config.get_biome(global_coords);
                 match biome {
-                    Biome::Plains | Biome::Hills => {
+                    Biome::Plains => {
                         for block_y in surface - 1..surface {
                             chunk.blocks[block_x][block_y][block_z] = block_index_by_name("Dirt");
                         }
                         chunk.blocks[block_x][surface][block_z] = block_index_by_name("Grass");
+                    }
+                    Biome::Hills => {
+                        for block_y in surface - 1..=surface {
+                            chunk.blocks[block_x][block_y][block_z] = block_index_by_name("Sand");
+                        }
                     }
                     Biome::Desert => {
                         for block_y in surface - 1..=surface {
@@ -202,10 +207,12 @@ pub(crate) mod terraingen {
                 match biome {
                     Biome::Plains => {
                         let has_grass: u8 = rand::random();
-                        if let 0..=64 = has_grass {
-                            instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue);
-                        } else if let 65 = has_grass {
-                            instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "oak_tree", terrain_config, &mut placement_queue);
+                        match has_grass {
+                            0..=63 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue),
+                            64..=65 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "rose", terrain_config, &mut placement_queue),
+                            66..=67 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "dandelion", terrain_config, &mut placement_queue),
+                            68 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "oak_tree", terrain_config, &mut placement_queue),
+                            _ => {}
                         }
                     }
                     Biome::Hills => {}

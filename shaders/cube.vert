@@ -30,11 +30,7 @@ void main() {
     }
 
     vec4 position_viewspace = view_matrix * position_worldspace;
-    //v_position = position_viewspace.xyz;
-    v_position = position_worldspace.xyz;
-
-    //mat3 normal_matrix = transpose(inverse(mat3(view_matrix * model_matrix)));
-    //mat3 normal_matrix = transpose(inverse(mat3(view_matrix)));
+    v_position = position_viewspace.xyz;
     v_normal = normal;
     v_tex_coords = tex_coords;
     v_type = vtype;

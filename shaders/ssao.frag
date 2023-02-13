@@ -4,18 +4,19 @@ precision mediump float;
 
 in vec2 v_tex_coords;
 
-// TODO: convert position + normal coords to view space
 layout (location = 0) uniform sampler2D position;
 layout (location = 1) uniform sampler2D normal;
 layout (location = 2) uniform sampler2D albedo;
 layout (location = 3) uniform sampler2D ssao_noise;
 
-#define NUM_SAMPLES 32
-
+#define NUM_SAMPLES 64
 uniform vec3 samples[NUM_SAMPLES];
-uniform mat4 projection;
-uniform vec2 resolution;
 uniform float ssao_noise_size;
+
+uniform mat4 view_matrix;
+uniform mat4 perspective_matrix;
+
+uniform vec2 resolution;
 
 out float color;
 
@@ -30,6 +31,10 @@ void main() {
     vec4 f_albedo =  texture(albedo, uv).rgba;
     vec3 random_vec = texture(ssao_noise, uv * noise_scale).xyz;
 
+    // Transform normal vector to view space to calculate SSAO
+    mat3 normal_matrix = transpose(inverse(mat3(view_matrix)));
+    f_normal = normal_matrix * f_normal;
+
     // Calculate SSAO
     vec3 tangent = normalize(random_vec - f_normal * dot(random_vec, f_normal));
     vec3 bitangent = cross(f_normal, tangent);
@@ -41,7 +46,7 @@ void main() {
         sample_pos = f_position + sample_pos * 0.5;
 
         vec4 offset = vec4(sample_pos, 1.0);
-        offset = projection * offset;
+        offset = perspective_matrix * offset;
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
         
@@ -52,5 +57,5 @@ void main() {
     }
     occlusion /= float(NUM_SAMPLES);
     
-    color = occlusion;//vec4(occlusion * f_albedo.rgb, f_albedo.a);
+    color = occlusion;
 }

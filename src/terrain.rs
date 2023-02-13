@@ -6,7 +6,7 @@ use crate::{
     graphics::{
         mesh::push_face,
         resources::{GLRenderable, GLResources},
-        vertex::Vertex3D,
+        vertex::Vertex3D, uniform::Uniform,
     },
     item::drop::ItemDrop,
 };
@@ -417,9 +417,7 @@ impl GLRenderable for Terrain {
     fn draw(
         &self,
         gl_resources: &GLResources,
-        perspective_matrix: Matrix4<f32>,
-        view_matrix: Matrix4<f32>,
-        elapsed_time: f32,
+        uniforms: &[(&str, Box<dyn Uniform>)],
     ) {
         let shader = gl_resources.get_shader("terrain").unwrap();
         let texture = gl_resources.get_texture("terrain").unwrap();
@@ -427,9 +425,12 @@ impl GLRenderable for Terrain {
         texture.use_as_framebuffer_texture(0);
 
         shader.use_program();
-        shader.set_mat4(unsafe { c_str!("perspective_matrix") }, &perspective_matrix);
-        shader.set_mat4(unsafe { c_str!("view_matrix") }, &view_matrix);
-        shader.set_float(unsafe { c_str!("time") }, elapsed_time);
+        
+        for (name, uniform) in uniforms {
+            uniform.set_as_uniform(shader, name);
+        }
+
+
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
         for chunk_index in self.chunks.keys() {

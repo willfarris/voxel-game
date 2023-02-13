@@ -7,7 +7,7 @@ use super::{
     framebuffer::{Framebuffer, self},
     shader::Shader,
     texture::Texture,
-    vertex::{Vertex2D, Vertex3D, VertexBufferContents}, vao::VertexAttributeObject, vbo::VertexBufferObject,
+    vertex::{Vertex2D, Vertex3D, VertexBufferContents}, vao::VertexAttributeObject, vbo::VertexBufferObject, uniform::Uniform,
 };
 
 pub struct GLResources {
@@ -96,8 +96,6 @@ pub trait GLRenderable {
     fn draw(
         &self,
         gl_resources: &GLResources,
-        perspective_matrix: Matrix4<f32>,
-        view_matrix: Matrix4<f32>,
-        elapsed_time: f32,
+        uniforms: &[(&str, Box<dyn Uniform>)],
     );
 }

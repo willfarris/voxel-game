@@ -480,55 +480,23 @@ impl Engine {
             perspective_matrix(self.width, self.height, self.render_distance as f32);
         let view_matrix = player.camera_view_matrix();
 
+        let geometry_uniforms: Vec<(&str, Box<dyn Uniform>)> = vec![("perspective_matrix", Box::new(perspective_matrix)), ("view_matrix", Box::new(view_matrix)), ("time", Box::new(self.elapsed_time.as_secs_f32()))];
+
         terrain.draw(
             &gl_resources,
-            perspective_matrix,
-            view_matrix,
-            self.elapsed_time.as_secs_f32(),
+            &geometry_uniforms,
         );
 
         for entity in &self.entities {
             entity.draw(
                 &gl_resources,
-                perspective_matrix,
-                view_matrix,
-                self.elapsed_time.as_secs_f32(),
+                &geometry_uniforms,
             );
         }
 
         gbuffer_fbo.unbind();
 
         let screenquad = gl_resources.get_vao("screenquad").unwrap();
-
-        /*let ssao_fbo = gl_resources.get_framebuffer("ssao").unwrap();
-        ssao_fbo.bind();
-
-        unsafe {
-            gl::ClearColor(0.4, 0.6, 1.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
-
-        let ssao_program = gl_resources.get_shader("ssao").unwrap();
-        let ssao_noise_texture = gl_resources.get_texture("ssao_noise").unwrap();
-        
-        
-        gbuffer_fbo.bind_render_textures_to_current_fb(vec![("position", 0), ("normal", 1), ("albedo", 2)]);
-        ssao_noise_texture.use_as_framebuffer_texture(3);
-
-        ssao_program.use_program();
-        ssao_program.set_texture(unsafe {c_str!("position")}, 0);
-        ssao_program.set_texture(unsafe {c_str!("normal")}, 1);
-        ssao_program.set_texture(unsafe {c_str!("albedo")}, 2);
-        ssao_program.set_texture(unsafe {c_str!("ssao_noise")}, 3);
-
-        ssao_program.set_mat4(unsafe {c_str!("projection")}, &perspective_matrix);
-        ssao_program.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
-        //perspective_matrix.set_as_uniform(ssao_program, "projection");
-        //Vector2::new(self.width as f32, self.height as f32).set_as_uniform(ssao_program, "resolution");
-
-        screenquad.draw();
-
-        ssao_fbo.unbind();*/
 
         unsafe {
             //gl::ClearColor(0.4, 0.6, 1.0, 1.0);

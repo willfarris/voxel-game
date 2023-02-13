@@ -35,5 +35,15 @@
     "short_grass" : {
         "feature_dimensions" : [1, 1, 1],
         "block_data" : [[[8]]]
+    },
+
+    "rose" : {
+        "feature_dimensions" : [1, 1, 1],
+        "block_data" : [[[4]]]
+    },
+
+    "dandelion" : {
+        "feature_dimensions" : [1, 1, 1],
+        "block_data" : [[[6]]]
     }
 }

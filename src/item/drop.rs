@@ -7,7 +7,7 @@ use crate::{
     graphics::{
         mesh::block_drop_vertices,
         resources::{GLRenderable, GLResources},
-        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC}, shader::Shader, texture::Texture, vao::VertexAttributeObject, vbo::VertexBufferObject,
+        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC}, shader::Shader, texture::Texture, vao::VertexAttributeObject, vbo::VertexBufferObject, uniform::Uniform,
     },
     physics::{
         collision::{Collider, Rect3},
@@ -62,9 +62,7 @@ impl GLRenderable for ItemDrop {
     fn draw(
         &self,
         gl_resources: &GLResources,
-        perspective_matrix: Matrix4<f32>,
-        view_matrix: Matrix4<f32>,
-        elapsed_time: f32,
+        uniforms: &[(&str, Box<dyn Uniform>)],
     ) {
         let scale_matrix = Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
         let rotation = Quaternion::from_angle_x(Deg(self.rotation.x))
@@ -80,10 +78,10 @@ impl GLRenderable for ItemDrop {
         texture.use_as_framebuffer_texture(0);
 
         shader.use_program();
-        shader.set_mat4(unsafe { c_str!("perspective_matrix") }, &perspective_matrix);
-        shader.set_mat4(unsafe { c_str!("view_matrix") }, &view_matrix);
+        for (name, uniform) in uniforms.iter() {
+            uniform.set_as_uniform(shader, name);
+        }
         shader.set_mat4(unsafe { c_str!("model_matrix") }, &model_matrix);
-        shader.set_float(unsafe { c_str!("time") }, elapsed_time);
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
         let name = format!("item_{}", self.block_id);
