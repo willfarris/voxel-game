@@ -15,7 +15,7 @@ uniform float ssao_noise_size;
 out vec4 color;
 
 void main() {
-    vec2 uv = v_tex_coords;//gl_FragCoord.xy / resolution;
+    vec2 uv = v_tex_coords;
     vec2 px = 1. / resolution;
 
     vec4 albedo = texture(albedo, uv);
@@ -42,7 +42,7 @@ void main() {
     float ambient = 0.5;
     float diffuse = max(dot(normal.xyz, light_dir), 0.0);
 
-    vec3 out_color = albedo.rgb * (diffuse + ambient);
+    vec3 out_color = albedo.rgb * min(diffuse + ambient, 1.0);
 
     color = vignette * (vec4(out_color.rgb, albedo.a) + vec4(sky, 1.0));
 }
