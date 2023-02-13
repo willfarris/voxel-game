@@ -87,7 +87,9 @@ impl GLRenderable for ItemDrop {
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
         let name = format!("item_{}", self.block_id);
-        gl_resources.get_vao(&name).unwrap().draw();
+        if let Some(vao) = gl_resources.get_vao(&name) {
+            vao.draw();
+        }
 
     }
 }
