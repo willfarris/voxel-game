@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cgmath::{Matrix4, Vector2, Vector3};
+use cgmath::{Matrix4, Vector2, Vector3, MetricSpace};
 
 use crate::{
     graphics::{
@@ -25,6 +25,7 @@ pub type ChunkIndex = Vector2<isize>;
 pub type BlockIndex = Vector3<usize>;
 
 pub struct Terrain {
+    player_visible: Vec<ChunkIndex>,
     chunks: HashMap<ChunkIndex, Box<Chunk>>,
     placement_queue: HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>,
 }
@@ -32,6 +33,7 @@ pub struct Terrain {
 impl Terrain {
     pub fn new() -> Self {
         Self {
+            player_visible: Vec::new(),
             chunks: HashMap::new(),
             placement_queue: HashMap::new(),
         }
@@ -405,13 +407,42 @@ impl Terrain {
     pub fn solid_block_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
         BLOCKS[self.block_at_world_pos(world_pos)].solid
     }
+
+    pub fn update_visible_chunks_near(&mut self, render_distance: isize, player_chunk: &ChunkIndex) {
+        self.player_visible.retain(|_index| {
+            //(index.x - player_chunk.x).abs() + (index.y - player_chunk.y).abs() < 4
+            false
+        });
+        
+        for i in -render_distance..=render_distance {
+            for j in -render_distance..=render_distance {
+                let offset = ChunkIndex::new(i, j);
+                self.player_visible.push(player_chunk + offset);
+            }
+        }
+    }
+
 }
 
 impl GLRenderable for Terrain {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-        for chunk_index in self.chunks.keys() {
+        for chunk_index in &self.player_visible {
             self.update_single_chunk_mesh(chunk_index, gl_resources);
         }
+
+        /*let s: Vec<&str> = "!eval 3 + 3".split_ascii_whitespace().collect();
+        println!("{:?}", s);
+        let operand = s[2];
+        let lhs: isize = s[1].parse::<isize>().unwrap();
+        let rhs: isize = s[3].parse::<isize>().unwrap();
+        let result = match operand {
+            "*" => lhs * rhs,
+            "+" => lhs + rhs,
+            "-" => lhs - rhs,
+            "/" => lhs / rhs,
+            _ => panic!("invalid operator!"),
+        };
+        println!("result = {}", result);*/
     }
 
     fn draw(
@@ -430,10 +461,9 @@ impl GLRenderable for Terrain {
             uniform.set_as_uniform(shader, name);
         }
 
-
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
-        for chunk_index in self.chunks.keys() {
+        for chunk_index in &self.player_visible {//self.chunks.keys() {
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
                 0f32,
@@ -447,4 +477,5 @@ impl GLRenderable for Terrain {
             }
         }
     }
+
 }

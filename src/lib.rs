@@ -113,7 +113,7 @@ impl Default for Engine {
 
             width: 0,
             height: 0,
-            render_distance: 8,
+            render_distance: 4,
             gl_resources: Arc::new(RwLock::new(GLResources::new())),
         }
     }
@@ -179,6 +179,9 @@ impl Engine {
                 let mut player = self.player.write().unwrap();
                 let mut terrain = self.terrain.write().unwrap();
                 let mut gl_resources = self.gl_resources.write().unwrap();
+
+                let player_chunk_index = ChunkIndex::new(player.position.x as isize / 16, player.position.z as isize / 16);
+                terrain.update_visible_chunks_near(self.render_distance, &player_chunk_index);
 
                 while !self.input_queue.is_empty() {
                     let input = self.input_queue.remove(0);
