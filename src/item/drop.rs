@@ -53,9 +53,11 @@ impl ItemDrop {
 
 impl GLRenderable for ItemDrop {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-        let item_drop_name = format!("item_{}", self.block_id);
-        let verts = Box::new(block_drop_vertices(&BLOCKS[self.block_id]));
-        gl_resources.update_vao_buffer(item_drop_name, verts);
+        let name = format!("item_{}", self.block_id);
+        if gl_resources.get_vao(&name).is_none() {
+            let verts = Box::new(block_drop_vertices(&BLOCKS[self.block_id]));
+            gl_resources.update_vao_buffer(name, verts);
+        }
 
     }
 

@@ -438,14 +438,18 @@ impl Engine {
             gl_resources.add_shader("terrain", terrain_program);
             gl_resources.add_shader("postprocess", postprocess_program);
 
-        }
 
-        {
             self.terrain
                 .write()
                 .unwrap()
-                .init_gl_resources(&mut self.gl_resources.write().unwrap());
+                .init_gl_resources(&mut gl_resources);
+
+                for entity in self.entities.iter() {
+                    entity.init_gl_resources(&mut gl_resources);
+                }
         }
+
+        
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
