@@ -27,7 +27,7 @@ use graphics::{
     framebuffer::Framebuffer,
     mesh::{block_drop_vertices, FULLSCREEN_QUAD},
     resources::{GLRenderable, GLResources},
-    texture::{Texture, TextureFormat}, source::{SCREENQUAD_VERT_SRC, TERRAIN_BITMAP, TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, POSTPROCESS_FRAG_SRC, SSAO_FRAG_SRC}, depthbuffer::Depthbuffer, shader::Shader, uniform::Uniform,
+    texture::{Texture, TextureFormat}, source::{SCREENQUAD_VERT_SRC, TERRAIN_BITMAP, TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC, POSTPROCESS_FRAG_SRC, SSAO_FRAG_SRC}, depthbuffer::Depthbuffer, shader::Shader, uniform::Uniform, skybox::Skybox,
 };
 use image::ImageFormat;
 
@@ -78,6 +78,7 @@ pub struct Engine {
     player: Arc<RwLock<Box<Player>>>,
     terrain: Arc<RwLock<Terrain>>,
     entities: Vec<Box<dyn EntityTrait>>,
+    skybox: Skybox,
 
     elapsed_time: Duration,
     last_update: Instant,
@@ -103,6 +104,7 @@ impl Default for Engine {
             player: Arc::new(RwLock::new(player)),
             terrain: Arc::new(RwLock::new(terrain)),
             entities: Vec::new(),
+            skybox: Skybox,
 
             elapsed_time: Duration::ZERO,
             last_update: Instant::now(),
@@ -447,12 +449,12 @@ impl Engine {
                 .unwrap()
                 .init_gl_resources(&mut gl_resources);
 
-                for entity in self.entities.iter() {
-                    entity.init_gl_resources(&mut gl_resources);
-                }
-        }
+            for entity in self.entities.iter() {
+                entity.init_gl_resources(&mut gl_resources);
+            }
 
-        
+            self.skybox.init_gl_resources(&mut gl_resources);
+        }
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -500,6 +502,9 @@ impl Engine {
                 &geometry_uniforms,
             );
         }
+
+        let skybox_uniforms = vec![];
+        self.skybox.draw(&gl_resources, &skybox_uniforms);
 
         gbuffer_fbo.unbind();
 
