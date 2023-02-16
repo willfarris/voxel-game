@@ -88,4 +88,13 @@ impl Framebuffer {
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
         }
     }
+
+    pub fn blit_depth_to_fbo(&self, other_id: u32, width: i32, height: i32) {
+        unsafe {
+            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, self.id);
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, other_id);
+            gl::BlitFramebuffer(0, 0, width, height, 0, 0, width, height, 
+                              gl::DEPTH_BUFFER_BIT, gl::NEAREST);
+        }
+    }
 }

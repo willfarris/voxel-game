@@ -18,10 +18,10 @@ mod java_interface;
 
 use std::{
     sync::{Arc, Mutex, RwLock},
-    time::{Duration, Instant}, ffi::CStr,
+    time::{Duration, Instant},
 };
 
-use cgmath::{Vector2, Vector3, Zero, InnerSpace};
+use cgmath::{Vector2, Vector3, Zero, InnerSpace, Matrix4};
 use entity::EntityTrait;
 use graphics::{
     framebuffer::Framebuffer,
@@ -45,6 +45,8 @@ use terrain::{
 };
 
 pub use physics::vectormath::q_rsqrt;
+
+use crate::graphics::source::{SKYBOX_BITMAP, SKYBOX_VERT_SRC, SKYBOX_FRAG_SRC};
 
 #[derive(PartialEq, Eq, Debug)]
 enum PlayState {
@@ -115,7 +117,7 @@ impl Default for Engine {
 
             width: 0,
             height: 0,
-            render_distance: 4,
+            render_distance: 8,
             gl_resources: Arc::new(RwLock::new(GLResources::new())),
         }
     }
@@ -429,6 +431,9 @@ impl Engine {
         let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
         let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
 
+        let skybox_texture = Texture::from_dynamic_image_bytes(SKYBOX_BITMAP, ImageFormat::Png);
+        let skybox_program = Shader::new(SKYBOX_VERT_SRC, SKYBOX_FRAG_SRC).unwrap();
+
         {
             let mut gl_resources = self.gl_resources.write().unwrap();
             gl_resources.add_vao("screenquad".to_string(), Box::new(Vec::from(FULLSCREEN_QUAD)));
@@ -438,10 +443,14 @@ impl Engine {
             
             gl_resources.add_texture("ssao_noise", ssao_noise_texture);
             gl_resources.add_texture("terrain", terrain_texture);
+            gl_resources.add_texture("skybox", skybox_texture);
 
             gl_resources.add_shader("ssao", ssao_program);
             gl_resources.add_shader("terrain", terrain_program);
             gl_resources.add_shader("postprocess", postprocess_program);
+            gl_resources.add_shader("skybox", skybox_program);
+
+            self.skybox.init_gl_resources(&mut gl_resources);
 
 
             self.terrain
@@ -452,8 +461,6 @@ impl Engine {
             for entity in self.entities.iter() {
                 entity.init_gl_resources(&mut gl_resources);
             }
-
-            self.skybox.init_gl_resources(&mut gl_resources);
         }
 
         unsafe {
@@ -503,9 +510,6 @@ impl Engine {
             );
         }
 
-        let skybox_uniforms = vec![];
-        self.skybox.draw(&gl_resources, &skybox_uniforms);
-
         gbuffer_fbo.unbind();
 
         let screenquad = gl_resources.get_vao("screenquad").unwrap();
@@ -529,6 +533,17 @@ impl Engine {
         postprocess_shader.set_vec2(unsafe {c_str!("resolution")}, &Vector2::new(self.width as f32, self.height as f32));
 
         screenquad.draw();
+
+        gbuffer_fbo.blit_depth_to_fbo(0, self.width, self.height);
+
+        let skybox_model_matrix = Matrix4::from_translation(player.position) * Matrix4::from_scale(self.render_distance as f32 * 16.0);
+        let geometry_uniforms: Vec<(&str, Box<dyn Uniform>)> = vec![
+            ("model_matrix", Box::new(skybox_model_matrix)),
+            ("perspective_matrix", Box::new(perspective_matrix)),
+            ("view_matrix", Box::new(view_matrix))
+        ];
+        self.skybox.draw(&gl_resources, &geometry_uniforms);
+
     }
 
     pub fn pause(&mut self) {

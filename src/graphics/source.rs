@@ -7,3 +7,7 @@ pub const SSAO_FRAG_SRC: &str = include_str!("../../shaders/ssao.frag");
 pub const POSTPROCESS_FRAG_SRC: &str = include_str!("../../shaders/postprocess.frag");
 
 pub const TERRAIN_BITMAP: &[u8] = include_bytes!("../../assets/terrain.png");
+
+pub const SKYBOX_VERT_SRC: &str = include_str!("../../shaders/skybox.vert");
+pub const SKYBOX_FRAG_SRC: &str = include_str!("../../shaders/skybox.frag");
+pub const SKYBOX_BITMAP: &[u8] = include_bytes!("../../assets/sky.png");
