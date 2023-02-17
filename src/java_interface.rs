@@ -10,7 +10,7 @@ pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_initEngineNa
     _env: JNIEnv,
     _: JClass,
 ) -> jlong {
-    #[cfg(target_os = "android")]
+    #[cfg(features="android-lib")]
     {
         android_log::init("VoxelTest").unwrap();
     }

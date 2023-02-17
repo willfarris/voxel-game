@@ -73,6 +73,14 @@ impl GLResources {
         self.framebuffers.get(name)
     }
 
+    pub fn create_or_update_vao(&mut self, buffer_name: String, buffer_contents: Box<dyn VertexBufferContents + Send + Sync>) {
+        if let Some(vao) = self.vaos.get_mut(&buffer_name) {
+            vao.update_buffer(buffer_contents);
+        } else {
+            self.add_vao(buffer_name, buffer_contents);
+        }
+    }
+
     pub fn update_vao_buffer(&mut self, name: String, buffer_contents: Box<dyn VertexBufferContents + Send + Sync>) {
         self.vao_update_queue.push_front((name, buffer_contents));
     }
@@ -80,11 +88,7 @@ impl GLResources {
     pub fn process_vao_buffer_updates(&mut self, num_per_frame: usize) {
         for _ in 0..num_per_frame {
             if let Some((buffer_name, new_contents)) = self.vao_update_queue.pop_front() {
-                if let Some(vao) = self.vaos.get_mut(&buffer_name) {
-                    vao.update_buffer(new_contents);
-                } else {
-                    self.add_vao(buffer_name, new_contents);
-                }
+                self.create_or_update_vao(buffer_name, new_contents);
             }
         }
     }

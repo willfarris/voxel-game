@@ -21,15 +21,15 @@ void main() {
     vec4 albedo = texture(albedo, uv);
     vec4 position = texture(position, uv);
     vec4 normal = texture(normal, uv);
-    vec3 sky = vec3(0.4, 0.6, 1.0) * (1.0 - albedo.a);
+    vec3 fog = vec3(0.4, 0.6, 1.0);
 
     float vignette = 1.0 - 0.1 *length(uv - 0.5);
 
     vec3 light_dir = normalize(vec3(sqrt(2.)));
-    float ambient = 0.5;
+    float ambient = 0.8;
     float diffuse = max(dot(normal.xyz, light_dir), 0.0);
 
-    vec3 out_color = albedo.rgb * min(diffuse + ambient, 1.0);
+    vec3 out_color = albedo.rgb * min(diffuse + ambient, 2.0);
 
-    color = vignette * (vec4(out_color.rgb, albedo.a) + vec4(sky, 1.0));
+    color = vec4(out_color.rgb, albedo.a);
 }

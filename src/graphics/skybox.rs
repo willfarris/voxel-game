@@ -242,7 +242,7 @@ pub(crate) struct Skybox;
 impl GLRenderable for Skybox {
     fn init_gl_resources(&self, gl_resources: &mut super::resources::GLResources) {
         let verts: Box<Vec<Vertex3D>> = Box::new(SKYBOX_VERTS.into());
-        gl_resources.update_vao_buffer("skybox".to_string(), verts);
+        gl_resources.create_or_update_vao("skybox".to_string(), verts);
     }
 
     fn draw(
