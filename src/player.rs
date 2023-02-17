@@ -11,6 +11,9 @@ use crate::physics::vectormath::{q_rsqrt, Vec3Direction, Y_VECTOR};
 
 use self::inventory::Inventory;
 
+const SPEED_MODIFIER: f32 = 10.0;
+const GRAVITY_MODIFIER: f32 = 0.0;
+
 pub(crate) const GRAVITY: Vector3<f32> = Vector3 {
     x: 0.0,
     y: -9.81 * 2.0,
@@ -45,7 +48,7 @@ impl Player {
             acceleration: Vector3::new(0f32, 0f32, 0f32),
             movement_delta: Vector3::new(0f32, 0f32, 0f32),
 
-            move_speed: 4.0,
+            move_speed: 4.0 * SPEED_MODIFIER,
             running: false,
             grounded: false,
             walking: false,
@@ -97,7 +100,7 @@ impl PhysicsUpdate for Player {
         self.camera
             .translate(self.position + self.height * Y_VECTOR);
         if !self.grounded {
-            self.acceleration.y = GRAVITY.y;
+            self.acceleration.y = GRAVITY.y * GRAVITY_MODIFIER;
         }
 
         if !self.walking {

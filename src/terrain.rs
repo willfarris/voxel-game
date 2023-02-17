@@ -429,20 +429,6 @@ impl GLRenderable for Terrain {
         for chunk_index in &self.player_visible {
             self.update_single_chunk_mesh(chunk_index, gl_resources);
         }
-
-        /*let s: Vec<&str> = "!eval 3 + 3".split_ascii_whitespace().collect();
-        println!("{:?}", s);
-        let operand = s[2];
-        let lhs: isize = s[1].parse::<isize>().unwrap();
-        let rhs: isize = s[3].parse::<isize>().unwrap();
-        let result = match operand {
-            "*" => lhs * rhs,
-            "+" => lhs + rhs,
-            "-" => lhs - rhs,
-            "/" => lhs / rhs,
-            _ => panic!("invalid operator!"),
-        };
-        println!("result = {}", result);*/
     }
 
     fn draw(
