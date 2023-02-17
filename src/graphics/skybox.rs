@@ -88,7 +88,7 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
     Vertex3D {
         position: Vector3::new(0.50, -0.50, 0.50),
         normal: Vector3::new(0.0, 1.0, 0.0),
-        tex_coords: Vector2::new(1.0, 1.0),
+        tex_coords: Vector2::new(1.0, THIRD),
         vtype: 0,
     }, // Front-top-right
     Vertex3D {
@@ -100,13 +100,13 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
     Vertex3D {
         position: Vector3::new(-0.50, -0.50, 0.50),
         normal: Vector3::new(0.0, 1.0, 0.0),
-        tex_coords: Vector2::new(0.0, 1.0),
+        tex_coords: Vector2::new(HALF, THIRD),
         vtype: 0,
     }, // Front-top-left
     Vertex3D {
         position: Vector3::new(-0.50, -0.50, 0.50),
         normal: Vector3::new(0.0, 1.0, 0.0),
-        tex_coords: Vector2::new(0.0, THIRD),
+        tex_coords: Vector2::new(HALF, THIRD),
         vtype: 0,
     }, // Front-top-left
     Vertex3D {
