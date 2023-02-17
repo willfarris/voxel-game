@@ -113,7 +113,6 @@ impl TerrainGenConfig {
                 }
                 feature_vec.push(z_vec);
             }
-            println!("{} : {:?}", feature_name, feature_vec);
             self.world_features.insert(feature_name.to_string(), feature_vec);
         }
     }
