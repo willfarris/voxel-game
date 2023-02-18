@@ -191,8 +191,7 @@ impl Engine {
                     let input = self.input_queue.remove(0);
                     match input {
                         PlayerInput::Look(dx, dy) => {
-                            player.camera.rotate_on_x_axis(dx);
-                            player.camera.rotate_on_y_axis(dy);
+                            player.look_direction(Vector2::new(dx, dy));
                         }
                         PlayerInput::Walk(dx, dy, dz) => {
                             player.move_direction(Vector3::new(dx, dy, dz));
@@ -536,7 +535,7 @@ impl Engine {
 
         gbuffer_fbo.blit_depth_to_fbo(0, self.width, self.height);
 
-        let skybox_model_matrix = Matrix4::from_translation(player.position) * Matrix4::from_scale(self.render_distance as f32 * 16.0 * 2.0);
+        let skybox_model_matrix = Matrix4::from_translation(player.camera.position) * Matrix4::from_scale(self.render_distance as f32 * 16.0 * 2.0);
         let geometry_uniforms: Vec<(&str, Box<dyn Uniform>)> = vec![
             ("model_matrix", Box::new(skybox_model_matrix)),
             ("perspective_matrix", Box::new(perspective_matrix)),

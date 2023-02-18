@@ -1,13 +1,12 @@
 use cgmath::Zero;
 pub(crate) use cgmath::{Deg, Matrix4, Quaternion, Rotation3, Vector3};
-use image::ImageFormat;
 
 use crate::{
     c_str,
     graphics::{
         mesh::block_drop_vertices,
         resources::{GLRenderable, GLResources},
-        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC}, shader::Shader, texture::Texture, vao::VertexAttributeObject, vbo::VertexBufferObject, uniform::Uniform,
+        uniform::Uniform,
     },
     physics::{
         collision::{Collider, Rect3},

@@ -8,7 +8,7 @@ use crate::graphics::resources::GLResources;
 
 use super::{
     chunk::{Chunk, CHUNK_WIDTH},
-    ChunkIndex, Terrain, BlockWorldPos, block::BLOCKS,
+    ChunkIndex, Terrain, BlockWorldPos,
 };
 
 pub struct TerrainGenConfig {
@@ -16,7 +16,7 @@ pub struct TerrainGenConfig {
     continentalness_scale: Vector2<f64>,
     continentalness_spline: Spline<f64, f64>,
 
-    biome_table: [Biome; 2],
+    biome_table: [Biome; 3],
     cont_map_spline: Spline<f64, f64>,
 
     world_features: HashMap<String, Vec<Vec<Vec<usize>>>>,
@@ -27,18 +27,21 @@ impl Default for TerrainGenConfig {
         let cont_keys = vec![
             splines::Key::new(f64::MIN, 0.0, splines::Interpolation::Linear),
             splines::Key::new(-1.0, 0.0, splines::Interpolation::Linear),
-            splines::Key::new(-0.48, 0.3, splines::Interpolation::Linear),
-            splines::Key::new(0.2, 0.4, splines::Interpolation::Linear),
-            splines::Key::new(0.3, 0.9, splines::Interpolation::Linear),
+            splines::Key::new(-0.7, 0.1, splines::Interpolation::Linear),
+            splines::Key::new(-0.2, 0.3, splines::Interpolation::Linear),
+            splines::Key::new(-0.1, 0.6, splines::Interpolation::Linear),
+            splines::Key::new(0.25, 0.7, splines::Interpolation::Linear),
+            splines::Key::new(0.3, 0.8, splines::Interpolation::Linear),
             splines::Key::new(1.0, 1.0, splines::Interpolation::Linear),
             splines::Key::new(f64::MAX, 1.0, splines::Interpolation::Linear),
         ];
 
         let biome_cont_map = vec![
             splines::Key::new(f64::MIN, 0.0, splines::Interpolation::Step(1.0)),
-            splines::Key::new(0.0, 0.0, splines::Interpolation::Step(1.0)),
-            splines::Key::new(0.5, 1.0, splines::Interpolation::Step(1.0)),
-            splines::Key::new(0.75, 1.0, splines::Interpolation::Step(1.0)),
+            splines::Key::new(0.4, 0.0, splines::Interpolation::Step(1.0)),
+            splines::Key::new(0.6, 1.0, splines::Interpolation::Step(1.0)),
+            splines::Key::new(0.7, 2.0, splines::Interpolation::Step(1.0)),
+            splines::Key::new(f64::MAX, 2.0, splines::Interpolation::Linear),
         ];
 
         Self {
@@ -46,7 +49,7 @@ impl Default for TerrainGenConfig {
             continentalness_scale: Vector2::new(0.002, 0.002),
             continentalness_spline: splines::Spline::from_vec(cont_keys),
 
-            biome_table: [Biome::Plains, Biome::Hills],
+            biome_table: [Biome::Forest, Biome::Plains, Biome::Hills],
             cont_map_spline: splines::Spline::from_vec(biome_cont_map),
 
             world_features: HashMap::new(),
@@ -58,6 +61,7 @@ impl Default for TerrainGenConfig {
 enum Biome {
     Plains,
     Hills,
+    Forest,
     Desert,
 }
 
@@ -88,7 +92,7 @@ impl TerrainGenConfig {
     pub(crate) fn get_surface(&self, offset: [f64; 2]) -> f64 {
         let continentalness = self.get_continentalness(offset);
         let surface_noise = 0.5 * self.get_perlin([offset[0] * 0.02, offset[1] * 0.02]) + 0.5;
-        32.0 * surface_noise * continentalness + 32.0
+        32.0 * surface_noise * continentalness + 16.0 + 16.0 * continentalness
     }
 
     pub(crate) fn load_features(&mut self, features_json: &'static str) {
@@ -128,7 +132,7 @@ pub(crate) mod terraingen {
     use crate::terrain::{
         block::block_index_by_name,
         chunk::{Chunk, CHUNK_WIDTH},
-        BlockWorldPos, ChunkIndex,
+        BlockWorldPos, ChunkIndex, BlockIndex,
     };
 
     pub fn generate_surface(
@@ -150,7 +154,8 @@ pub(crate) mod terraingen {
                 let surface =
                     noise_config.get_surface([global_coords.x as f64, global_coords.z as f64]);
                 for block_y in 0..=surface.round() as usize {
-                    chunk.blocks[block_x][block_y][block_z] = block_index_by_name("Stone");
+                    let block_index = BlockIndex::new(block_x, block_y, block_z);
+                    chunk.set_block(&block_index, block_index_by_name("Stone"));
                 }
             }
         }
@@ -166,20 +171,18 @@ pub(crate) mod terraingen {
                 let surface = noise_config.get_surface(global_coords).round() as usize;
                 let biome = noise_config.get_biome(global_coords);
                 match biome {
-                    Biome::Plains => {
+                    Biome::Plains | Biome::Hills | Biome::Forest => {
                         for block_y in surface - 1..surface {
-                            chunk.blocks[block_x][block_y][block_z] = block_index_by_name("Dirt");
+                            let block_index = BlockIndex::new(block_x, block_y, block_z);
+                            chunk.set_block(&block_index, block_index_by_name("Dirt"));
                         }
-                        chunk.blocks[block_x][surface][block_z] = block_index_by_name("Grass");
-                    }
-                    Biome::Hills => {
-                        for block_y in surface - 1..=surface {
-                            chunk.blocks[block_x][block_y][block_z] = block_index_by_name("Sand");
-                        }
+                        let block_index = BlockIndex::new(block_x, surface, block_z);
+                        chunk.set_block(&block_index, block_index_by_name("Grass"));
                     }
                     Biome::Desert => {
                         for block_y in surface - 1..=surface {
-                            chunk.blocks[block_x][block_y][block_z] = block_index_by_name("Sand");
+                            let block_index = BlockIndex::new(block_x, block_y, block_z);
+                            chunk.set_block(&block_index, block_index_by_name("Sand"));
                         }
                     }
                 }
@@ -204,7 +207,7 @@ pub(crate) mod terraingen {
                 
                 let biome = terrain_config.get_biome(global_coords);
                 match biome {
-                    Biome::Plains => {
+                    Biome::Forest => {
                         let has_grass: u8 = rand::random();
                         match has_grass {
                             0..=63 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue),
@@ -214,7 +217,22 @@ pub(crate) mod terraingen {
                             _ => {}
                         }
                     }
-                    Biome::Hills => {}
+                    Biome::Plains => {
+                        let has_grass: u8 = rand::random();
+                        match has_grass {
+                            0..=63 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue),
+                            64..=65 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "rose", terrain_config, &mut placement_queue),
+                            66..=75 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "dandelion", terrain_config, &mut placement_queue),
+                            _ => {}
+                        }
+                    }
+                    Biome::Hills => {
+                        let has_grass: u8 = rand::random();
+                        match has_grass {
+                            0..=16 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue),
+                            _ => {}
+                        }
+                    }
                     Biome::Desert => {}
                 }
             }
@@ -283,7 +301,7 @@ impl Terrain {
             if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(&world_pos) {
                 if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
                     // Place the block in the chunk if it exists
-                    chunk.blocks[block_index.x][block_index.y][block_index.z] = block_id;
+                    chunk.set_block(&block_index, block_id);
                 } else {
                     // If the chunk does not yet exist, place the block into the placement queue
                     if let Some(block_vec) = self.placement_queue.get_mut(&chunk_index) {
@@ -299,7 +317,7 @@ impl Terrain {
         self.placement_queue.retain(|key, blocks_queue| {
             if let Some(chunk) = self.chunks.get_mut(key) {
                 for (block_index, block_id) in blocks_queue {
-                    chunk.blocks[block_index.x][block_index.y][block_index.z] = *block_id;
+                    chunk.set_block(&block_index, *block_id);
                 }
                 false
             } else {

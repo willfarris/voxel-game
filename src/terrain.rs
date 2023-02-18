@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cgmath::{Matrix4, Vector2, Vector3, MetricSpace};
+use cgmath::{Matrix4, Vector2, Vector3};
 
 use crate::{
     graphics::{
@@ -42,7 +42,7 @@ impl Terrain {
     pub fn block_at_world_pos(&self, world_pos: &BlockWorldPos) -> usize {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.get(&chunk_index) {
-                chunk.block_in_chunk(&block_index)
+                chunk.get_block(&block_index)
             } else {
                 0
             }
@@ -74,12 +74,12 @@ impl Terrain {
         world_pos: &BlockWorldPos,
         gl_resources: &mut GLResources,
     ) {
-        if let Some((chunk_index, block_idx)) = Terrain::chunk_and_block_index(world_pos) {
+        if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
-                chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
+                chunk.set_block(&block_index, block_id)
             } else {
                 let mut new_chunk = Box::new(Chunk::new());
-                new_chunk.blocks[block_idx.x][block_idx.y][block_idx.z] = block_id;
+                new_chunk.set_block(&block_index, block_id);
                 self.chunks.insert(chunk_index, new_chunk);
             }
             if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
@@ -103,7 +103,8 @@ impl Terrain {
             for x in 0..CHUNK_WIDTH {
                 for y in 0..CHUNK_HEIGHT {
                     for z in 0..CHUNK_WIDTH {
-                        let i = chunk.blocks[x][y][z] as usize;
+                        let block_index = BlockIndex::new(x, y, z);
+                        let i = chunk.get_block(&block_index);
                         if i == 0 {
                             continue;
                         }
@@ -151,7 +152,8 @@ impl Terrain {
                                         coords[2] = (*x_top, *y_top);
                                         coords[3] = (*x_top, *y_top);
                                         coords[4] = (*x_side, *y_side);
-                                        let active = chunk.metadata[x][y][z] == 1;
+                                        //let active = chunk.metadata[x][y][z] == 1;
+                                        let active = chunk.get_metadata(&block_index) == 1;
                                         coords[5] = if active {
                                             (*x_front_active, *y_front_active)
                                         } else {
@@ -169,10 +171,10 @@ impl Terrain {
                         match cur.mesh_type {
                             MeshType::Block => {
                                 let x_right_adjacent = if x < CHUNK_WIDTH - 1 {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x + 1, y, z))])
+                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x + 1, y, z))])
                                 } else {
                                     x_pos.map(|chunk| {
-                                        BLOCKS[chunk.block_in_chunk(&Vector3::new(0, y, z))]
+                                        BLOCKS[chunk.get_block(&Vector3::new(0, y, z))]
                                     })
                                 };
                                 if let Some(adjacent_block) = x_right_adjacent {
@@ -188,10 +190,10 @@ impl Terrain {
                                 }
 
                                 let x_left_adjacent = if x > 0 {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x - 1, y, z))])
+                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x - 1, y, z))])
                                 } else {
                                     x_neg.map(|chunk| {
-                                        BLOCKS[chunk.block_in_chunk(&Vector3::new(
+                                        BLOCKS[chunk.get_block(&Vector3::new(
                                             CHUNK_WIDTH - 1,
                                             y,
                                             z,
@@ -211,7 +213,7 @@ impl Terrain {
                                 }
 
                                 let y_top_adjacent = if y < CHUNK_HEIGHT - 1 {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y + 1, z))])
+                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x, y + 1, z))])
                                 } else {
                                     None
                                 };
@@ -228,7 +230,7 @@ impl Terrain {
                                 }
 
                                 let y_bottom_adjacent = if y > 0 {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y - 1, z))])
+                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x, y - 1, z))])
                                 } else {
                                     None
                                 };
@@ -245,10 +247,10 @@ impl Terrain {
                                 }
 
                                 let z_back_adjacent = if z < CHUNK_WIDTH - 1 {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, z + 1))])
+                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x, y, z + 1))])
                                 } else {
                                     z_pos.map(|chunk| {
-                                        BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, 0))]
+                                        BLOCKS[chunk.get_block(&Vector3::new(x, y, 0))]
                                     })
                                 };
                                 if let Some(adjacent_block) = z_back_adjacent {
@@ -264,10 +266,10 @@ impl Terrain {
                                 }
 
                                 let z_front_adjacent = if z > 0 {
-                                    Some(BLOCKS[chunk.block_in_chunk(&Vector3::new(x, y, z - 1))])
+                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x, y, z - 1))])
                                 } else {
                                     z_neg.map(|chunk| {
-                                        BLOCKS[chunk.block_in_chunk(&Vector3::new(
+                                        BLOCKS[chunk.get_block(&Vector3::new(
                                             x,
                                             y,
                                             CHUNK_WIDTH - 1,
@@ -310,7 +312,7 @@ impl Terrain {
     pub fn collision_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.get(&chunk_index) {
-                chunk.block_in_chunk(&block_index) != 0
+                chunk.get_block(&block_index) != 0
             } else {
                 false
             }
@@ -327,8 +329,9 @@ impl Terrain {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
                 // Delete block in the world
-                let block_id = chunk.blocks[block_index.x][block_index.y][block_index.z];
-                chunk.blocks[block_index.x][block_index.y][block_index.z] = 0;
+                let block_id = chunk.get_block(&block_index);
+                chunk.set_block(&block_index, 0);
+                chunk.update();
                 self.update_chunk_mesh(&chunk_index, gl_resources);
 
                 // Create a drop and return it
@@ -409,10 +412,7 @@ impl Terrain {
     }
 
     pub fn update_visible_chunks_near(&mut self, render_distance: isize, player_chunk: &ChunkIndex) {
-        self.player_visible.retain(|_index| {
-            //(index.x - player_chunk.x).abs() + (index.y - player_chunk.y).abs() < 4
-            false
-        });
+        self.player_visible.clear();
         
         for i in -render_distance..=render_distance {
             for j in -render_distance..=render_distance {
@@ -427,7 +427,13 @@ impl Terrain {
 impl GLRenderable for Terrain {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
         for chunk_index in &self.player_visible {
-            self.update_single_chunk_mesh(chunk_index, gl_resources);
+            if self.chunks.get(chunk_index).is_some() {
+                if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {
+                    let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
+                    let verts = Box::new(chunk_vertices);
+                    gl_resources.create_or_update_vao(name, verts);
+                }
+            }
         }
     }
 

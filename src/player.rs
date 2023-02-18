@@ -1,7 +1,7 @@
 pub(crate) mod camera;
 mod inventory;
 
-use cgmath::{InnerSpace, Matrix4, Vector3};
+use cgmath::{InnerSpace, Matrix4, Vector3, Vector2};
 
 use camera::Camera;
 
@@ -11,8 +11,8 @@ use crate::physics::vectormath::{q_rsqrt, Vec3Direction, Y_VECTOR};
 
 use self::inventory::Inventory;
 
-const SPEED_MODIFIER: f32 = 10.0;
-const GRAVITY_MODIFIER: f32 = 0.0;
+const SPEED_MODIFIER: f32 = 1.0;
+const GRAVITY_MODIFIER: f32 = 1.0;
 
 pub(crate) const GRAVITY: Vector3<f32> = Vector3 {
     x: 0.0,
@@ -68,6 +68,11 @@ impl Player {
             q_rsqrt(self.velocity.x * self.velocity.x + self.velocity.z * self.velocity.z);
         self.velocity.z *=
             q_rsqrt(self.velocity.x * self.velocity.x + self.velocity.z * self.velocity.z);
+    }
+
+    pub fn look_direction(&mut self, direction: Vector2<f32>) {
+        self.camera.rotate_on_x_axis(direction.x);
+        self.camera.rotate_on_y_axis(direction.y);
     }
 
     pub fn jump(&mut self) {
