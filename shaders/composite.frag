@@ -4,10 +4,10 @@ precision mediump float;
 
 in vec2 v_tex_coords;
 
-uniform sampler2D composite_output;
+uniform sampler2D lighting_output;
 
 out vec4 color;
 
 void main() {
-    color = texture(composite_output, v_tex_coords);
+    color = texture(lighting_output, v_tex_coords);
 }

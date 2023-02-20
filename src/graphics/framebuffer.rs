@@ -8,7 +8,7 @@ pub struct Framebuffer {
 }
 
 impl Framebuffer {
-    pub fn with_textures(textures: Vec<(&'static str, Texture)>, depthbuffer: Option<Depthbuffer>) -> Self {
+    pub fn with_textures(textures: &[(&'static str, Texture)], depthbuffer: Option<Depthbuffer>) -> Self {
         let mut id = 0;
         unsafe {
             gl::GenFramebuffers(1, &mut id);
@@ -31,7 +31,7 @@ impl Framebuffer {
                 );
             }
 
-            framebuffer.textures.insert(name, texture);
+            framebuffer.textures.insert(name, *texture);
             let attachment = gl::COLOR_ATTACHMENT0 + i as u32;
             draw_buffers.push(attachment);
         }
@@ -66,7 +66,7 @@ impl Framebuffer {
         framebuffer
     }
 
-    pub fn bind_render_textures_to_current_fb(&self, textures: Vec<(&'static str, u32)>) {
+    pub fn bind_render_textures_to_current_fb(&self, textures: &[(&'static str, u32)]) {
         for (name, texture_index) in textures {
             if let Some(texture) = self.textures.get(name) {
                 unsafe {
@@ -89,10 +89,17 @@ impl Framebuffer {
         }
     }
 
-    pub fn blit_depth_to_fbo(&self, other_id: u32, width: i32, height: i32) {
+    pub fn clear_color_and_depth(&self) {
+        unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
+    }
+
+    pub fn blit_depth_to_fbo(&self, target: &Framebuffer, width: i32, height: i32) {
         unsafe {
             gl::BindFramebuffer(gl::READ_FRAMEBUFFER, self.id);
-            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, other_id);
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, target.id);
             gl::BlitFramebuffer(0, 0, width, height, 0, 0, width, height, 
                               gl::DEPTH_BUFFER_BIT, gl::NEAREST);
         }

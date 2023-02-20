@@ -14,11 +14,7 @@ impl Depthbuffer {
         };
         depthbuffer.bind();
 
-        #[cfg(feature="desktop")]
         let depth_bits = gl::DEPTH_COMPONENT24;
-
-        #[cfg(feature="android-lib")]
-        let depth_bits = gl::DEPTH_COMPONENT16;
 
         unsafe {
             gl::RenderbufferStorage(gl::RENDERBUFFER, depth_bits, width, height);

@@ -30,6 +30,7 @@ pub(crate) struct Player {
     move_speed: f32,
     pub grounded: bool,
     walking: bool,
+    time_walking: f32,
     running: bool,
     height: f32,
 
@@ -52,6 +53,7 @@ impl Player {
             running: false,
             grounded: false,
             walking: false,
+            time_walking: 0.0,
             height: 1.6,
 
             collision_box: Rect3::new([-0.25, 0.0, -0.25].into(), [0.5, 1.6, 0.5].into()),
@@ -84,6 +86,7 @@ impl Player {
 
     pub fn stop_move(&mut self) {
         self.walking = false;
+        self.time_walking %= 2.0*std::f32::consts::PI/10.0;
     }
 
     pub fn camera_view_matrix(&self) -> Matrix4<f32> {
@@ -111,7 +114,13 @@ impl PhysicsUpdate for Player {
         if !self.walking {
             self.velocity.x *= 1.0 - 10.0 * delta_time;
             self.velocity.z *= 1.0 - 10.0 * delta_time;
+            //self.time_walking *= 1.0 - 10.0 * delta_time;
+        } else {
+            self.time_walking += delta_time;
         }
+
+        
+        self.camera.position += self.camera.up * 0.03*(10.0 * self.time_walking).sin();
 
         self.velocity += self.acceleration * delta_time;
 

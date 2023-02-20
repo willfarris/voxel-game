@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
 use cgmath::{Matrix4, Vector2, Vector3};
+use image::ImageFormat;
 
 use crate::{
     graphics::{
         mesh::push_face,
         resources::{GLRenderable, GLResources},
-        vertex::Vertex3D, uniform::Uniform,
+        vertex::Vertex3D, uniform::Uniform, texture::Texture, source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC}, shader::Shader,
     },
     item::drop::ItemDrop,
 };
@@ -426,6 +427,16 @@ impl Terrain {
 
 impl GLRenderable for Terrain {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
+
+        // Texture is also used by drops and may already exist
+        if gl_resources.get_texture("terrain").is_none() {
+            let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
+            gl_resources.add_texture("terrain", terrain_texture);
+        }
+        
+        let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
+        gl_resources.add_shader("terrain", terrain_program);
+
         for chunk_index in &self.player_visible {
             if self.chunks.get(chunk_index).is_some() {
                 if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {

@@ -1,8 +1,9 @@
 use cgmath::{Vector3, Vector2};
+use image::ImageFormat;
 
 use crate::c_str;
 
-use super::{vertex::Vertex3D, resources::GLRenderable};
+use super::{vertex::Vertex3D, resources::GLRenderable, texture::Texture, shader::Shader, source::{SKYBOX_VERT_SRC, SKYBOX_FRAG_SRC, SKYBOX_BITMAP}};
 
 const HALF: f32 = 0.5;
 const THIRD: f32 = 1.0 / 3.0;
@@ -241,8 +242,13 @@ pub(crate) struct Skybox;
 
 impl GLRenderable for Skybox {
     fn init_gl_resources(&self, gl_resources: &mut super::resources::GLResources) {
-        let verts: Box<Vec<Vertex3D>> = Box::new(SKYBOX_VERTS.into());
-        gl_resources.create_or_update_vao("skybox".to_string(), verts);
+        let skybox_texture = Texture::from_dynamic_image_bytes(SKYBOX_BITMAP, ImageFormat::Png);
+        let skybox_program = Shader::new(SKYBOX_VERT_SRC, SKYBOX_FRAG_SRC).unwrap();
+        let skybox_vertices: Box<Vec<Vertex3D>> = Box::new(SKYBOX_VERTS.into());
+
+        gl_resources.add_texture("skybox", skybox_texture);
+        gl_resources.add_shader("skybox", skybox_program);
+        gl_resources.create_or_update_vao("skybox".to_string(), skybox_vertices);
     }
 
     fn draw(
