@@ -2,6 +2,7 @@ use std::ffi::c_void;
 
 use cgmath::Vector3;
 
+#[allow(unused)]
 pub enum TextureFormat {
     Float,
     Color,
@@ -58,7 +59,7 @@ impl Texture {
         Texture { id: texture_id }
     }
 
-    pub fn from_vector3_array(img_bytes: &[Vector3<f32>], width: i32, height: i32) -> Texture {
+    pub fn _from_vector3_array(img_bytes: &[Vector3<f32>], width: i32, height: i32) -> Texture {
         let mut id = 0;
         unsafe {
             gl::GenTextures(1, &mut id);

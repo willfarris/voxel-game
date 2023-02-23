@@ -1,4 +1,4 @@
-use super::{vbo::VertexBufferObject, vertex::{self, Vertex3D, Vertex2D, VertexBufferContents}};
+use super::{vbo::VertexBufferObject, vertex::VertexBufferContents};
 
 pub struct VertexAttributeObject {
     id: u32,

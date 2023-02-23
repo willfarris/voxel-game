@@ -140,8 +140,8 @@ pub const BLOCKS: [Block; 14] = [
 ];
 
 pub fn block_index_by_name(name: &str) -> usize {
-    for i in 0..BLOCKS.len() {
-        if BLOCKS[i].name == name {
+    for (i, block) in BLOCKS.iter().enumerate() {
+        if block.name == name {
             return i;
         }
     }

@@ -1,4 +1,4 @@
-use crate::{EngineLock, PlayerInput};
+use crate::{EngineLock, engine::PlayerInput};
 use jni::{
     objects::JClass,
     sys::{jboolean, jfloat, jint, jlong},

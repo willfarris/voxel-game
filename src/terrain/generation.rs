@@ -57,6 +57,7 @@ impl Default for TerrainGenConfig {
     }
 }
 
+#[allow(unused)]
 #[derive(PartialEq, Eq, Clone, Copy)]
 enum Biome {
     Plains,
@@ -228,9 +229,8 @@ pub(crate) mod terraingen {
                     }
                     Biome::Hills => {
                         let has_grass: u8 = rand::random();
-                        match has_grass {
-                            0..=16 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue),
-                            _ => {}
+                        if let 0..=16 = has_grass {
+                            instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue);
                         }
                     }
                     Biome::Desert => {}
@@ -244,17 +244,14 @@ pub(crate) mod terraingen {
     fn instantiate_feature(world_position: &BlockWorldPos, feature_name: &str, terrain_config: &TerrainGenConfig, placement_queue: &mut Vec<(BlockWorldPos, usize)>) {
         if let Some(feature) = terrain_config.get_feature_blueprint(feature_name) {
             let y_len = feature.len();
-            for y in 0..y_len {
-                let slice = &feature[y];
+            for (y, slice) in feature.iter().enumerate().take(y_len) {
                 let z_len = slice.len();
-                for z in 0..z_len {
-                    let row = &slice[z];
+                for (z, row) in slice.iter().enumerate().take(z_len) {
                     let x_len = row.len();
-                    for x in 0..x_len {
-                        let block_id = row[x];
-                        if block_id != 0 {
+                    for (x, block_id) in row.iter().enumerate().take(x_len) {
+                        if *block_id != 0 {
                             let block_world_pos = world_position + BlockWorldPos::new(x as isize, y as isize, z as isize);
-                            placement_queue.push((block_world_pos, block_id));
+                            placement_queue.push((block_world_pos, *block_id));
                         }
                     }
                 }
@@ -279,10 +276,12 @@ impl Terrain {
         for chunk_x in -chunk_radius..chunk_radius {
             for chunk_z in -chunk_radius..chunk_radius {
                 let chunk_index = start_chunk_index + ChunkIndex::new(chunk_x, chunk_z);
-                let mut cur_chunk = Box::new(Chunk::new());
-                let placement_queue = terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
-                self.chunks.insert(chunk_index, cur_chunk);
-                self.place_features(placement_queue);
+                if self.chunks.get(&chunk_index).is_none() {
+                    let mut cur_chunk = Box::new(Chunk::new());
+                    let placement_queue = terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
+                    self.chunks.insert(chunk_index, cur_chunk);
+                    self.place_features(placement_queue);
+                }
             }
         }
 
@@ -317,7 +316,7 @@ impl Terrain {
         self.placement_queue.retain(|key, blocks_queue| {
             if let Some(chunk) = self.chunks.get_mut(key) {
                 for (block_index, block_id) in blocks_queue {
-                    chunk.set_block(&block_index, *block_id);
+                    chunk.set_block(block_index, *block_id);
                 }
                 false
             } else {

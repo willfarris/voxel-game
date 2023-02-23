@@ -1,7 +1,7 @@
 use crate::terrain::{BlockWorldPos, Terrain};
 use cgmath::{InnerSpace, Quaternion, Rotation, Vector3};
 
-pub const X_VECTOR: Vector3<f32> = Vector3::new(1.0, 0.0, 0.0);
+pub const _X_VECTOR: Vector3<f32> = Vector3::new(1.0, 0.0, 0.0);
 pub const Y_VECTOR: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0);
 pub const Z_VECTOR: Vector3<f32> = Vector3::new(0.0, 0.0, 1.0);
 

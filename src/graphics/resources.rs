@@ -1,13 +1,11 @@
-use std::{collections::{HashMap, VecDeque}, hash::Hash};
+use std::collections::{HashMap, VecDeque};
 
-use cgmath::{Matrix4, Vector3};
 
 use super::{
-    buffer::BufferObject,
-    framebuffer::{Framebuffer, self},
+    framebuffer::Framebuffer,
     shader::Shader,
     texture::Texture,
-    vertex::{Vertex2D, Vertex3D, VertexBufferContents}, vao::VertexAttributeObject, vbo::VertexBufferObject, uniform::Uniform,
+    vertex::VertexBufferContents, vao::VertexAttributeObject, vbo::VertexBufferObject, uniform::Uniform,
 };
 
 pub struct GLResources {

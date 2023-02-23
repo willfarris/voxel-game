@@ -1,10 +1,5 @@
-use std::{mem::size_of, ffi::c_void};
-
 use gl::types::GLsizeiptr;
-
-use crate::offset_of;
-
-use super::vertex::{Vertex3D, VertexBufferContents};
+use super::vertex::VertexBufferContents;
 
 
 pub struct VertexBufferObject {

@@ -20,6 +20,7 @@ use self::{
 pub(crate) mod block;
 pub(crate) mod chunk;
 pub(crate) mod generation;
+mod save;
 
 pub type BlockWorldPos = Vector3<isize>;
 pub type ChunkIndex = Vector2<isize>;

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{texture::Texture, depthbuffer::{Depthbuffer, self}};
+use super::{texture::Texture, depthbuffer::Depthbuffer};
 
 pub struct Framebuffer {
     id: u32,
@@ -20,7 +20,7 @@ impl Framebuffer {
 
         framebuffer.bind();
         let mut draw_buffers = Vec::new();
-        for (i, (name, texture)) in textures.into_iter().enumerate() {
+        for (i, (name, texture)) in textures.iter().enumerate() {
             unsafe {
                 gl::FramebufferTexture2D(
                     gl::FRAMEBUFFER,

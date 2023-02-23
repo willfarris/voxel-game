@@ -397,7 +397,7 @@ const CUBE_FACES: [[Vertex3D; 6]; 10] = [
     ],
 ];
 
-pub(crate) const DEFAULT_CUBE: [Vertex3D; 36] = [
+pub(crate) const _DEFAULT_CUBE: [Vertex3D; 36] = [
     // Facing positive-X
     Vertex3D {
         position: Vector3::new(1.0, 0.0, 1.0),

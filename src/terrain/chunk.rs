@@ -1,3 +1,5 @@
+use json::JsonValue;
+
 use super::BlockIndex;
 
 pub(crate) const CHUNK_WIDTH: usize = 16;
@@ -12,7 +14,7 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             blocks: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
             metadata: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
@@ -52,5 +54,38 @@ impl Chunk {
                 }
             }
         }
+    }
+
+    pub fn from_json_array(chunk_json: &JsonValue) -> Box<Self> {
+        let mut chunk = Box::new(Self::new());
+
+        for (x, row) in chunk_json.members().enumerate() {
+            for (y, column) in row.members().enumerate() {
+                for (z, block) in column.members().enumerate() {
+                    let block_id = block.as_usize().unwrap();
+                    chunk.blocks[x][y][z] = block_id;
+                }
+            }
+        }
+
+        chunk
+    }
+
+    pub fn to_json_array(&self) -> JsonValue {
+        // Save block data
+        let mut json_vec = Vec::with_capacity(CHUNK_WIDTH);
+        for row in self.blocks.iter() {
+            let mut json_row = Vec::with_capacity(CHUNK_HEIGHT);
+            for column in row.iter() {
+                let json_column = json::from(column.as_slice());
+                json_row.push(json_column);
+            };
+            json_vec.push(json_row);
+        }
+
+        // TODO: Save block metadata
+
+
+        json::from(json_vec)
     }
 }

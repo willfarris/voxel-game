@@ -36,7 +36,7 @@ impl Inventory {
         }
     }
 
-    pub fn consume_currently_selected(&mut self) -> Option<usize> {
+    pub fn _consume_currently_selected(&mut self) -> Option<usize> {
         if let Some((id, quantity)) = &mut self.items[self.selected] {
             let id = *id;
             *quantity -= 1;

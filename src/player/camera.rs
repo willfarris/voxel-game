@@ -63,7 +63,7 @@ impl Camera {
         self.calculate_normals();
     }
 
-    pub fn get_forward(&self) -> Vector3<f32> {
+    pub fn _get_forward(&self) -> Vector3<f32> {
         self.forward
     }
 }

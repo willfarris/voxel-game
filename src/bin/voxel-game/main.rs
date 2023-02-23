@@ -1,21 +1,32 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use std::env;
 
 use glfw::Context;
 use voxel::q_rsqrt;
-use voxel::{Engine, PlayerInput};
+use voxel::engine::{Engine, PlayerInput};
 
 const WIDTH: i32 = 1920;
 const HEIGHT: i32 = 900;
+const GAME_SAVE_PATH: &str = "blockcraft";
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
     glfw.window_hint(glfw::WindowHint::ContextVersion(3, 1));
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::OpenGlEs));
     glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
 
-    let mut voxel_game = Engine::default();
+    let mut voxel_game = if args.len() > 1 {
+        match args[1].as_str() {
+            "--restore" => Engine::load_from_save(GAME_SAVE_PATH),
+            _ => Engine::default()
+        }
+    } else {
+        Engine::default()
+    };
 
     let (mut window, events) = glfw
         .create_window(
@@ -121,6 +132,12 @@ fn main() {
                                 jump = true;
                             } else if state == glfw::Action::Release {
                                 jump = false;
+                            }
+                        }
+
+                        glfw::Key::O => {
+                            if state == glfw::Action::Release {
+                                voxel_game.save_to_file(GAME_SAVE_PATH);
                             }
                         }
 

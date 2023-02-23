@@ -15,7 +15,7 @@ use crate::{
     },
     player::GRAVITY,
     terrain::block::BLOCKS,
-    EntityTrait,
+    entity::EntityTrait,
 };
 
 pub struct ItemDrop {
