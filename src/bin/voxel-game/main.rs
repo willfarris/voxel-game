@@ -12,21 +12,19 @@ const GAME_SAVE_PATH: &str = "blockcraft";
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    assert!(args.len() > 1);
+
+    let mut voxel_game = match args[1].as_str() {
+        "--restore" => Engine::load_from_save(GAME_SAVE_PATH),
+        "--new" => Engine::default(),
+        _ => Engine::default()
+    };
     
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
     glfw.window_hint(glfw::WindowHint::ContextVersion(3, 1));
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::OpenGlEs));
     glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
-
-    let mut voxel_game = if args.len() > 1 {
-        match args[1].as_str() {
-            "--restore" => Engine::load_from_save(GAME_SAVE_PATH),
-            _ => Engine::default()
-        }
-    } else {
-        Engine::default()
-    };
 
     let (mut window, events) = glfw
         .create_window(
@@ -46,8 +44,7 @@ fn main() {
     window.set_cursor_mode(glfw::CursorMode::Hidden);
 
     voxel_game.init_gl(WIDTH, HEIGHT);
-    voxel_game.start_terrain_thread();
-    //voxel_game.start_physics_engine();
+    voxel_game.start_workers();
 
     const NUM_AVG_FRAMES: usize = 60;
     let mut averages = [0f32; NUM_AVG_FRAMES];
