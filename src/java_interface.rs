@@ -1,20 +1,31 @@
 use crate::{EngineLock, engine::PlayerInput};
 use jni::{
-    objects::JClass,
-    sys::{jboolean, jfloat, jint, jlong},
+    objects::{JClass, JString},
+    sys::{jboolean, jfloat, jint, jlong, jstring},
     JNIEnv,
 };
 
 #[no_mangle]
 pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_initEngineNative(
-    _env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
+    save_path: JString,
 ) -> jlong {
     #[cfg(features="android-lib")]
     {
         android_log::init("VoxelTest").unwrap();
     }
-    Box::into_raw(Box::new(EngineLock::default())) as jlong
+    let save_path_rs: String = env.get_string(save_path).unwrap().into();
+    let save_file = std::path::Path::new(&save_path_rs);
+    let engine = if save_file.exists() {
+        debug!("Restoring from save file");
+        Box::new(EngineLock::load_from_save(save_path_rs.as_str()))
+    } else {
+        debug!("Creating new world");
+        Box::new(EngineLock::default())
+    };
+
+    Box::into_raw(engine) as jlong
 }
 
 #[no_mangle]
@@ -30,13 +41,25 @@ pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_initGLNative
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_startTerrainThreadNative(
+pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_startWorkerThreadsNative(
     _env: JNIEnv,
     _: JClass,
     ptr: jlong,
 ) {
     let mut engine = (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
-    engine.start_terrain_thread();
+    engine.start_workers();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_saveGameNative(
+    env: JNIEnv,
+    _: JClass,
+    ptr: jlong,
+    save_path: JString
+) {
+    let save_path_rs: String = env.get_string(save_path).expect("unable to parse save path").into();
+    let mut engine = (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
+    engine.save_to_file(save_path_rs.as_str());
 }
 
 #[no_mangle]
@@ -169,7 +192,8 @@ pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_placeBlockNa
     _: JClass,
     ptr: jlong,
 ) {
-    let _engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
+    let engine = &mut (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
+    engine.player_input(PlayerInput::Interact(true, false));
 }
 
 #[no_mangle]

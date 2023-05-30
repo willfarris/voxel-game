@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use std::env;
 
 use glfw::Context;
@@ -42,6 +40,8 @@ fn main() {
     window.set_mouse_button_polling(true);
     window.set_cursor_pos(WIDTH as f64 / 2.0, HEIGHT as f64 / 2.0);
     window.set_cursor_mode(glfw::CursorMode::Hidden);
+
+    println!("P - Pause\nO - Save");
 
     voxel_game.init_gl(WIDTH, HEIGHT);
     voxel_game.start_workers();
@@ -134,7 +134,9 @@ fn main() {
 
                         glfw::Key::O => {
                             if state == glfw::Action::Release {
+                                voxel_game.pause();
                                 voxel_game.save_to_file(GAME_SAVE_PATH);
+                                voxel_game.resume();
                             }
                         }
 

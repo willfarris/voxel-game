@@ -141,4 +141,11 @@ impl Shader {
             gl::UseProgram(self.id);
         }
     }
+
+    pub fn delete(&mut self) {
+        unsafe {
+            gl::DeleteProgram(self.id);
+        }
+        self.id = 0;
+    }
 }

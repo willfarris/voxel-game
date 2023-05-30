@@ -104,4 +104,15 @@ impl Framebuffer {
                               gl::DEPTH_BUFFER_BIT, gl::NEAREST);
         }
     }
+
+    pub fn delete(&mut self) {
+        self.bind();
+        for (_name, texture) in self.textures.iter_mut() {
+            texture.delete();
+        }
+        self.unbind();
+        unsafe {
+            gl::DeleteFramebuffers(1, &self.id);
+        }
+    }
 }

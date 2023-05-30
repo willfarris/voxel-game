@@ -139,7 +139,7 @@ impl Texture {
         }
     }
 
-    pub fn _delete(&mut self) {
+    pub fn delete(&mut self) {
         if self.id != 0 {
             unsafe {
                 gl::DeleteTextures(1, &self.id as *const u32);

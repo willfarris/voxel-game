@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 
 use super::{
-    framebuffer::Framebuffer,
+    framebuffer::{Framebuffer, self},
     shader::Shader,
     texture::Texture,
     vertex::VertexBufferContents, vao::VertexAttributeObject, vbo::VertexBufferObject, uniform::Uniform,
@@ -30,10 +30,26 @@ impl GLResources {
     }
 
     pub fn invalidate_resources(&mut self) {
-        self.textures.clear();
-        self.shaders.clear();
-        self.vaos.clear();
-        self.framebuffers.clear();
+        self.textures.retain(|_name, texture| {
+            texture.delete();
+            false
+        });
+
+        self.shaders.retain(|_name, shader| {
+            shader.delete();
+            false
+        });
+
+        self.vaos.retain(|_name, vao| {
+            vao.delete();
+            false
+        });
+        
+        self.framebuffers.retain(|_name, framebuffer| {
+            framebuffer.delete();
+            false
+        });
+
         self.vao_update_queue.clear();
     }
 

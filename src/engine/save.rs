@@ -3,7 +3,7 @@ use std::{sync::{Arc, RwLock}, time::{Duration, Instant}};
 use cgmath::Vector3;
 use json::{JsonValue, object};
 
-use crate::{graphics::{skybox::Skybox, resources::GLResources}, player::{Player, self}, terrain::{Terrain, generation::TerrainGenConfig, chunk::Chunk, ChunkIndex}, entity::EntityTrait, engine::save};
+use crate::{graphics::{skybox::Skybox, resources::GLResources}, player::Player, terrain::{Terrain, generation::TerrainGenConfig}, entity::EntityTrait};
 
 use super::{Engine, PlayState};
 
@@ -51,7 +51,6 @@ impl Engine {
     }
 
     pub fn save_to_file(&mut self, save_path: &str) {
-        self.pause();
         let save_path = std::path::Path::new(save_path);
         if !save_path.exists() {
             std::fs::create_dir_all(save_path).unwrap();
@@ -66,7 +65,7 @@ impl Engine {
             let player = self.player.write().unwrap();
             let player_json = object! {
                 "position" : [player.position.x, player.position.y, player.position.z],
-                "orientation" : [0.0, 0.0, 1.0],
+                "orientation" : [player.camera.forward.x, player.camera.forward.y, player.camera.forward.z],
             };
             save_json.insert("player", player_json).unwrap();
         }
@@ -77,8 +76,6 @@ impl Engine {
         }
 
         std::fs::write(save_file_path, save_json.dump()).unwrap();
-        self.resume();
-
     }
 
 }

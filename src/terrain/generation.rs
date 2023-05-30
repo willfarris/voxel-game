@@ -281,6 +281,7 @@ impl Terrain {
                     let placement_queue = terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
                     self.chunks.insert(chunk_index, cur_chunk);
                     self.place_features(placement_queue);
+                    self.update_chunk(&chunk_index);
                 }
             }
         }

@@ -11,10 +11,9 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(position: Vector3<f32>, direction: Vector3<f32>) -> Self {
-        let n_direction = direction.normalize();
         let mut s = Self {
             position,
-            forward: n_direction,
+            forward: direction,
             right: Vector3::new(0.0, 0.0, 0.0),
             up: Vector3::new(0.0, 0.0, 0.0),
         };

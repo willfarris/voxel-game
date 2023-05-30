@@ -1,6 +1,6 @@
 use json::JsonValue;
 
-use super::BlockIndex;
+use super::{BlockIndex, save::save_chunk_data_to_json, block::BLOCKS};
 
 pub(crate) const CHUNK_WIDTH: usize = 16;
 pub(crate) const CHUNK_HEIGHT: usize = 256;
@@ -11,6 +11,7 @@ pub(crate) type BlockDataArray = [[[usize; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WI
 pub struct Chunk {
     blocks: BlockDataArray,
     metadata: BlockDataArray,
+    lighting: BlockDataArray,
 }
 
 impl Chunk {
@@ -18,7 +19,12 @@ impl Chunk {
         Self {
             blocks: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
             metadata: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
+            lighting: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
         }
+    }
+
+    pub fn get_lighting(&self, block_index: &BlockIndex) -> usize {
+        self.lighting[block_index.x][block_index.y][block_index.z]
     }
 
     pub fn get_block(&self, block_index: &BlockIndex) -> usize {
@@ -34,9 +40,12 @@ impl Chunk {
     }
 
     pub fn update(&mut self) {
+
+        // Block physics
         for x in 0..CHUNK_WIDTH {
             for y in 0..CHUNK_HEIGHT {
                 for z in 0..CHUNK_WIDTH {
+                    // Rules for realistic block behavior
                     let block_id = self.blocks[x][y][z];
                     match block_id {
                         // Remove things that grow on grass/dirt if they're not on grass/dirt
@@ -54,6 +63,44 @@ impl Chunk {
                 }
             }
         }
+
+        // Reset lighting array
+        for x in 0..CHUNK_WIDTH {
+            for z in 0..CHUNK_WIDTH {
+                for y in 0..CHUNK_HEIGHT {
+                    self.lighting[x][y][z] = 0;
+                }
+            }
+        }
+
+        // Update lighting from sky
+        for x in 0..CHUNK_WIDTH {
+            for z in 0..CHUNK_WIDTH {
+                'skylight: for i in 1..=CHUNK_HEIGHT {
+                    let y = CHUNK_HEIGHT-i;
+                    let block_id = self.blocks[x][y][z];
+                    if BLOCKS[block_id].transparent {
+                       self.lighting[x][y][z] = 16; 
+                    } else {
+                        break 'skylight;
+                    }
+                }
+            }
+        }
+
+        // Update lighting from blocks
+        for _x in 0..CHUNK_WIDTH {
+            for _y in 0..CHUNK_HEIGHT {
+                for _z in 0..CHUNK_WIDTH {
+                    //TODO: set lighting for lit blocks here
+                    
+                }
+            }
+        }
+
+        // TODO: Flood fill light
+        //let mut light_map = [[[0usize; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
+
     }
 
     pub fn from_json_array(chunk_json: &JsonValue) -> Box<Self> {
@@ -72,20 +119,7 @@ impl Chunk {
     }
 
     pub fn to_json_array(&self) -> JsonValue {
-        // Save block data
-        let mut json_vec = Vec::with_capacity(CHUNK_WIDTH);
-        for row in self.blocks.iter() {
-            let mut json_row = Vec::with_capacity(CHUNK_HEIGHT);
-            for column in row.iter() {
-                let json_column = json::from(column.as_slice());
-                json_row.push(json_column);
-            };
-            json_vec.push(json_row);
-        }
-
         // TODO: Save block metadata
-
-
-        json::from(json_vec)
+        save_chunk_data_to_json(&self.blocks)
     }
 }

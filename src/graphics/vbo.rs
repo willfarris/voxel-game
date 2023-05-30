@@ -52,4 +52,10 @@ impl VertexBufferObject {
         self.buffer.setup_for_current_vbo();
         self.unbind();
     }
+
+    pub fn delete(&mut self) {
+        unsafe {
+            gl::DeleteBuffers(1, &self.id)
+        }
+    }
 }

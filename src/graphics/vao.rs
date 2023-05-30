@@ -50,4 +50,13 @@ impl VertexAttributeObject {
         }
         self.unbind();
     }
+
+    pub fn delete(&mut self) {
+        self.bind();
+        self.buffer.delete();
+        self.unbind();
+        unsafe {
+            gl::DeleteVertexArrays(1, &self.id)
+        }
+    }
 }

@@ -77,15 +77,16 @@ impl Engine {
                         let mut terrain = terrain_gen.write().unwrap();
                         terrain.insert_chunk(*chunk_index, chunk);
                         terrain.place_features(placement_queue);
+                        terrain.update_chunk(chunk_index);
                     }
                     std::thread::sleep(Duration::from_millis(1));
                 }
 
-                for chunk_index in chunk_update_list.iter() {
+                /*for chunk_index in chunk_update_list.iter() {
                     let terrain = terrain_gen.read().unwrap();
                     let mut gl_resources = gl_resources_gen.write().unwrap();
                     terrain.update_chunk_mesh(chunk_index, &mut gl_resources)
-                }
+                }*/
             }
         });
     }

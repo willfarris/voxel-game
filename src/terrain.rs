@@ -78,10 +78,12 @@ impl Terrain {
     ) {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
-                chunk.set_block(&block_index, block_id)
+                chunk.set_block(&block_index, block_id);
+                chunk.update();
             } else {
                 let mut new_chunk = Box::new(Chunk::new());
                 new_chunk.set_block(&block_index, block_id);
+                new_chunk.update();
                 self.chunks.insert(chunk_index, new_chunk);
             }
             if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
@@ -96,10 +98,10 @@ impl Terrain {
         chunk_index: &ChunkIndex,
     ) -> Option<Vec<Vertex3D>> {
         if let Some(chunk) = self.chunks.get(chunk_index) {
-            let x_pos = self.chunks.get(&(chunk_index + ChunkIndex::new(1, 0)));
-            let x_neg = self.chunks.get(&(chunk_index + ChunkIndex::new(-1, 0)));
-            let z_pos = self.chunks.get(&(chunk_index + ChunkIndex::new(0, 1)));
-            let z_neg = self.chunks.get(&(chunk_index + ChunkIndex::new(0, -1)));
+            let x_pos_chunk = self.chunks.get(&(chunk_index + ChunkIndex::new(1, 0)));
+            let x_neg_chunk = self.chunks.get(&(chunk_index + ChunkIndex::new(-1, 0)));
+            let z_pos_chunk = self.chunks.get(&(chunk_index + ChunkIndex::new(0, 1)));
+            let z_neg_chunk = self.chunks.get(&(chunk_index + ChunkIndex::new(0, -1)));
 
             let mut vertices = Vec::new();
             for x in 0..CHUNK_WIDTH {
@@ -172,14 +174,22 @@ impl Terrain {
                         let vertex_type = cur.block_type as i32;
                         match cur.mesh_type {
                             MeshType::Block => {
-                                let x_right_adjacent = if x < CHUNK_WIDTH - 1 {
-                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x + 1, y, z))])
+                                let (x_pos_block, x_pos_lighting) = if x < CHUNK_WIDTH - 1 {
+                                    let x_pos_index = BlockIndex::new(x+1, y, z);
+                                    (
+                                        Some(BLOCKS[chunk.get_block(&x_pos_index)]),
+                                        chunk.get_lighting(&x_pos_index)
+                                    )
                                 } else {
-                                    x_pos.map(|chunk| {
-                                        BLOCKS[chunk.get_block(&Vector3::new(0, y, z))]
-                                    })
+                                    let x_pos_index = BlockIndex::new(0, y, z);
+                                    (
+                                        x_pos_chunk.map(|adjacent_chunk| {
+                                            BLOCKS[adjacent_chunk.get_block(&x_pos_index)]
+                                        }),
+                                        chunk.get_lighting(&x_pos_index)
+                                    )
                                 };
-                                if let Some(adjacent_block) = x_right_adjacent {
+                                if let Some(adjacent_block) = x_pos_block {
                                     if adjacent_block.transparent {
                                         push_face(
                                             &position,
@@ -187,22 +197,27 @@ impl Terrain {
                                             &mut vertices,
                                             &tex_coords[0],
                                             vertex_type,
+                                            x_pos_lighting as f32,
                                         );
                                     }
                                 }
 
-                                let x_left_adjacent = if x > 0 {
-                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x - 1, y, z))])
+                                let (x_neg_block, x_neg_lighting) = if x > 0 {
+                                    let x_neg_index = Vector3::new(x - 1, y, z);
+                                    (
+                                        Some(BLOCKS[chunk.get_block(&x_neg_index)]),
+                                        chunk.get_lighting(&x_neg_index)
+                                    )
                                 } else {
-                                    x_neg.map(|chunk| {
-                                        BLOCKS[chunk.get_block(&Vector3::new(
-                                            CHUNK_WIDTH - 1,
-                                            y,
-                                            z,
-                                        ))]
-                                    })
+                                    let x_neg_index = Vector3::new(CHUNK_WIDTH - 1, y, z);
+                                    (
+                                        x_neg_chunk.map(|chunk| {
+                                            BLOCKS[chunk.get_block(&x_neg_index)]
+                                        }),
+                                        chunk.get_lighting(&x_neg_index)
+                                    )
                                 };
-                                if let Some(adjacent_block) = x_left_adjacent {
+                                if let Some(adjacent_block) = x_neg_block {
                                     if adjacent_block.transparent {
                                         push_face(
                                             &position,
@@ -210,16 +225,21 @@ impl Terrain {
                                             &mut vertices,
                                             &tex_coords[1],
                                             vertex_type,
+                                            x_neg_lighting as f32,
                                         );
                                     }
                                 }
 
-                                let y_top_adjacent = if y < CHUNK_HEIGHT - 1 {
-                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x, y + 1, z))])
+                                let (y_pos_block, y_pos_lighting) = if y < CHUNK_HEIGHT - 1 {
+                                    let y_pos_index = Vector3::new(x, y + 1, z);
+                                    (
+                                        Some(BLOCKS[chunk.get_block(&y_pos_index)]),
+                                        chunk.get_lighting(&y_pos_index)
+                                    )
                                 } else {
-                                    None
+                                    (None, 0)
                                 };
-                                if let Some(adjacent_block) = y_top_adjacent {
+                                if let Some(adjacent_block) = y_pos_block {
                                     if adjacent_block.transparent {
                                         push_face(
                                             &position,
@@ -227,16 +247,21 @@ impl Terrain {
                                             &mut vertices,
                                             &tex_coords[2],
                                             vertex_type,
+                                            y_pos_lighting as f32,
                                         );
                                     }
                                 }
 
-                                let y_bottom_adjacent = if y > 0 {
-                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x, y - 1, z))])
+                                let (y_neg_block, y_neg_lighting) = if y > 0 {
+                                    let y_neg_index = Vector3::new(x, y - 1, z);
+                                    (
+                                        Some(BLOCKS[chunk.get_block(&y_neg_index)]),
+                                        chunk.get_lighting(&y_neg_index)
+                                    )
                                 } else {
-                                    None
+                                    (None, 0)
                                 };
-                                if let Some(adjacent_block) = y_bottom_adjacent {
+                                if let Some(adjacent_block) = y_neg_block {
                                     if adjacent_block.transparent {
                                         push_face(
                                             &position,
@@ -244,18 +269,27 @@ impl Terrain {
                                             &mut vertices,
                                             &tex_coords[3],
                                             vertex_type,
+                                            y_neg_lighting as f32,
                                         );
                                     }
                                 }
 
-                                let z_back_adjacent = if z < CHUNK_WIDTH - 1 {
-                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x, y, z + 1))])
+                                let (z_pos_block, z_pos_lighting) = if z < CHUNK_WIDTH - 1 {
+                                    let z_pos_index = Vector3::new(x, y, z + 1);
+                                    (
+                                        Some(BLOCKS[chunk.get_block(&z_pos_index)]),
+                                        chunk.get_lighting(&z_pos_index)
+                                    )
                                 } else {
-                                    z_pos.map(|chunk| {
-                                        BLOCKS[chunk.get_block(&Vector3::new(x, y, 0))]
-                                    })
+                                    let z_pos_index = Vector3::new(x, y, 0);
+                                    (
+                                        z_pos_chunk.map(|chunk| {
+                                            BLOCKS[chunk.get_block(&z_pos_index)]
+                                        }),
+                                        chunk.get_lighting(&z_pos_index)
+                                    )
                                 };
-                                if let Some(adjacent_block) = z_back_adjacent {
+                                if let Some(adjacent_block) = z_pos_block {
                                     if adjacent_block.transparent {
                                         push_face(
                                             &position,
@@ -263,22 +297,27 @@ impl Terrain {
                                             &mut vertices,
                                             &tex_coords[4],
                                             vertex_type,
+                                            z_pos_lighting as f32,
                                         );
                                     }
                                 }
 
-                                let z_front_adjacent = if z > 0 {
-                                    Some(BLOCKS[chunk.get_block(&Vector3::new(x, y, z - 1))])
+                                let (z_neg_index, z_neg_lighting) = if z > 0 {
+                                    let z_neg_index = Vector3::new(x, y, z - 1);
+                                    (
+                                        Some(BLOCKS[chunk.get_block(&z_neg_index)]),
+                                        chunk.get_lighting(&z_neg_index)
+                                    )
                                 } else {
-                                    z_neg.map(|chunk| {
-                                        BLOCKS[chunk.get_block(&Vector3::new(
-                                            x,
-                                            y,
-                                            CHUNK_WIDTH - 1,
-                                        ))]
-                                    })
+                                    let z_neg_index = Vector3::new(x, y, CHUNK_WIDTH - 1);
+                                    (
+                                        z_neg_chunk.map(|chunk| {
+                                            BLOCKS[chunk.get_block(&z_neg_index)]
+                                        }),
+                                        chunk.get_lighting(&z_neg_index)
+                                    )
                                 };
-                                if let Some(adjacent_block) = z_front_adjacent {
+                                if let Some(adjacent_block) = z_neg_index {
                                     if adjacent_block.transparent {
                                         push_face(
                                             &position,
@@ -286,15 +325,17 @@ impl Terrain {
                                             &mut vertices,
                                             &tex_coords[5],
                                             vertex_type,
+                                            z_neg_lighting as f32,
                                         );
                                     }
                                 }
                             }
                             MeshType::CrossedPlanes => {
-                                push_face(&position, 6, &mut vertices, &tex_coords[0], vertex_type);
-                                push_face(&position, 7, &mut vertices, &tex_coords[0], vertex_type);
-                                push_face(&position, 8, &mut vertices, &tex_coords[0], vertex_type);
-                                push_face(&position, 9, &mut vertices, &tex_coords[0], vertex_type);
+                                let lighting = chunk.get_lighting(&block_index) as f32;
+                                push_face(&position, 6, &mut vertices, &tex_coords[0], vertex_type, lighting);
+                                push_face(&position, 7, &mut vertices, &tex_coords[0], vertex_type, lighting);
+                                push_face(&position, 8, &mut vertices, &tex_coords[0], vertex_type, lighting);
+                                push_face(&position, 9, &mut vertices, &tex_coords[0], vertex_type, lighting);
                             }
                         }
                     }
@@ -362,6 +403,12 @@ impl Terrain {
                 let verts = Box::new(chunk_vertices);
                 gl_resources.update_vao_buffer(name, verts);
             }
+        }
+    }
+
+    pub(crate) fn update_chunk(&mut self, chunk_index: &ChunkIndex) {
+        if let Some(chunk) = self.chunks.get_mut(chunk_index) {
+            chunk.update();
         }
     }
 
