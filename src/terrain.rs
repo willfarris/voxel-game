@@ -182,12 +182,12 @@ impl Terrain {
                                     )
                                 } else {
                                     let x_pos_index = BlockIndex::new(0, y, z);
-                                    (
-                                        x_pos_chunk.map(|adjacent_chunk| {
-                                            BLOCKS[adjacent_chunk.get_block(&x_pos_index)]
-                                        }),
-                                        chunk.get_lighting(&x_pos_index)
-                                    )
+                                    x_pos_chunk.map(|adjacent_chunk| {
+                                        (
+                                            Some(BLOCKS[adjacent_chunk.get_block(&x_pos_index)]),
+                                            adjacent_chunk.get_lighting(&x_pos_index)
+                                        )
+                                    }).unwrap_or((None, 0))
                                 };
                                 if let Some(adjacent_block) = x_pos_block {
                                     if adjacent_block.transparent {
@@ -210,12 +210,12 @@ impl Terrain {
                                     )
                                 } else {
                                     let x_neg_index = Vector3::new(CHUNK_WIDTH - 1, y, z);
-                                    (
-                                        x_neg_chunk.map(|chunk| {
-                                            BLOCKS[chunk.get_block(&x_neg_index)]
-                                        }),
-                                        chunk.get_lighting(&x_neg_index)
-                                    )
+                                    x_neg_chunk.map(|adjacent_chunk| {
+                                        (
+                                            Some(BLOCKS[adjacent_chunk.get_block(&x_neg_index)]),
+                                            adjacent_chunk.get_lighting(&x_neg_index)
+                                        )
+                                    }).unwrap_or((None, 0))
                                 };
                                 if let Some(adjacent_block) = x_neg_block {
                                     if adjacent_block.transparent {
@@ -282,12 +282,12 @@ impl Terrain {
                                     )
                                 } else {
                                     let z_pos_index = Vector3::new(x, y, 0);
-                                    (
-                                        z_pos_chunk.map(|chunk| {
-                                            BLOCKS[chunk.get_block(&z_pos_index)]
-                                        }),
-                                        chunk.get_lighting(&z_pos_index)
-                                    )
+                                    z_pos_chunk.map(|adjacent_chunk| {
+                                        (
+                                            Some(BLOCKS[adjacent_chunk.get_block(&z_pos_index)]),
+                                            adjacent_chunk.get_lighting(&z_pos_index)
+                                        )
+                                    }).unwrap_or((None, 16))
                                 };
                                 if let Some(adjacent_block) = z_pos_block {
                                     if adjacent_block.transparent {
@@ -310,12 +310,12 @@ impl Terrain {
                                     )
                                 } else {
                                     let z_neg_index = Vector3::new(x, y, CHUNK_WIDTH - 1);
-                                    (
-                                        z_neg_chunk.map(|chunk| {
-                                            BLOCKS[chunk.get_block(&z_neg_index)]
-                                        }),
-                                        chunk.get_lighting(&z_neg_index)
-                                    )
+                                    z_neg_chunk.map(|adjacent_chunk| {
+                                        (
+                                            Some(BLOCKS[adjacent_chunk.get_block(&z_neg_index)]),
+                                            adjacent_chunk.get_lighting(&z_neg_index)
+                                        )
+                                    }).unwrap_or((None, 0))
                                 };
                                 if let Some(adjacent_block) = z_neg_index {
                                     if adjacent_block.transparent {

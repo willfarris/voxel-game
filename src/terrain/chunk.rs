@@ -80,7 +80,7 @@ impl Chunk {
                     let y = CHUNK_HEIGHT-i;
                     let block_id = self.blocks[x][y][z];
                     if BLOCKS[block_id].transparent {
-                       self.lighting[x][y][z] = 16; 
+                       self.lighting[x][y][z] = 0xF; 
                     } else {
                         break 'skylight;
                     }

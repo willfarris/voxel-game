@@ -19,7 +19,7 @@ void main() {
     vec4 color = texture(texture_map, v_tex_coords).rgba;
     if (color.a < 0.5) { discard; }
 
-    float lighting = min((v_lighting / 16.0) + 0.2, 1.0);
+    float lighting = min((v_lighting / 16.0) + (1./16.), 1.0);
 
     position = vec4(v_position, 1.0);
     normal = vec4(v_normal, 1.0);
