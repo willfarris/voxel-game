@@ -1,3 +1,4 @@
+use cgmath::Vector3;
 use json::JsonValue;
 
 use super::{BlockIndex, save::save_chunk_data_to_json, block::BLOCKS};
@@ -5,13 +6,13 @@ use super::{BlockIndex, save::save_chunk_data_to_json, block::BLOCKS};
 pub(crate) const CHUNK_WIDTH: usize = 16;
 pub(crate) const CHUNK_HEIGHT: usize = 256;
 
-pub(crate) type BlockDataArray = [[[usize; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
+pub(crate) type BlockDataArray<T> = [[[T; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
 
 
 pub struct Chunk {
-    blocks: BlockDataArray,
-    metadata: BlockDataArray,
-    lighting: BlockDataArray,
+    blocks: BlockDataArray<usize>,
+    metadata: BlockDataArray<usize>,
+    lighting: BlockDataArray<usize>,
 }
 
 impl Chunk {
@@ -88,18 +89,78 @@ impl Chunk {
             }
         }
 
-        // Update lighting from blocks
-        for _x in 0..CHUNK_WIDTH {
-            for _y in 0..CHUNK_HEIGHT {
-                for _z in 0..CHUNK_WIDTH {
+        // TODO: Update lighting from blocks
+        /*for x in 0..CHUNK_WIDTH {
+            for y in 0..CHUNK_HEIGHT {
+                for z in 0..CHUNK_WIDTH {
                     //TODO: set lighting for lit blocks here
-                    
+                    let block_id = self.blocks[x][y][z];
+                    if BLOCKS[block_id].emissive {
+                        self.lighting[x][y][z] = 0xF;
+                    }
+                }
+            }
+        }*/
+
+        // Flood fill lighting
+        //  fn flood_fill(lighting_array, block_index)
+        //      if lighting_array[block_index] > 0
+        //          light_level = max(lighting_array[block_index] - 1, 0)
+        //          for each adjacent
+        //              add index to visited
+        //              if light_level > adjacent && adjacent is not visited
+        //                  lighting_array[adjacent] = light_level
+        //                  flood_fill(lighting_array, adjecent)
+        //
+
+        fn flood_fill(lighting_array: &mut BlockDataArray<usize>, visited: &mut BlockDataArray<bool>, block_index: &BlockIndex) {
+            let light_level = lighting_array[block_index.x][block_index.y][block_index.z];
+            if light_level > 0 && !visited[block_index.x][block_index.y][block_index.z] {
+                visited[block_index.x][block_index.y][block_index.z] = true;
+                let light_level = (light_level - 1).max(0);
+                if block_index.x > 0 {
+
+                } else if block_index.x >= CHUNK_WIDTH {
+
+                }
+
+                if block_index.y > 0 {
+
+                } else if block_index.y >= CHUNK_HEIGHT {
+
+                }
+
+                if block_index.z > 0 {
+
+                } else if block_index.z >= CHUNK_WIDTH {
+
                 }
             }
         }
 
-        // TODO: Flood fill light
-        //let mut light_map = [[[0usize; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
+
+        // recursively spread that light until the level reaches zero or the max light
+        let mut visited = [[[false; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
+        for x in 0..CHUNK_WIDTH {
+            for y in 0..CHUNK_HEIGHT {
+                for z in 0..CHUNK_WIDTH {
+                    if self.lighting[x][y][z] > 0 && self.lighting[x][y][z] < 0x10 {
+                        let adjacent = vec![
+                            Vector3::new(x+1, y, z),
+                            Vector3::new(x-1, y, z),
+                            Vector3::new(x, y+1, z),
+                            Vector3::new(x, y-1, z),
+                            Vector3::new(x, y, z+1),
+                            Vector3::new(x, y, z-1)
+                        ];
+
+                        if x > 0 {
+
+                        }
+                    }
+                }
+            }
+        }
 
     }
 
