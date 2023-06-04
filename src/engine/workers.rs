@@ -37,7 +37,6 @@ impl Engine {
         let terrain_gen = self.terrain.clone();
         let player_gen = self.player.clone();
         let terrain_config_gen = self.terrain_config.clone();
-        let gl_resources_gen = self.gl_resources.clone();
         std::thread::spawn(move || {
             loop {
                 // Get the list of chunks which need generation

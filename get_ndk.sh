@@ -1,9 +1,12 @@
-if [ ! -d "NDK/android-ndk-r22b" ]; then
-    echo "Missing  Android NDK in 'NDK/android-ndk-r22b', installing..."
+#NDK_VERSION="android-ndk-r22b"
+NDK_VERSION="android-ndk-r25c"
+
+if [ ! -d "NDK/$NDK_VERSION" ]; then
+    echo "Missing  Android NDK in 'NDK/$NDK_VERSION', installing..."
     mkdir -p NDK
     cd NDK
-    wget https://dl.google.com/android/repository/android-ndk-r22b-$(uname -s)-x86_64.zip && \
-    unzip android-ndk-r22b-$(uname -s)-x86_64.zip && \
-    rm android-ndk-r22b-$(uname -s)-x86_64.zip && \
+    wget https://dl.google.com/android/repository/$NDK_VERSION-$(uname -s).zip && \
+    unzip $NDK_VERSION-$(uname -s).zip && \
+    rm $NDK_VERSION-$(uname -s).zip && \
     cd ..
 fi

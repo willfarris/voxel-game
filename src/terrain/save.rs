@@ -4,7 +4,7 @@ use json::{JsonValue, object};
 
 use super::{Terrain, ChunkIndex, chunk::{Chunk, BlockDataArray, CHUNK_WIDTH, CHUNK_HEIGHT}};
 
-pub(crate) fn save_chunk_data_to_json(data: &BlockDataArray<usize>) -> JsonValue {
+pub(crate) fn save_chunk_data_to_json<T: Clone + std::convert::Into<json::JsonValue>>(data: &BlockDataArray<T>) -> JsonValue {
     let mut json_vec = Vec::with_capacity(CHUNK_WIDTH);
     for row in data.iter() {
         let mut json_row = Vec::with_capacity(CHUNK_HEIGHT);
@@ -25,7 +25,7 @@ impl Terrain {
             let coords: Vec<isize> = key.split('_').map(|s| {
                 s.parse().unwrap()
             }).collect();
-            let chunk_index = ChunkIndex::new(coords[0] as isize, coords[1] as isize);
+            let chunk_index = ChunkIndex::new(coords[0], coords[1]);
             let chunk = Chunk::from_json_array(chunk_data);
             chunks.insert(chunk_index, chunk);
         }
