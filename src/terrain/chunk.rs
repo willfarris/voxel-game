@@ -76,7 +76,15 @@ impl Chunk {
         // Update lighting from sky
         for x in 0..CHUNK_WIDTH {
             for z in 0..CHUNK_WIDTH {
-                self.lighting[x][CHUNK_HEIGHT-1][z] = 0xF;
+                'skylight: for i in 1..=CHUNK_HEIGHT {
+                    let y = CHUNK_HEIGHT-i;
+                    let block_id = self.blocks[x][y][z];
+                    if BLOCKS[block_id].transparent {
+                       self.lighting[x][y][z] = 0xF; 
+                    } else {
+                        break 'skylight;
+                    }
+                }
             }
         }
 
@@ -89,9 +97,9 @@ impl Chunk {
 
             if block_index.y > 0 {
                 let y_neg_index = block_index - Vector3::new(0, 1, 0);
-                let light_can_spread = !BLOCKS[block_array[y_neg_index.x][y_neg_index.y][y_neg_index.z]].solid;
+                let light_can_spread = BLOCKS[block_array[y_neg_index.x][y_neg_index.y][y_neg_index.z]].transparent;
                 if light_can_spread && lighting_array[y_neg_index.x][y_neg_index.y][y_neg_index.z] < current_lighting {
-                    lighting_array[y_neg_index.x][y_neg_index.y][y_neg_index.z] = current_lighting;
+                    lighting_array[y_neg_index.x][y_neg_index.y][y_neg_index.z] = current_lighting - 1;
                     flood_fill(lighting_array, visited, block_array, &y_neg_index);
                 }  else {
                     visited[y_neg_index.x][y_neg_index.y][y_neg_index.z] = true;
@@ -100,7 +108,7 @@ impl Chunk {
 
             if block_index.x < CHUNK_WIDTH-1 {
                 let x_pos_index = block_index + Vector3::new(1, 0, 0);
-                let light_can_spread = !BLOCKS[block_array[x_pos_index.x][x_pos_index.y][x_pos_index.z]].solid;
+                let light_can_spread = BLOCKS[block_array[x_pos_index.x][x_pos_index.y][x_pos_index.z]].transparent;
                 if light_can_spread && lighting_array[x_pos_index.x][x_pos_index.y][x_pos_index.z] < current_lighting {
                     lighting_array[x_pos_index.x][x_pos_index.y][x_pos_index.z] = current_lighting - 1;
                     flood_fill(lighting_array, visited, block_array, &x_pos_index);
@@ -111,7 +119,7 @@ impl Chunk {
 
             if block_index.x > 0 {
                 let x_neg_index = block_index - Vector3::new(1, 0, 0);
-                let light_can_spread = !BLOCKS[block_array[x_neg_index.x][x_neg_index.y][x_neg_index.z]].solid;
+                let light_can_spread = BLOCKS[block_array[x_neg_index.x][x_neg_index.y][x_neg_index.z]].transparent;
                 if light_can_spread && lighting_array[x_neg_index.x][x_neg_index.y][x_neg_index.z] < current_lighting {
                     lighting_array[x_neg_index.x][x_neg_index.y][x_neg_index.z] = current_lighting - 1;
                     flood_fill(lighting_array, visited, block_array, &x_neg_index);
@@ -122,7 +130,7 @@ impl Chunk {
 
             if block_index.y < CHUNK_HEIGHT-1 {
                 let y_pos_index = block_index + Vector3::new(0, 1, 0);
-                let light_can_spread = !BLOCKS[block_array[y_pos_index.x][y_pos_index.y][y_pos_index.z]].solid;
+                let light_can_spread = BLOCKS[block_array[y_pos_index.x][y_pos_index.y][y_pos_index.z]].transparent;
                 if light_can_spread && lighting_array[y_pos_index.x][y_pos_index.y][y_pos_index.z] < current_lighting {
                     lighting_array[y_pos_index.x][y_pos_index.y][y_pos_index.z] = current_lighting - 1;
                     flood_fill(lighting_array, visited, block_array, &y_pos_index);
@@ -133,7 +141,7 @@ impl Chunk {
 
             if block_index.z < CHUNK_WIDTH-1 {
                 let z_pos_index = block_index + Vector3::new(0, 0, 1);
-                let light_can_spread = !BLOCKS[block_array[z_pos_index.x][z_pos_index.y][z_pos_index.z]].solid;
+                let light_can_spread = BLOCKS[block_array[z_pos_index.x][z_pos_index.y][z_pos_index.z]].transparent;
                 if light_can_spread && lighting_array[z_pos_index.x][z_pos_index.y][z_pos_index.z] < current_lighting {
                     lighting_array[z_pos_index.x][z_pos_index.y][z_pos_index.z] = current_lighting - 1;
                     flood_fill(lighting_array, visited, block_array, &z_pos_index);
@@ -144,7 +152,7 @@ impl Chunk {
 
             if block_index.z > 0 {
                 let z_neg_index = block_index - Vector3::new(0, 0, 1);
-                let light_can_spread = !BLOCKS[block_array[z_neg_index.x][z_neg_index.y][z_neg_index.z]].solid;
+                let light_can_spread = BLOCKS[block_array[z_neg_index.x][z_neg_index.y][z_neg_index.z]].transparent;
                 if light_can_spread && lighting_array[z_neg_index.x][z_neg_index.y][z_neg_index.z] < current_lighting {
                     lighting_array[z_neg_index.x][z_neg_index.y][z_neg_index.z] = current_lighting - 1;
                     flood_fill(lighting_array, visited, block_array, &z_neg_index);
