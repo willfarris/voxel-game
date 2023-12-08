@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{texture::Texture, depthbuffer::Depthbuffer};
+use super::{depthbuffer::Depthbuffer, texture::Texture};
 
 pub struct Framebuffer {
     id: u32,
@@ -8,7 +8,10 @@ pub struct Framebuffer {
 }
 
 impl Framebuffer {
-    pub fn with_textures(textures: &[(&'static str, Texture)], depthbuffer: Option<Depthbuffer>) -> Self {
+    pub fn with_textures(
+        textures: &[(&'static str, Texture)],
+        depthbuffer: Option<Depthbuffer>,
+    ) -> Self {
         let mut id = 0;
         unsafe {
             gl::GenFramebuffers(1, &mut id);
@@ -35,18 +38,23 @@ impl Framebuffer {
             let attachment = gl::COLOR_ATTACHMENT0 + i as u32;
             draw_buffers.push(attachment);
         }
-        
+
         unsafe {
             gl::DrawBuffers(
                 draw_buffers.len() as i32,
                 draw_buffers.as_slice() as *const [u32] as *const u32,
             );
         }
-            
+
         //TODO: make this its own struct like Texture and pass as a parameter
         if let Some(depthbuffer) = depthbuffer {
             unsafe {
-                gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::RENDERBUFFER, depthbuffer.id);
+                gl::FramebufferRenderbuffer(
+                    gl::FRAMEBUFFER,
+                    gl::DEPTH_ATTACHMENT,
+                    gl::RENDERBUFFER,
+                    depthbuffer.id,
+                );
             }
         }
 
@@ -100,8 +108,18 @@ impl Framebuffer {
         unsafe {
             gl::BindFramebuffer(gl::READ_FRAMEBUFFER, self.id);
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, target.id);
-            gl::BlitFramebuffer(0, 0, width, height, 0, 0, width, height, 
-                              gl::DEPTH_BUFFER_BIT, gl::NEAREST);
+            gl::BlitFramebuffer(
+                0,
+                0,
+                width,
+                height,
+                0,
+                0,
+                width,
+                height,
+                gl::DEPTH_BUFFER_BIT,
+                gl::NEAREST,
+            );
         }
     }
 

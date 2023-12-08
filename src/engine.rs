@@ -1,16 +1,19 @@
-use cgmath::{Vector3, Vector2};
+use cgmath::{Vector2, Vector3};
 
+use crate::graphics::mesh::block_drop_vertices;
+use crate::graphics::skybox::Skybox;
 use crate::physics::collision::{check_world_collision_axis, Collider};
 use crate::physics::physics_update::PhysicsUpdate;
-use crate::physics::vectormath::{Vec3Direction, self};
-use crate::terrain::ChunkIndex;
+use crate::physics::vectormath::{self, Vec3Direction};
 use crate::terrain::block::BLOCKS;
-use crate::{graphics::resources::GLResources, physics::vectormath::Z_VECTOR};
 use crate::terrain::generation::TerrainGenConfig;
-use crate::graphics::skybox::Skybox;
-use std::{sync::{Arc, RwLock}, time::{Duration, Instant}};
-use crate::graphics::mesh::block_drop_vertices;
-use crate::{player::Player, terrain::Terrain, entity::EntityTrait};
+use crate::terrain::ChunkIndex;
+use crate::{entity::EntityTrait, player::Player, terrain::Terrain};
+use crate::{graphics::resources::GLResources, physics::vectormath::Z_VECTOR};
+use std::{
+    sync::{Arc, RwLock},
+    time::{Duration, Instant},
+};
 
 mod graphics;
 mod save;
@@ -140,7 +143,10 @@ impl Engine {
                 let mut terrain = self.terrain.write().unwrap();
                 let mut gl_resources = self.gl_resources.write().unwrap();
 
-                let player_chunk_index = ChunkIndex::new(player.position.x as isize / 16, player.position.z as isize / 16);
+                let player_chunk_index = ChunkIndex::new(
+                    player.position.x as isize / 16,
+                    player.position.z as isize / 16,
+                );
                 terrain.update_visible_chunks_near(self.render_distance, &player_chunk_index);
 
                 while !self.input_queue.is_empty() {
@@ -173,7 +179,9 @@ impl Engine {
                                         .destroy_at_global_pos(&world_index, &mut gl_resources)
                                     {
                                         let boxed_drop = Box::new(drop);
-                                        let verts = Box::new(block_drop_vertices(&BLOCKS[boxed_drop.block_id]));
+                                        let verts = Box::new(block_drop_vertices(
+                                            &BLOCKS[boxed_drop.block_id],
+                                        ));
                                         let name = format!("item_{}", boxed_drop.block_id);
 
                                         gl_resources.update_vao_buffer(name, verts);
@@ -263,5 +271,4 @@ impl Engine {
             self.input_queue.push(movement);
         }
     }
-
 }

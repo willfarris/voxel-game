@@ -1,9 +1,15 @@
-use cgmath::{Vector3, Vector2};
+use cgmath::{Vector2, Vector3};
 use image::ImageFormat;
 
 use crate::c_str;
 
-use super::{vertex::Vertex3D, resources::GLRenderable, texture::Texture, shader::Shader, source::{SKYBOX_VERT_SRC, SKYBOX_FRAG_SRC, SKYBOX_BITMAP}};
+use super::{
+    resources::GLRenderable,
+    shader::Shader,
+    source::{SKYBOX_BITMAP, SKYBOX_FRAG_SRC, SKYBOX_VERT_SRC},
+    texture::Texture,
+    vertex::Vertex3D,
+};
 
 const HALF: f32 = 0.5;
 const THIRD: f32 = 1.0 / 3.0;
@@ -27,14 +33,14 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
     Vertex3D {
         position: Vector3::new(-0.50, 0.50, 0.50),
         normal: Vector3::new(1.0, 0.0, 0.0),
-        tex_coords: Vector2::new(HALF, 2.0*THIRD),
+        tex_coords: Vector2::new(HALF, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Front-top-right
     Vertex3D {
         position: Vector3::new(-0.50, 0.50, 0.50),
         normal: Vector3::new(1.0, 0.0, 0.0),
-        tex_coords: Vector2::new(HALF, 2.0*THIRD),
+        tex_coords: Vector2::new(HALF, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Front-top-right
@@ -48,11 +54,10 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
     Vertex3D {
         position: Vector3::new(-0.50, 0.50, -0.5),
         normal: Vector3::new(1.0, 0.0, 0.0),
-        tex_coords: Vector2::new(0.0, 2.0*THIRD),
+        tex_coords: Vector2::new(0.0, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Back-top-right
-
     // Facing negative-X
     Vertex3D {
         position: Vector3::new(0.50, 0.50, 0.50),
@@ -71,14 +76,14 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
     Vertex3D {
         position: Vector3::new(0.5, -0.50, 0.5),
         normal: Vector3::new(-1.0, 0.0, 0.0),
-        tex_coords: Vector2::new(0.0, 2.0*THIRD),
+        tex_coords: Vector2::new(0.0, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Front-bottom-left
     Vertex3D {
         position: Vector3::new(0.50, -0.50, 0.50),
         normal: Vector3::new(-1.0, 0.0, 0.0),
-        tex_coords: Vector2::new(0.0, 2.0*THIRD),
+        tex_coords: Vector2::new(0.0, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Front-bottom-left
@@ -92,11 +97,10 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
     Vertex3D {
         position: Vector3::new(0.50, -0.50, -0.50),
         normal: Vector3::new(-1.0, 0.0, 0.0),
-        tex_coords: Vector2::new(HALF, 2.0*THIRD),
+        tex_coords: Vector2::new(HALF, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Back-bottom-left
-    
     // Facing positive-Y
     Vertex3D {
         position: Vector3::new(0.50, -0.50, 0.50),
@@ -140,19 +144,18 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
         vtype: 0,
         lighting: 0.0,
     }, // Back-top-left
-
     // Facing negative-Y
     Vertex3D {
         position: Vector3::new(0.50, 0.50, 0.50),
         normal: Vector3::new(0.0, -1.0, 0.0),
-        tex_coords: Vector2::new(1.0, 2.0*THIRD),
+        tex_coords: Vector2::new(1.0, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Front-bottom-right
     Vertex3D {
         position: Vector3::new(-0.50, 0.50, 0.50),
         normal: Vector3::new(0.0, -1.0, 0.0),
-        tex_coords: Vector2::new(HALF, 2.0*THIRD),
+        tex_coords: Vector2::new(HALF, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Front-bottom-left
@@ -166,7 +169,7 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
     Vertex3D {
         position: Vector3::new(-0.50, 0.50, 0.50),
         normal: Vector3::new(0.0, -1.0, 0.0),
-        tex_coords: Vector2::new(HALF, 2.0*THIRD),
+        tex_coords: Vector2::new(HALF, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Front-bottom-left
@@ -184,7 +187,6 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
         vtype: 0,
         lighting: 0.0,
     }, // Back-bottom-right
-    
     // Facing positive-Z
     Vertex3D {
         position: Vector3::new(0.50, 0.50, -0.50),
@@ -228,7 +230,6 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
         vtype: 0,
         lighting: 0.0,
     }, // Front-bottom-right
-
     // Facing negative-Z
     Vertex3D {
         position: Vector3::new(0.50, -0.50, 0.50),
@@ -247,7 +248,7 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
     Vertex3D {
         position: Vector3::new(-0.50, 0.50, 0.50),
         normal: Vector3::new(0.0, 0.0, -1.0),
-        tex_coords: Vector2::new(HALF, 2.0*THIRD),
+        tex_coords: Vector2::new(HALF, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Back-top-left
@@ -261,14 +262,14 @@ pub(crate) const SKYBOX_VERTS: [Vertex3D; 36] = [
     Vertex3D {
         position: Vector3::new(-0.50, 0.50, 0.50),
         normal: Vector3::new(0.0, 0.0, -1.0),
-        tex_coords: Vector2::new(HALF, 2.0*THIRD),
+        tex_coords: Vector2::new(HALF, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Back-top-left
     Vertex3D {
         position: Vector3::new(0.50, 0.50, 0.50),
         normal: Vector3::new(0.0, 0.0, -1.0),
-        tex_coords: Vector2::new(1.0, 2.0*THIRD),
+        tex_coords: Vector2::new(1.0, 2.0 * THIRD),
         vtype: 0,
         lighting: 0.0,
     }, // Back-top-right
@@ -300,7 +301,7 @@ impl GLRenderable for Skybox {
 
         let skybox_texture = gl_resources.get_texture("skybox").unwrap();
         skybox_texture.use_as_framebuffer_texture(0);
-        shader.set_texture(unsafe {c_str!("skybox_texture")}, 0);
+        shader.set_texture(unsafe { c_str!("skybox_texture") }, 0);
 
         if let Some(vao) = gl_resources.get_vao("skybox") {
             vao.draw();

@@ -41,7 +41,6 @@ pub trait VertexBufferContents {
     fn get_stride(&self) -> usize;
 }
 
-
 impl VertexBufferContents for Vec<Vertex2D> {
     fn setup_for_current_vbo(&self) {
         let stride = std::mem::size_of::<Vertex2D>();
@@ -168,7 +167,6 @@ impl VertexBufferContents for Vec<Vertex3D> {
                 offset_of!(Vertex3D, lighting) as *const c_void,
             );
         }
-        
     }
 
     fn get_length(&self) -> usize {

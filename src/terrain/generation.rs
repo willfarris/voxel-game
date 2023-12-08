@@ -8,7 +8,7 @@ use crate::graphics::resources::GLResources;
 
 use super::{
     chunk::{Chunk, CHUNK_WIDTH},
-    ChunkIndex, Terrain, BlockWorldPos,
+    BlockWorldPos, ChunkIndex, Terrain,
 };
 
 pub struct TerrainGenConfig {
@@ -100,9 +100,13 @@ impl TerrainGenConfig {
         let features = json::parse(features_json).unwrap();
         for (feature_name, feature) in features.entries() {
             let dimensions = &feature["feature_dimensions"];
-            let dimensions = (dimensions[0].as_usize().unwrap(), dimensions[1].as_usize().unwrap(), dimensions[2].as_usize().unwrap());
+            let dimensions = (
+                dimensions[0].as_usize().unwrap(),
+                dimensions[1].as_usize().unwrap(),
+                dimensions[2].as_usize().unwrap(),
+            );
             let mut feature_vec: Vec<Vec<Vec<usize>>> = vec![];
-            
+
             let feature_blocks = &feature["block_data"];
             for y in 0..dimensions.1 {
                 let feature_slice_y = &feature_blocks[y];
@@ -118,14 +122,14 @@ impl TerrainGenConfig {
                 }
                 feature_vec.push(z_vec);
             }
-            self.world_features.insert(feature_name.to_string(), feature_vec);
+            self.world_features
+                .insert(feature_name.to_string(), feature_vec);
         }
     }
 
     fn get_feature_blueprint(&self, feature_name: &str) -> Option<&Vec<Vec<Vec<usize>>>> {
         self.world_features.get(feature_name)
     }
-    
 }
 
 pub(crate) mod terraingen {
@@ -133,7 +137,7 @@ pub(crate) mod terraingen {
     use crate::terrain::{
         block::block_index_by_name,
         chunk::{Chunk, CHUNK_WIDTH},
-        BlockWorldPos, ChunkIndex, BlockIndex,
+        BlockIndex, BlockWorldPos, ChunkIndex,
     };
 
     pub fn generate_surface(
@@ -204,33 +208,77 @@ pub(crate) mod terraingen {
                     chunk_index.y as f64 * 16.0 + block_z as f64,
                 ];
                 let surface = terrain_config.get_surface(global_coords).round() as usize;
-                let global_index = BlockWorldPos::new(global_coords[0] as isize, surface as isize, global_coords[1] as isize);
-                
+                let global_index = BlockWorldPos::new(
+                    global_coords[0] as isize,
+                    surface as isize,
+                    global_coords[1] as isize,
+                );
+
                 let biome = terrain_config.get_biome(global_coords);
                 match biome {
                     Biome::Forest => {
                         let has_grass: u8 = rand::random();
                         match has_grass {
-                            0..=63 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue),
-                            64..=65 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "rose", terrain_config, &mut placement_queue),
-                            66..=67 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "dandelion", terrain_config, &mut placement_queue),
-                            68 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "oak_tree", terrain_config, &mut placement_queue),
+                            0..=63 => instantiate_feature(
+                                &(global_index + BlockWorldPos::new(0, 1, 0)),
+                                "short_grass",
+                                terrain_config,
+                                &mut placement_queue,
+                            ),
+                            64..=65 => instantiate_feature(
+                                &(global_index + BlockWorldPos::new(0, 1, 0)),
+                                "rose",
+                                terrain_config,
+                                &mut placement_queue,
+                            ),
+                            66..=67 => instantiate_feature(
+                                &(global_index + BlockWorldPos::new(0, 1, 0)),
+                                "dandelion",
+                                terrain_config,
+                                &mut placement_queue,
+                            ),
+                            68 => instantiate_feature(
+                                &(global_index + BlockWorldPos::new(0, 1, 0)),
+                                "oak_tree",
+                                terrain_config,
+                                &mut placement_queue,
+                            ),
                             _ => {}
                         }
                     }
                     Biome::Plains => {
                         let has_grass: u8 = rand::random();
                         match has_grass {
-                            0..=63 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue),
-                            64..=65 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "rose", terrain_config, &mut placement_queue),
-                            66..=75 => instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "dandelion", terrain_config, &mut placement_queue),
+                            0..=63 => instantiate_feature(
+                                &(global_index + BlockWorldPos::new(0, 1, 0)),
+                                "short_grass",
+                                terrain_config,
+                                &mut placement_queue,
+                            ),
+                            64..=65 => instantiate_feature(
+                                &(global_index + BlockWorldPos::new(0, 1, 0)),
+                                "rose",
+                                terrain_config,
+                                &mut placement_queue,
+                            ),
+                            66..=75 => instantiate_feature(
+                                &(global_index + BlockWorldPos::new(0, 1, 0)),
+                                "dandelion",
+                                terrain_config,
+                                &mut placement_queue,
+                            ),
                             _ => {}
                         }
                     }
                     Biome::Hills => {
                         let has_grass: u8 = rand::random();
                         if let 0..=16 = has_grass {
-                            instantiate_feature(&(global_index + BlockWorldPos::new(0, 1, 0)), "short_grass", terrain_config, &mut placement_queue);
+                            instantiate_feature(
+                                &(global_index + BlockWorldPos::new(0, 1, 0)),
+                                "short_grass",
+                                terrain_config,
+                                &mut placement_queue,
+                            );
                         }
                     }
                     Biome::Desert => {}
@@ -241,7 +289,12 @@ pub(crate) mod terraingen {
         placement_queue
     }
 
-    fn instantiate_feature(world_position: &BlockWorldPos, feature_name: &str, terrain_config: &TerrainGenConfig, placement_queue: &mut Vec<(BlockWorldPos, usize)>) {
+    fn instantiate_feature(
+        world_position: &BlockWorldPos,
+        feature_name: &str,
+        terrain_config: &TerrainGenConfig,
+        placement_queue: &mut Vec<(BlockWorldPos, usize)>,
+    ) {
         if let Some(feature) = terrain_config.get_feature_blueprint(feature_name) {
             let y_len = feature.len();
             for (y, slice) in feature.iter().enumerate().take(y_len) {
@@ -250,7 +303,8 @@ pub(crate) mod terraingen {
                     let x_len = row.len();
                     for (x, block_id) in row.iter().enumerate().take(x_len) {
                         if *block_id != 0 {
-                            let block_world_pos = world_position + BlockWorldPos::new(x as isize, y as isize, z as isize);
+                            let block_world_pos = world_position
+                                + BlockWorldPos::new(x as isize, y as isize, z as isize);
                             placement_queue.push((block_world_pos, *block_id));
                         }
                     }
@@ -278,7 +332,8 @@ impl Terrain {
                 let chunk_index = start_chunk_index + ChunkIndex::new(chunk_x, chunk_z);
                 if self.chunks.get(&chunk_index).is_none() {
                     let mut cur_chunk = Box::new(Chunk::new());
-                    let placement_queue = terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
+                    let placement_queue =
+                        terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
                     self.chunks.insert(chunk_index, cur_chunk);
                     self.place_features(placement_queue);
                     self.update_chunk(&chunk_index);
@@ -295,7 +350,6 @@ impl Terrain {
     }
 
     pub(crate) fn place_features(&mut self, feature_blocks: Vec<(BlockWorldPos, usize)>) {
-
         // Update the placement queue with blocks that are part of the new feature
         for (world_pos, block_id) in feature_blocks {
             if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(&world_pos) {
@@ -307,7 +361,8 @@ impl Terrain {
                     if let Some(block_vec) = self.placement_queue.get_mut(&chunk_index) {
                         block_vec.push((block_index, block_id));
                     } else {
-                        self.placement_queue.insert(chunk_index, vec![(block_index, block_id)]);
+                        self.placement_queue
+                            .insert(chunk_index, vec![(block_index, block_id)]);
                     }
                 }
             }

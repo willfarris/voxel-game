@@ -1,5 +1,3 @@
-
-
 pub const SCREENQUAD_VERT_SRC: &str = include_str!("../../shaders/screenquad.vert");
 
 pub const LIGHTING_FRAG_SRC: &str = include_str!("../../shaders/lighting.frag");

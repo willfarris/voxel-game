@@ -1,6 +1,5 @@
-use gl::types::GLsizeiptr;
 use super::vertex::VertexBufferContents;
-
+use gl::types::GLsizeiptr;
 
 pub struct VertexBufferObject {
     id: u32,
@@ -13,10 +12,7 @@ impl VertexBufferObject {
         unsafe {
             gl::GenBuffers(1, &mut id);
         }
-        Self {
-            id,
-            buffer,
-        }
+        Self { id, buffer }
     }
 
     pub fn update(&mut self, new_contents: Box<dyn VertexBufferContents + Send + Sync>) {
@@ -54,8 +50,6 @@ impl VertexBufferObject {
     }
 
     pub fn delete(&mut self) {
-        unsafe {
-            gl::DeleteBuffers(1, &self.id)
-        }
+        unsafe { gl::DeleteBuffers(1, &self.id) }
     }
 }

@@ -7,7 +7,11 @@ use crate::{
     graphics::{
         mesh::push_face,
         resources::{GLRenderable, GLResources},
-        vertex::Vertex3D, uniform::Uniform, texture::Texture, source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC}, shader::Shader,
+        shader::Shader,
+        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC},
+        texture::Texture,
+        uniform::Uniform,
+        vertex::Vertex3D,
     },
     item::drop::ItemDrop,
 };
@@ -30,6 +34,7 @@ pub struct Terrain {
     player_visible: Vec<ChunkIndex>,
     chunks: HashMap<ChunkIndex, Box<Chunk>>,
     placement_queue: HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>,
+    lighting_update_queue: Vec<ChunkIndex>,
 }
 
 impl Terrain {
@@ -38,6 +43,7 @@ impl Terrain {
             player_visible: Vec::new(),
             chunks: HashMap::new(),
             placement_queue: HashMap::new(),
+            lighting_update_queue: Vec::new(),
         }
     }
 
@@ -175,19 +181,23 @@ impl Terrain {
                         match cur.mesh_type {
                             MeshType::Block => {
                                 let (x_pos_block, x_pos_lighting) = if x < CHUNK_WIDTH - 1 {
-                                    let x_pos_index = BlockIndex::new(x+1, y, z);
+                                    let x_pos_index = BlockIndex::new(x + 1, y, z);
                                     (
                                         Some(BLOCKS[chunk.get_block(&x_pos_index)]),
-                                        chunk.get_lighting(&x_pos_index)
+                                        chunk.get_lighting(&x_pos_index),
                                     )
                                 } else {
                                     let x_pos_index = BlockIndex::new(0, y, z);
-                                    x_pos_chunk.map(|adjacent_chunk| {
-                                        (
-                                            Some(BLOCKS[adjacent_chunk.get_block(&x_pos_index)]),
-                                            adjacent_chunk.get_lighting(&x_pos_index)
-                                        )
-                                    }).unwrap_or((None, 0))
+                                    x_pos_chunk
+                                        .map(|adjacent_chunk| {
+                                            (
+                                                Some(
+                                                    BLOCKS[adjacent_chunk.get_block(&x_pos_index)],
+                                                ),
+                                                adjacent_chunk.get_lighting(&x_pos_index),
+                                            )
+                                        })
+                                        .unwrap_or((None, 0))
                                 };
                                 if let Some(adjacent_block) = x_pos_block {
                                     if adjacent_block.transparent {
@@ -206,16 +216,20 @@ impl Terrain {
                                     let x_neg_index = Vector3::new(x - 1, y, z);
                                     (
                                         Some(BLOCKS[chunk.get_block(&x_neg_index)]),
-                                        chunk.get_lighting(&x_neg_index)
+                                        chunk.get_lighting(&x_neg_index),
                                     )
                                 } else {
                                     let x_neg_index = Vector3::new(CHUNK_WIDTH - 1, y, z);
-                                    x_neg_chunk.map(|adjacent_chunk| {
-                                        (
-                                            Some(BLOCKS[adjacent_chunk.get_block(&x_neg_index)]),
-                                            adjacent_chunk.get_lighting(&x_neg_index)
-                                        )
-                                    }).unwrap_or((None, 0))
+                                    x_neg_chunk
+                                        .map(|adjacent_chunk| {
+                                            (
+                                                Some(
+                                                    BLOCKS[adjacent_chunk.get_block(&x_neg_index)],
+                                                ),
+                                                adjacent_chunk.get_lighting(&x_neg_index),
+                                            )
+                                        })
+                                        .unwrap_or((None, 0))
                                 };
                                 if let Some(adjacent_block) = x_neg_block {
                                     if adjacent_block.transparent {
@@ -234,7 +248,7 @@ impl Terrain {
                                     let y_pos_index = Vector3::new(x, y + 1, z);
                                     (
                                         Some(BLOCKS[chunk.get_block(&y_pos_index)]),
-                                        chunk.get_lighting(&y_pos_index)
+                                        chunk.get_lighting(&y_pos_index),
                                     )
                                 } else {
                                     (None, 0)
@@ -256,7 +270,7 @@ impl Terrain {
                                     let y_neg_index = Vector3::new(x, y - 1, z);
                                     (
                                         Some(BLOCKS[chunk.get_block(&y_neg_index)]),
-                                        chunk.get_lighting(&y_neg_index)
+                                        chunk.get_lighting(&y_neg_index),
                                     )
                                 } else {
                                     (None, 0)
@@ -278,16 +292,20 @@ impl Terrain {
                                     let z_pos_index = Vector3::new(x, y, z + 1);
                                     (
                                         Some(BLOCKS[chunk.get_block(&z_pos_index)]),
-                                        chunk.get_lighting(&z_pos_index)
+                                        chunk.get_lighting(&z_pos_index),
                                     )
                                 } else {
                                     let z_pos_index = Vector3::new(x, y, 0);
-                                    z_pos_chunk.map(|adjacent_chunk| {
-                                        (
-                                            Some(BLOCKS[adjacent_chunk.get_block(&z_pos_index)]),
-                                            adjacent_chunk.get_lighting(&z_pos_index)
-                                        )
-                                    }).unwrap_or((None, 16))
+                                    z_pos_chunk
+                                        .map(|adjacent_chunk| {
+                                            (
+                                                Some(
+                                                    BLOCKS[adjacent_chunk.get_block(&z_pos_index)],
+                                                ),
+                                                adjacent_chunk.get_lighting(&z_pos_index),
+                                            )
+                                        })
+                                        .unwrap_or((None, 16))
                                 };
                                 if let Some(adjacent_block) = z_pos_block {
                                     if adjacent_block.transparent {
@@ -306,16 +324,20 @@ impl Terrain {
                                     let z_neg_index = Vector3::new(x, y, z - 1);
                                     (
                                         Some(BLOCKS[chunk.get_block(&z_neg_index)]),
-                                        chunk.get_lighting(&z_neg_index)
+                                        chunk.get_lighting(&z_neg_index),
                                     )
                                 } else {
                                     let z_neg_index = Vector3::new(x, y, CHUNK_WIDTH - 1);
-                                    z_neg_chunk.map(|adjacent_chunk| {
-                                        (
-                                            Some(BLOCKS[adjacent_chunk.get_block(&z_neg_index)]),
-                                            adjacent_chunk.get_lighting(&z_neg_index)
-                                        )
-                                    }).unwrap_or((None, 0))
+                                    z_neg_chunk
+                                        .map(|adjacent_chunk| {
+                                            (
+                                                Some(
+                                                    BLOCKS[adjacent_chunk.get_block(&z_neg_index)],
+                                                ),
+                                                adjacent_chunk.get_lighting(&z_neg_index),
+                                            )
+                                        })
+                                        .unwrap_or((None, 0))
                                 };
                                 if let Some(adjacent_block) = z_neg_index {
                                     if adjacent_block.transparent {
@@ -332,10 +354,38 @@ impl Terrain {
                             }
                             MeshType::CrossedPlanes => {
                                 let lighting = chunk.get_lighting(&block_index) as f32;
-                                push_face(&position, 6, &mut vertices, &tex_coords[0], vertex_type, lighting);
-                                push_face(&position, 7, &mut vertices, &tex_coords[0], vertex_type, lighting);
-                                push_face(&position, 8, &mut vertices, &tex_coords[0], vertex_type, lighting);
-                                push_face(&position, 9, &mut vertices, &tex_coords[0], vertex_type, lighting);
+                                push_face(
+                                    &position,
+                                    6,
+                                    &mut vertices,
+                                    &tex_coords[0],
+                                    vertex_type,
+                                    lighting,
+                                );
+                                push_face(
+                                    &position,
+                                    7,
+                                    &mut vertices,
+                                    &tex_coords[0],
+                                    vertex_type,
+                                    lighting,
+                                );
+                                push_face(
+                                    &position,
+                                    8,
+                                    &mut vertices,
+                                    &tex_coords[0],
+                                    vertex_type,
+                                    lighting,
+                                );
+                                push_face(
+                                    &position,
+                                    9,
+                                    &mut vertices,
+                                    &tex_coords[0],
+                                    vertex_type,
+                                    lighting,
+                                );
                             }
                         }
                     }
@@ -375,6 +425,7 @@ impl Terrain {
                 let block_id = chunk.get_block(&block_index);
                 chunk.set_block(&block_index, 0);
                 chunk.update();
+                self.lighting_update_queue.push(chunk_index);
                 self.update_chunk_mesh(&chunk_index, gl_resources);
 
                 // Create a drop and return it
@@ -460,9 +511,13 @@ impl Terrain {
         BLOCKS[self.block_at_world_pos(world_pos)].solid
     }
 
-    pub fn update_visible_chunks_near(&mut self, render_distance: isize, player_chunk: &ChunkIndex) {
+    pub fn update_visible_chunks_near(
+        &mut self,
+        render_distance: isize,
+        player_chunk: &ChunkIndex,
+    ) {
         self.player_visible.clear();
-        
+
         for i in -render_distance..=render_distance {
             for j in -render_distance..=render_distance {
                 let offset = ChunkIndex::new(i, j);
@@ -471,17 +526,30 @@ impl Terrain {
         }
     }
 
+    pub fn pending_light_updates(&mut self) -> Vec<ChunkIndex> {
+        let pending_updates = self.lighting_update_queue.clone();
+        self.lighting_update_queue.clear();
+        pending_updates
+    }
+
+    pub fn copy_chunk(&self, chunk_index: &ChunkIndex) -> Option<Box<Chunk>> {
+        if let Some(chunk) = self.chunks.get(chunk_index) {
+            Some(chunk.clone())
+        } else {
+            None
+        }
+    }
 }
 
 impl GLRenderable for Terrain {
     fn init_gl_resources(&self, gl_resources: &mut GLResources) {
-
         // Texture is also used by drops and may already exist
         if gl_resources.get_texture("terrain").is_none() {
-            let terrain_texture = Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
+            let terrain_texture =
+                Texture::from_dynamic_image_bytes(TERRAIN_BITMAP, ImageFormat::Png);
             gl_resources.add_texture("terrain", terrain_texture);
         }
-        
+
         let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
         gl_resources.add_shader("terrain", terrain_program);
 
@@ -496,25 +564,22 @@ impl GLRenderable for Terrain {
         }
     }
 
-    fn draw(
-        &self,
-        gl_resources: &GLResources,
-        uniforms: &[(&str, Box<dyn Uniform>)],
-    ) {
+    fn draw(&self, gl_resources: &GLResources, uniforms: &[(&str, Box<dyn Uniform>)]) {
         let shader = gl_resources.get_shader("terrain").unwrap();
         let texture = gl_resources.get_texture("terrain").unwrap();
 
         texture.use_as_framebuffer_texture(0);
 
         shader.use_program();
-        
+
         for (name, uniform) in uniforms {
             uniform.set_as_uniform(shader, name);
         }
 
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
-        for chunk_index in &self.player_visible {//self.chunks.keys() {
+        for chunk_index in &self.player_visible {
+            //self.chunks.keys() {
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
                 0f32,
@@ -528,5 +593,4 @@ impl GLRenderable for Terrain {
             }
         }
     }
-
 }

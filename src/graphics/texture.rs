@@ -76,12 +76,12 @@ impl Texture {
                 0,
                 gl::RGB,
                 gl::FLOAT,
-                &img_bytes[0] as *const Vector3<f32> as *const c_void
+                &img_bytes[0] as *const Vector3<f32> as *const c_void,
             );
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);  
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
         }
         texture.unbind();
         texture

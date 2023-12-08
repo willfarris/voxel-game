@@ -1,7 +1,7 @@
 pub(crate) mod camera;
 mod inventory;
 
-use cgmath::{InnerSpace, Matrix4, Vector3, Vector2};
+use cgmath::{InnerSpace, Matrix4, Vector2, Vector3};
 
 use camera::Camera;
 
@@ -86,7 +86,7 @@ impl Player {
 
     pub fn stop_move(&mut self) {
         self.walking = false;
-        self.time_walking %= 2.0*std::f32::consts::PI/10.0;
+        self.time_walking %= 2.0 * std::f32::consts::PI / 10.0;
     }
 
     pub fn camera_view_matrix(&self) -> Matrix4<f32> {
@@ -119,8 +119,7 @@ impl PhysicsUpdate for Player {
             self.time_walking += delta_time;
         }
 
-        
-        self.camera.position += self.camera.up * 0.03*(10.0 * self.time_walking).sin();
+        self.camera.position += self.camera.up * 0.03 * (10.0 * self.time_walking).sin();
 
         self.velocity += self.acceleration * delta_time;
 

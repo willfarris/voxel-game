@@ -1,4 +1,4 @@
-use crate::{EngineLock, engine::PlayerInput};
+use crate::{engine::PlayerInput, EngineLock};
 use jni::{
     objects::{JClass, JString},
     sys::{jboolean, jfloat, jint, jlong, jstring},
@@ -11,7 +11,7 @@ pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_initEngineNa
     _: JClass,
     save_path: JString,
 ) -> jlong {
-    #[cfg(features="android-lib")]
+    #[cfg(features = "android-lib")]
     {
         android_log::init("VoxelTest").unwrap();
     }
@@ -55,9 +55,12 @@ pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_saveGameNati
     env: JNIEnv,
     _: JClass,
     ptr: jlong,
-    save_path: JString
+    save_path: JString,
 ) {
-    let save_path_rs: String = env.get_string(save_path).expect("unable to parse save path").into();
+    let save_path_rs: String = env
+        .get_string(save_path)
+        .expect("unable to parse save path")
+        .into();
     let mut engine = (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
     engine.save_to_file(save_path_rs.as_str());
 }

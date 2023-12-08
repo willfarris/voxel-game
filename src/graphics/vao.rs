@@ -11,10 +11,7 @@ impl VertexAttributeObject {
         unsafe {
             gl::GenVertexArrays(1, &mut id);
         }
-        let vao = Self {
-            id,
-            buffer,
-        };
+        let vao = Self { id, buffer };
 
         vao.setup_vbo();
 
@@ -32,9 +29,7 @@ impl VertexAttributeObject {
     }
 
     fn bind(&self) {
-        unsafe {
-            gl::BindVertexArray(self.id)
-        }
+        unsafe { gl::BindVertexArray(self.id) }
     }
 
     fn unbind(&self) {
@@ -55,8 +50,6 @@ impl VertexAttributeObject {
         self.bind();
         self.buffer.delete();
         self.unbind();
-        unsafe {
-            gl::DeleteVertexArrays(1, &self.id)
-        }
+        unsafe { gl::DeleteVertexArrays(1, &self.id) }
     }
 }

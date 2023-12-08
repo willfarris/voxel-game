@@ -2,16 +2,13 @@ pub struct Depthbuffer {
     pub(crate) id: u32,
 }
 
-
 impl Depthbuffer {
     pub fn new(width: i32, height: i32) -> Self {
         let mut id = 0;
         unsafe {
             gl::GenRenderbuffers(1, &mut id);
         }
-        let depthbuffer = Self {
-            id,
-        };
+        let depthbuffer = Self { id };
         depthbuffer.bind();
 
         let depth_bits = gl::DEPTH_COMPONENT24;

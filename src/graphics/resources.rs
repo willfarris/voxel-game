@@ -1,11 +1,8 @@
 use std::collections::{HashMap, VecDeque};
 
-
 use super::{
-    framebuffer::{Framebuffer, self},
-    shader::Shader,
-    texture::Texture,
-    vertex::VertexBufferContents, vao::VertexAttributeObject, vbo::VertexBufferObject, uniform::Uniform,
+    framebuffer::Framebuffer, shader::Shader, texture::Texture, uniform::Uniform,
+    vao::VertexAttributeObject, vbo::VertexBufferObject, vertex::VertexBufferContents,
 };
 
 pub struct GLResources {
@@ -13,7 +10,7 @@ pub struct GLResources {
     shaders: HashMap<&'static str, Shader>,
     vaos: HashMap<String, VertexAttributeObject>,
     framebuffers: HashMap<&'static str, Framebuffer>,
-    
+
     vao_update_queue: VecDeque<(String, Box<dyn VertexBufferContents + Send + Sync>)>,
 }
 
@@ -24,7 +21,7 @@ impl GLResources {
             shaders: HashMap::new(),
             vaos: HashMap::new(),
             framebuffers: HashMap::new(),
-            
+
             vao_update_queue: VecDeque::new(),
         }
     }
@@ -44,7 +41,7 @@ impl GLResources {
             vao.delete();
             false
         });
-        
+
         self.framebuffers.retain(|_name, framebuffer| {
             framebuffer.delete();
             false
@@ -65,7 +62,11 @@ impl GLResources {
         self.framebuffers.insert(name, framebuffer);
     }
 
-    pub fn add_vao(&mut self, name: String, buffer_contents: Box<dyn VertexBufferContents + Send + Sync>) {
+    pub fn add_vao(
+        &mut self,
+        name: String,
+        buffer_contents: Box<dyn VertexBufferContents + Send + Sync>,
+    ) {
         let vbo = VertexBufferObject::create_buffer(buffer_contents);
         let vao = VertexAttributeObject::with_buffer(vbo);
         self.vaos.insert(name, vao);
@@ -87,7 +88,11 @@ impl GLResources {
         self.framebuffers.get(name)
     }
 
-    pub fn create_or_update_vao(&mut self, buffer_name: String, buffer_contents: Box<dyn VertexBufferContents + Send + Sync>) {
+    pub fn create_or_update_vao(
+        &mut self,
+        buffer_name: String,
+        buffer_contents: Box<dyn VertexBufferContents + Send + Sync>,
+    ) {
         if let Some(vao) = self.vaos.get_mut(&buffer_name) {
             vao.update_buffer(buffer_contents);
         } else {
@@ -95,7 +100,11 @@ impl GLResources {
         }
     }
 
-    pub fn update_vao_buffer(&mut self, name: String, buffer_contents: Box<dyn VertexBufferContents + Send + Sync>) {
+    pub fn update_vao_buffer(
+        &mut self,
+        name: String,
+        buffer_contents: Box<dyn VertexBufferContents + Send + Sync>,
+    ) {
         self.vao_update_queue.push_front((name, buffer_contents));
     }
 
@@ -106,14 +115,9 @@ impl GLResources {
             }
         }
     }
-    
 }
 
 pub trait GLRenderable {
     fn init_gl_resources(&self, gl_resources: &mut GLResources);
-    fn draw(
-        &self,
-        gl_resources: &GLResources,
-        uniforms: &[(&str, Box<dyn Uniform>)],
-    );
+    fn draw(&self, gl_resources: &GLResources, uniforms: &[(&str, Box<dyn Uniform>)]);
 }

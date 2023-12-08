@@ -1,8 +1,8 @@
 use std::env;
 
 use glfw::Context;
-use voxel::q_rsqrt;
 use voxel::engine::{Engine, PlayerInput};
+use voxel::q_rsqrt;
 
 const WIDTH: i32 = 1920;
 const HEIGHT: i32 = 900;
@@ -15,9 +15,9 @@ fn main() {
     let mut voxel_game = match args[1].as_str() {
         "--restore" => Engine::load_from_save(GAME_SAVE_PATH),
         "--new" => Engine::default(),
-        _ => Engine::default()
+        _ => Engine::default(),
     };
-    
+
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
     glfw.window_hint(glfw::WindowHint::ContextVersion(3, 1));
@@ -200,6 +200,9 @@ fn main() {
                             println!("{:?}", k);
                         }
                     }
+                }
+                glfw::WindowEvent::Size(w, h) => {
+                    println!("Resized to {}, {}", w, h);
                 }
                 _ => println!("{:?}", event),
             }

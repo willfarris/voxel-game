@@ -1,6 +1,6 @@
 use std::ffi::CString;
 
-use cgmath::{Vector3, Vector2, Matrix4, Matrix3, Matrix2};
+use cgmath::{Matrix2, Matrix3, Matrix4, Vector2, Vector3};
 
 use super::shader::Shader;
 

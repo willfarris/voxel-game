@@ -3,6 +3,7 @@ pub(crate) use cgmath::{Deg, Matrix4, Quaternion, Rotation3, Vector3};
 
 use crate::{
     c_str,
+    entity::EntityTrait,
     graphics::{
         mesh::block_drop_vertices,
         resources::{GLRenderable, GLResources},
@@ -15,7 +16,6 @@ use crate::{
     },
     player::GRAVITY,
     terrain::block::BLOCKS,
-    entity::EntityTrait,
 };
 
 pub struct ItemDrop {
@@ -57,14 +57,9 @@ impl GLRenderable for ItemDrop {
             let verts = Box::new(block_drop_vertices(&BLOCKS[self.block_id]));
             gl_resources.update_vao_buffer(name, verts);
         }
-
     }
 
-    fn draw(
-        &self,
-        gl_resources: &GLResources,
-        uniforms: &[(&str, Box<dyn Uniform>)],
-    ) {
+    fn draw(&self, gl_resources: &GLResources, uniforms: &[(&str, Box<dyn Uniform>)]) {
         let scale_matrix = Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
         let rotation = Quaternion::from_angle_x(Deg(self.rotation.x))
             * Quaternion::from_angle_y(Deg(self.rotation.y))
@@ -89,7 +84,6 @@ impl GLRenderable for ItemDrop {
         if let Some(vao) = gl_resources.get_vao(&name) {
             vao.draw();
         }
-
     }
 }
 
@@ -142,7 +136,7 @@ impl PhysicsUpdate for ItemDrop {
         self.movement_delta = delta_time
             * Vector3 {
                 x: 0.0,
-                y: self.velocity.y as f32,
+                y: self.velocity.y,
                 z: 0.0,
             };
     }

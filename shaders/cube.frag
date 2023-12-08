@@ -20,6 +20,7 @@ void main() {
     if (color.a < 0.5) { discard; }
 
     float lighting = min((v_lighting / 16.0) + (1./16.), 1.0);
+    lighting = lighting * lighting * lighting;
 
     position = vec4(v_position, 1.0);
     normal = vec4(v_normal, 1.0);

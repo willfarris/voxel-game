@@ -2,16 +2,20 @@ use std::time::Duration;
 
 use cgmath::Vector3;
 
-use crate::terrain::{chunk::{CHUNK_WIDTH, Chunk}, ChunkIndex, generation::terraingen};
+use crate::terrain::{
+    chunk::{Chunk, CHUNK_WIDTH},
+    generation::terraingen,
+    ChunkIndex,
+};
 
 use super::Engine;
 
 impl Engine {
-
     pub fn start_workers(&mut self) {
         self.terrain_thread();
+        self.lighting_thread();
     }
-    
+
     fn terrain_thread(&mut self) {
         #[cfg(feature = "android-lib")]
         {
@@ -76,18 +80,43 @@ impl Engine {
                         let mut terrain = terrain_gen.write().unwrap();
                         terrain.insert_chunk(*chunk_index, chunk);
                         terrain.place_features(placement_queue);
-                        terrain.update_chunk(chunk_index);
                     }
                     std::thread::sleep(Duration::from_millis(1));
                 }
-
-                /*for chunk_index in chunk_update_list.iter() {
-                    let terrain = terrain_gen.read().unwrap();
-                    let mut gl_resources = gl_resources_gen.write().unwrap();
-                    terrain.update_chunk_mesh(chunk_index, &mut gl_resources)
-                }*/
             }
         });
     }
 
+    fn lighting_thread(&mut self) {
+        let terrain_light = self.terrain.clone();
+        let player_light = self.player.clone();
+
+        std::thread::spawn(move || loop {
+            let player_chunk = {
+                let player = player_light.read().unwrap();
+                let player_position = player.position;
+                ChunkIndex::new(
+                    player_position.x.floor() as isize / CHUNK_WIDTH as isize,
+                    player_position.z.floor() as isize / CHUNK_WIDTH as isize,
+                )
+            };
+            let pending_light_updates = {
+                let mut terrain = terrain_light.write().unwrap();
+                terrain.pending_light_updates()
+            };
+
+            for chunk_index in pending_light_updates {
+                let chunk = { terrain_light.write().unwrap().copy_chunk(&chunk_index) };
+                if let Some(mut chunk) = chunk {
+                    chunk.update_lighting();
+                    terrain_light
+                        .write()
+                        .unwrap()
+                        .insert_chunk(chunk_index, chunk);
+                }
+            }
+
+            std::thread::sleep(Duration::from_millis(100));
+        });
+    }
 }
