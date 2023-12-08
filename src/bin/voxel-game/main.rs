@@ -18,7 +18,7 @@ fn main() {
         _ => Engine::default(),
     };
 
-    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+    let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
 
     glfw.window_hint(glfw::WindowHint::ContextVersion(3, 1));
     glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::OpenGlEs));
