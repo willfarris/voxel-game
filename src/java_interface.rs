@@ -7,7 +7,7 @@ use jni::{
 
 #[no_mangle]
 pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_initEngineNative(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _: JClass,
     save_path: JString,
 ) -> jlong {
@@ -15,7 +15,7 @@ pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_initEngineNa
     {
         android_log::init("VoxelTest").unwrap();
     }
-    let save_path_rs: String = env.get_string(save_path).unwrap().into();
+    let save_path_rs: String = env.get_string(&save_path).unwrap().into();
     let save_file = std::path::Path::new(&save_path_rs);
     let engine = if save_file.exists() {
         debug!("Restoring from save file");
@@ -52,13 +52,13 @@ pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_startWorkerT
 
 #[no_mangle]
 pub unsafe extern "C" fn Java_org_farriswheel_voxelgame_VoxelEngine_saveGameNative(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _: JClass,
     ptr: jlong,
     save_path: JString,
 ) {
     let save_path_rs: String = env
-        .get_string(save_path)
+        .get_string(&save_path)
         .expect("unable to parse save path")
         .into();
     let mut engine = (&mut *(ptr as *mut EngineLock)).engine.lock().unwrap();
