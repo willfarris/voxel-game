@@ -92,6 +92,7 @@ impl Terrain {
                 new_chunk.update();
                 self.chunks.insert(chunk_index, new_chunk);
             }
+            self.lighting_update_queue.push(chunk_index);
             if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
                 gl_resources.update_vao_buffer(name, Box::new(chunk_vertices));
@@ -460,6 +461,7 @@ impl Terrain {
     pub(crate) fn update_chunk(&mut self, chunk_index: &ChunkIndex) {
         if let Some(chunk) = self.chunks.get_mut(chunk_index) {
             chunk.update();
+            self.lighting_update_queue.push(chunk_index.clone());
         }
     }
 
@@ -579,7 +581,8 @@ impl GLRenderable for Terrain {
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
         for chunk_index in &self.player_visible {
-            //self.chunks.keys() {
+            
+            
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
                 0f32,

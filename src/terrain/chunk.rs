@@ -1,7 +1,7 @@
 use cgmath::Vector3;
 use json::{object, JsonValue};
 
-use super::{block::BLOCKS, save::save_chunk_data_to_json, BlockIndex, ChunkIndex};
+use super::{block::BLOCKS, save::save_chunk_data_to_json, BlockIndex};
 
 pub(crate) const CHUNK_WIDTH: usize = 16;
 pub(crate) const CHUNK_HEIGHT: usize = 256;
@@ -64,18 +64,21 @@ impl Chunk {
             }
         }
 
-        /*for x in 0..CHUNK_WIDTH {
-            for y in 0..CHUNK_HEIGHT {
-                for z in 0..CHUNK_WIDTH {
-                    self.lighting[x][y][z] = 0;
-                }
-            }
-        }*/
+        
 
         //self.update_lighting();
     }
 
     pub fn update_lighting(&mut self) {
+        // Reset lighting
+        for x in 0..CHUNK_WIDTH {
+            for y in 0..CHUNK_HEIGHT {
+                for z in 0..CHUNK_WIDTH {
+                    self.lighting[x][y][z] = 0;
+                }
+            }
+        }
+
         // Update lighting from sky
         for x in 0..CHUNK_WIDTH {
             for z in 0..CHUNK_WIDTH {
