@@ -2,6 +2,7 @@ use cgmath::{Vector2, Vector3};
 
 use crate::graphics::mesh::block_drop_vertices;
 use crate::graphics::skybox::Skybox;
+use crate::item::drop::ItemDrop;
 use crate::physics::collision::{check_world_collision_axis, Collider};
 use crate::physics::physics_update::PhysicsUpdate;
 use crate::physics::vectormath::{self, Vec3Direction};
@@ -175,17 +176,23 @@ impl Engine {
                                     &player.camera.forward,
                                     6.0,
                                 ) {
-                                    if let Some(drop) = terrain
-                                        .destroy_at_global_pos(&world_index, &mut gl_resources)
-                                    {
-                                        let boxed_drop = Box::new(drop);
+                                    let dropped = terrain.set_block(0, &world_index);
+                                    if dropped != 0 {
+                                        let drop_world_pos = Vector3::new(
+                                            world_index.x as f32 + 0.5,
+                                            world_index.y as f32 + 0.5,
+                                            world_index.z as f32 + 0.5,
+                                        );
+                                        let new_drop =
+                                            Box::new(ItemDrop::new(dropped, drop_world_pos));
+
                                         let verts = Box::new(block_drop_vertices(
-                                            &BLOCKS[boxed_drop.block_id],
+                                            &BLOCKS[new_drop.block_id],
                                         ));
-                                        let name = format!("item_{}", boxed_drop.block_id);
+                                        let name = format!("item_{}", new_drop.block_id);
 
                                         gl_resources.update_vao_buffer(name, verts);
-                                        self.entities.push(boxed_drop);
+                                        self.entities.push(new_drop);
                                     }
                                 }
                             }
@@ -231,11 +238,7 @@ impl Engine {
                                         diff.y as isize,
                                         diff.z as isize,
                                     );
-                                    terrain.place_block(
-                                        1,
-                                        &(world_index + offset),
-                                        &mut gl_resources,
-                                    );
+                                    terrain.set_block(1, &(world_index + offset));
                                 }
                             }
                         }

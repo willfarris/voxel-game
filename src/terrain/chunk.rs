@@ -32,8 +32,10 @@ impl Chunk {
         self.blocks[block_index.x][block_index.y][block_index.z]
     }
 
-    pub fn set_block(&mut self, block_index: &BlockIndex, block_id: usize) {
+    pub fn set_block(&mut self, block_index: &BlockIndex, block_id: usize) -> usize {
+        let prev_block_id = self.blocks[block_index.x][block_index.y][block_index.z];
         self.blocks[block_index.x][block_index.y][block_index.z] = block_id;
+        prev_block_id
     }
 
     pub fn get_metadata(&self, block_index: &BlockIndex) -> usize {
@@ -63,8 +65,6 @@ impl Chunk {
                 }
             }
         }
-
-        
 
         //self.update_lighting();
     }

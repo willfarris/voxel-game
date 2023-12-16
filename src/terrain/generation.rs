@@ -4,8 +4,6 @@ use cgmath::{Vector2, Vector3};
 use noise::{NoiseFn, Perlin};
 use splines::Spline;
 
-use crate::graphics::resources::GLResources;
-
 use super::{
     chunk::{Chunk, CHUNK_WIDTH},
     BlockWorldPos, ChunkIndex, Terrain,
@@ -73,8 +71,8 @@ impl TerrainGenConfig {
 
     fn get_continentalness(&self, offset: [f64; 2]) -> f64 {
         let cont_sample = self.perlin.get([
-            offset[0] * self.continentalness_scale.x as f64,
-            offset[1] * self.continentalness_scale.y as f64,
+            offset[0] * self.continentalness_scale.x,
+            offset[1] * self.continentalness_scale.y,
         ]);
         self.continentalness_spline
             .sample(cont_sample)
@@ -319,7 +317,6 @@ impl Terrain {
         &mut self,
         start_position: &Vector3<f32>,
         chunk_radius: isize,
-        gl_resources: &mut GLResources,
         noise_config: &TerrainGenConfig,
     ) {
         let start_chunk_index = ChunkIndex::new(
@@ -338,13 +335,6 @@ impl Terrain {
                     self.place_features(placement_queue);
                     self.update_chunk(&chunk_index);
                 }
-            }
-        }
-
-        for chunk_x in -chunk_radius..chunk_radius {
-            for chunk_z in -chunk_radius..chunk_radius {
-                let chunk_index = start_chunk_index + ChunkIndex::new(chunk_x, chunk_z);
-                self.update_chunk_mesh(&chunk_index, gl_resources);
             }
         }
     }

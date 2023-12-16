@@ -3,17 +3,14 @@ use std::collections::HashMap;
 use cgmath::{Matrix4, Vector2, Vector3};
 use image::ImageFormat;
 
-use crate::{
-    graphics::{
-        mesh::push_face,
-        resources::{GLRenderable, GLResources},
-        shader::Shader,
-        source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC},
-        texture::Texture,
-        uniform::Uniform,
-        vertex::Vertex3D,
-    },
-    item::drop::ItemDrop,
+use crate::graphics::{
+    mesh::push_face,
+    resources::{GLRenderable, GLResources},
+    shader::Shader,
+    source::{TERRAIN_BITMAP, TERRAIN_FRAG_SRC, TERRAIN_VERT_SRC},
+    texture::Texture,
+    uniform::Uniform,
+    vertex::Vertex3D,
 };
 
 use self::{
@@ -34,7 +31,7 @@ pub struct Terrain {
     player_visible: Vec<ChunkIndex>,
     chunks: HashMap<ChunkIndex, Box<Chunk>>,
     placement_queue: HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>,
-    lighting_update_queue: Vec<ChunkIndex>,
+    chunk_update_queue: Vec<ChunkIndex>,
 }
 
 impl Terrain {
@@ -43,10 +40,11 @@ impl Terrain {
             player_visible: Vec::new(),
             chunks: HashMap::new(),
             placement_queue: HashMap::new(),
-            lighting_update_queue: Vec::new(),
+            chunk_update_queue: Vec::new(),
         }
     }
 
+    /// Fetch the ID of the block at the global position `world_pos`
     pub fn block_at_world_pos(&self, world_pos: &BlockWorldPos) -> usize {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.get(&chunk_index) {
@@ -59,6 +57,7 @@ impl Terrain {
         }
     }
 
+    /// Convert from world coordinates to chunkn indices, and the block index within the chunk
     pub fn chunk_and_block_index(world_pos: &BlockWorldPos) -> Option<(ChunkIndex, BlockIndex)> {
         if world_pos.y > (CHUNK_HEIGHT - 1) as isize {
             None
@@ -76,30 +75,29 @@ impl Terrain {
         }
     }
 
-    pub fn place_block(
-        &mut self,
-        block_id: usize,
-        world_pos: &BlockWorldPos,
-        gl_resources: &mut GLResources,
-    ) {
+    pub fn mark_for_update(&mut self, chunk_index: ChunkIndex) {
+        self.chunk_update_queue.push(chunk_index);
+    }
+
+    /// Set a block at index `world_pos` to element `block_id` in self::blocks::BLOCKS.
+    /// If a chunk was modified, place its index in
+    pub fn set_block(&mut self, block_id: usize, world_pos: &BlockWorldPos) -> usize {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
-            if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
-                chunk.set_block(&block_index, block_id);
-                chunk.update();
+            let cur_block_id = if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
+                chunk.set_block(&block_index, block_id)
             } else {
                 let mut new_chunk = Box::new(Chunk::new());
                 new_chunk.set_block(&block_index, block_id);
-                new_chunk.update();
                 self.chunks.insert(chunk_index, new_chunk);
-            }
-            self.lighting_update_queue.push(chunk_index);
-            if let Some(chunk_vertices) = self.generate_chunk_vertices(&chunk_index) {
-                let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
-                gl_resources.update_vao_buffer(name, Box::new(chunk_vertices));
-            }
+                0
+            };
+            self.mark_for_update(chunk_index);
+            return cur_block_id;
         }
+        0
     }
 
+    /// Generate an array of vertices to pass along to a VBO for drawing
     pub(crate) fn generate_chunk_vertices(
         &self,
         chunk_index: &ChunkIndex,
@@ -415,7 +413,7 @@ impl Terrain {
         }
     }
 
-    pub fn destroy_at_global_pos(
+    /*pub fn destroy_at_global_pos(
         &mut self,
         world_pos: &BlockWorldPos,
         gl_resources: &mut GLResources,
@@ -442,7 +440,7 @@ impl Terrain {
         } else {
             None
         }
-    }
+    }*/
 
     pub(crate) fn update_single_chunk_mesh(
         &self,
@@ -461,7 +459,7 @@ impl Terrain {
     pub(crate) fn update_chunk(&mut self, chunk_index: &ChunkIndex) {
         if let Some(chunk) = self.chunks.get_mut(chunk_index) {
             chunk.update();
-            self.lighting_update_queue.push(chunk_index.clone());
+            self.chunk_update_queue.push(chunk_index.clone());
         }
     }
 
@@ -528,18 +526,14 @@ impl Terrain {
         }
     }
 
-    pub fn pending_light_updates(&mut self) -> Vec<ChunkIndex> {
-        let pending_updates = self.lighting_update_queue.clone();
-        self.lighting_update_queue.clear();
+    pub fn pending_chunk_updates(&mut self) -> Vec<ChunkIndex> {
+        let pending_updates = self.chunk_update_queue.clone();
+        self.chunk_update_queue.clear();
         pending_updates
     }
 
     pub fn copy_chunk(&self, chunk_index: &ChunkIndex) -> Option<Box<Chunk>> {
-        if let Some(chunk) = self.chunks.get(chunk_index) {
-            Some(chunk.clone())
-        } else {
-            None
-        }
+        self.chunks.get(chunk_index).cloned() //.map(|chunk| chunk.clone())
     }
 }
 
@@ -581,8 +575,6 @@ impl GLRenderable for Terrain {
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
         for chunk_index in &self.player_visible {
-            
-            
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
                 0f32,

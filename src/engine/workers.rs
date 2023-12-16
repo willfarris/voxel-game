@@ -13,7 +13,7 @@ use super::Engine;
 impl Engine {
     pub fn start_workers(&mut self) {
         self.terrain_thread();
-        self.lighting_thread();
+        self.chunk_update_thread();
     }
 
     fn terrain_thread(&mut self) {
@@ -27,12 +27,10 @@ impl Engine {
         // Create initial terrain around the player, block the main thread so the player doesn't go through the ground
         {
             let terrain = self.terrain.clone();
-            let gl_resources = self.gl_resources.clone();
             let terrain_config = self.terrain_config.clone();
             terrain.write().unwrap().init_worldgen(
                 &Vector3::new(0.0, 0.0, 0.0),
                 self.render_distance,
-                &mut gl_resources.write().unwrap(),
                 &terrain_config.read().unwrap(),
             );
         }
@@ -80,6 +78,7 @@ impl Engine {
                         let mut terrain = terrain_gen.write().unwrap();
                         terrain.insert_chunk(*chunk_index, chunk);
                         terrain.place_features(placement_queue);
+                        terrain.mark_for_update(*chunk_index);
                     }
                     std::thread::sleep(Duration::from_millis(1));
                 }
@@ -87,36 +86,34 @@ impl Engine {
         });
     }
 
-    fn lighting_thread(&mut self) {
+    fn chunk_update_thread(&mut self) {
         let terrain_light = self.terrain.clone();
-        let player_light = self.player.clone();
+        let gl_resources_light = self.gl_resources.clone();
 
         std::thread::spawn(move || loop {
-            let player_chunk = {
-                let player = player_light.read().unwrap();
-                let player_position = player.position;
-                ChunkIndex::new(
-                    player_position.x.floor() as isize / CHUNK_WIDTH as isize,
-                    player_position.z.floor() as isize / CHUNK_WIDTH as isize,
-                )
-            };
             let pending_light_updates = {
                 let mut terrain = terrain_light.write().unwrap();
-                terrain.pending_light_updates()
+                terrain.pending_chunk_updates()
             };
 
             for chunk_index in pending_light_updates {
                 let chunk = { terrain_light.write().unwrap().copy_chunk(&chunk_index) };
                 if let Some(mut chunk) = chunk {
+                    chunk.update();
                     chunk.update_lighting();
                     terrain_light
                         .write()
                         .unwrap()
                         .insert_chunk(chunk_index, chunk);
                 }
+
+                terrain_light
+                    .write()
+                    .unwrap()
+                    .update_chunk_mesh(&chunk_index, &mut gl_resources_light.write().unwrap());
             }
 
-            std::thread::sleep(Duration::from_millis(100));
+            std::thread::sleep(Duration::from_millis(1));
         });
     }
 }

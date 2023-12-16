@@ -36,7 +36,7 @@ impl Terrain {
             player_visible: Vec::new(),
             chunks,
             placement_queue: HashMap::new(),
-            lighting_update_queue: Vec::new(),
+            chunk_update_queue: Vec::new(),
         }
     }
 
