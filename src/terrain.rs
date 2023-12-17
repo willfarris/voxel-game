@@ -413,35 +413,6 @@ impl Terrain {
         }
     }
 
-    /*pub fn destroy_at_global_pos(
-        &mut self,
-        world_pos: &BlockWorldPos,
-        gl_resources: &mut GLResources,
-    ) -> Option<ItemDrop> {
-        if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
-            if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
-                // Delete block in the world
-                let block_id = chunk.get_block(&block_index);
-                chunk.set_block(&block_index, 0);
-                chunk.update();
-                self.lighting_update_queue.push(chunk_index);
-                self.update_chunk_mesh(&chunk_index, gl_resources);
-
-                // Create a drop and return it
-                let drop_world_pos = Vector3::new(
-                    world_pos.x as f32 + 0.5,
-                    world_pos.y as f32 + 0.5,
-                    world_pos.z as f32 + 0.5,
-                );
-                let block_drop = ItemDrop::new(block_id, drop_world_pos);
-                return Some(block_drop);
-            }
-            None
-        } else {
-            None
-        }
-    }*/
-
     pub(crate) fn update_single_chunk_mesh(
         &self,
         chunk_index: &ChunkIndex,
@@ -453,13 +424,6 @@ impl Terrain {
                 let verts = Box::new(chunk_vertices);
                 gl_resources.update_vao_buffer(name, verts);
             }
-        }
-    }
-
-    pub(crate) fn update_chunk(&mut self, chunk_index: &ChunkIndex) {
-        if let Some(chunk) = self.chunks.get_mut(chunk_index) {
-            chunk.update();
-            self.chunk_update_queue.push(chunk_index.clone());
         }
     }
 

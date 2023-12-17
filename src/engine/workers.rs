@@ -78,7 +78,7 @@ impl Engine {
                         let mut terrain = terrain_gen.write().unwrap();
                         terrain.insert_chunk(*chunk_index, chunk);
                         terrain.place_features(placement_queue);
-                        terrain.mark_for_update(*chunk_index);
+                        //terrain.mark_for_update(*chunk_index);
                     }
                     std::thread::sleep(Duration::from_millis(1));
                 }
