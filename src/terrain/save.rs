@@ -33,19 +33,22 @@ impl Terrain {
             chunks.insert(chunk_index, chunk);
         }
         Self {
-            player_visible: Vec::new(),
-            chunks,
-            placement_queue: HashMap::new(),
+            chunks: [HashMap::new(), chunks],
+            block_placement_queue: HashMap::new(),
             chunk_update_queue: Vec::new(),
+            event_queue: Vec::new(),
         }
     }
 
     pub fn to_json(&self) -> JsonValue {
         let mut chunks = JsonValue::new_object();
-        for (chunk_index, chunk) in self.chunks.iter() {
-            let key = format!("{}_{}", chunk_index.x, chunk_index.y);
-            let chunk_data = chunk.to_json_array();
-            chunks.insert(key.as_str(), chunk_data).unwrap();
+        let priority_levels = self.chunks.len();
+        for p in 0..priority_levels {
+            for (chunk_index, chunk) in self.chunks[p].iter() {
+                let key = format!("{}_{}", chunk_index.x, chunk_index.y);
+                let chunk_data = chunk.to_json_array();
+                chunks.insert(key.as_str(), chunk_data).unwrap();
+            }
         }
 
         object! {

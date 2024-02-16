@@ -1,18 +1,37 @@
+use std::{collections::HashMap, slice::SliceIndex};
+
 use cgmath::Vector3;
 use json::{object, JsonValue};
 
-use super::{block::BLOCKS, save::save_chunk_data_to_json, BlockIndex};
+use super::{block::BLOCKS, save::save_chunk_data_to_json, BlockIndex, ChunkIndex};
 
 pub(crate) const CHUNK_WIDTH: usize = 16;
 pub(crate) const CHUNK_HEIGHT: usize = 256;
 
 pub(crate) type BlockDataArray<T> = [[[T; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
 
+#[derive(Copy, Clone)]
+pub enum ChunkUpdate {
+    // 0: Index of chunk updated
+    // 1: Index of block updated
+    // 2: New value of block at index
+    BlockUpdate(ChunkIndex, BlockIndex, usize),
+
+    // 0: Index of chunk updated
+    // 1: Index of neighbor chunk updated
+    // 2: Index of block that triggered the update
+    // 3: Index of neighbor affected by the update
+    // 4: value of block that triggered the update 
+    NeighborChanged(ChunkIndex, ChunkIndex, BlockIndex, BlockIndex, usize),
+}
+
 #[derive(Clone)]
 pub struct Chunk {
     blocks: BlockDataArray<usize>,
     metadata: BlockDataArray<usize>,
     lighting: BlockDataArray<usize>,
+
+    pub needs_mesh_rebuild: bool,
 }
 
 impl Chunk {
@@ -20,7 +39,8 @@ impl Chunk {
         Self {
             blocks: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
             metadata: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
-            lighting: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
+            lighting: [[[255; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
+            needs_mesh_rebuild: false,
         }
     }
 
@@ -35,6 +55,7 @@ impl Chunk {
     pub fn set_block(&mut self, block_index: &BlockIndex, block_id: usize) -> usize {
         let prev_block_id = self.blocks[block_index.x][block_index.y][block_index.z];
         self.blocks[block_index.x][block_index.y][block_index.z] = block_id;
+        self.needs_mesh_rebuild = true;
         prev_block_id
     }
 
@@ -42,34 +63,7 @@ impl Chunk {
         self.metadata[block_index.x][block_index.y][block_index.z]
     }
 
-    pub fn update(&mut self) {
-        // Block physics
-        for x in 0..CHUNK_WIDTH {
-            for y in 0..CHUNK_HEIGHT {
-                for z in 0..CHUNK_WIDTH {
-                    // Rules for realistic block behavior
-                    let block_id = self.blocks[x][y][z];
-                    match block_id {
-                        // Remove things that grow on grass/dirt if they're not on grass/dirt
-                        4 | 6 | 8 | 9 => {
-                            let lower_block = if y > 0 { self.blocks[x][y - 1][z] } else { 0 };
-                            match lower_block {
-                                2 | 3 => {}
-                                _ => {
-                                    self.blocks[x][y][z] = 0;
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-
-        //self.update_lighting();
-    }
-
-    pub fn update_lighting(&mut self) {
+    /*pub fn update_lighting(&mut self, pending_lights: Vec<(BlockIndex, usize)>) -> HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>{
         // Reset lighting
         for x in 0..CHUNK_WIDTH {
             for y in 0..CHUNK_HEIGHT {
@@ -91,6 +85,13 @@ impl Chunk {
                         break 'skylight;
                     }
                 }
+            }
+        }
+
+        // Add light spilling over from adjacent chunks
+        for (index, light_val) in pending_lights {
+            if BLOCKS[self.blocks[index.x][index.y][index.z]].transparent {
+                self.lighting[index.x][index.y][index.z] = light_val;
             }
         }
 
@@ -217,7 +218,9 @@ impl Chunk {
                 }
             }
         }
-    }
+
+        HashMap::new()
+    }*/
 
     pub fn from_json_array(chunk_json: &JsonValue) -> Box<Self> {
         let mut chunk = Box::new(Self::new());

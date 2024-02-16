@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash, num};
 
 use cgmath::{Matrix4, Vector2, Vector3};
 use image::ImageFormat;
@@ -27,31 +27,130 @@ pub type BlockWorldPos = Vector3<isize>;
 pub type ChunkIndex = Vector2<isize>;
 pub type BlockIndex = Vector3<usize>;
 
-pub struct Terrain {
-    player_visible: Vec<ChunkIndex>,
-    chunks: HashMap<ChunkIndex, Box<Chunk>>,
-    placement_queue: HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>,
-    chunk_update_queue: Vec<ChunkIndex>,
+pub enum TerrainEvent {
+    LoadingZones(Vec<ChunkIndex>),
+    ModifyBlock(BlockWorldPos, usize),
 }
+
+const NUM_CHUNK_LISTS: usize = 2;
+const CHUNKS_PLAYER_VISIBLE: usize = 0;
+const CHUNKS_IDLE: usize = 1;
+type ChunkList = [HashMap<ChunkIndex, Box<Chunk>>; NUM_CHUNK_LISTS];
+
+pub struct Terrain {
+    /* Multi-level queue for chunk data
+     * 0: chunks in view to be actively updated/drawn each tick/frame
+     * 1: chunks in RAM but inactive, out of render distance
+     */
+    chunks: ChunkList,
+
+    block_placement_queue: HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>,
+    chunk_update_queue: Vec<ChunkIndex>,
+
+    event_queue: Vec<TerrainEvent>,
+}
+
+trait ChunkListTrait {
+    fn at_index(&self, index: &ChunkIndex) -> Option<&Box<Chunk>>;
+    fn at_index_mut(&mut self, index: &ChunkIndex) -> Option<&mut Box<Chunk>>;
+    fn insert(&mut self, index: &ChunkIndex, chunk: Box<Chunk>);
+}
+
+impl ChunkListTrait for ChunkList {
+
+    fn at_index(&self, index: &ChunkIndex) -> Option<&Box<Chunk>> {
+        let priority_levels = self.len();
+        for p in 0..priority_levels {
+            if let Some(chunk) = self[p].get(index) {
+                return Some(chunk);
+            }
+        }
+        None
+    }
+
+    fn at_index_mut<'a>(&'a mut self, index: &ChunkIndex) -> Option<&'a mut Box<Chunk>> {
+        let priority_levels = self.len();
+        let mut i = priority_levels;
+        for p in 0..priority_levels {
+            if !self[p].get_mut(index).is_none() {
+                i = p;
+            } else {
+                break;
+            }
+        }
+        if i == priority_levels {
+            None
+        } else {
+            self[i].get_mut(index)
+        }
+    }
+
+    fn insert(&mut self, index: &ChunkIndex, chunk: Box<Chunk>) {
+        self[0].insert(index.clone(), chunk);
+        let priority_levels = self.len();
+        for p in 1..priority_levels {
+            self[1].remove(index);
+        }
+    }
+}
+
 
 impl Terrain {
     pub fn new() -> Self {
         Self {
-            player_visible: Vec::new(),
-            chunks: HashMap::new(),
-            placement_queue: HashMap::new(),
+            chunks: [HashMap::new(), HashMap::new()],
+
+            block_placement_queue: HashMap::new(),
             chunk_update_queue: Vec::new(),
+            event_queue: Vec::new(),
         }
+    }
+
+    pub fn event(&mut self, event: TerrainEvent) {
+        self.event_queue.push(event);
+    }
+
+    pub fn tick(&mut self) {
+        while let Some(event) = self.event_queue.pop() {
+            match event {
+                TerrainEvent::LoadingZones(active_chunks) => {
+                    for chunk in active_chunks {
+                        for x in -1..=1 {
+                            for z in -1..=1 {
+                                //self.player_visible.push(chunk + Vector2::new(x, z));
+                                self.chunk_update_queue.push(chunk + Vector2::new(x, z));
+                            }
+                        }
+                    }
+                },
+                TerrainEvent::ModifyBlock(block_world_pos, new_value) => {
+                    if let Some((chunk_index, block_index)) = Self::chunk_and_block_index(&block_world_pos) {
+                        if let Some(chunk) = self.chunks.at_index_mut(&chunk_index) {
+                            chunk.set_block(&block_index, new_value);
+                            chunk.needs_mesh_rebuild = true;
+                        }
+                    }
+                },
+            }
+        }
+
+        /*while let Some(chunk_index) = self.chunk_update_queue.pop() {
+            let out_of_range = &mut self.chunks_load_queue[1];
+            let in_range = &mut self.chunks_load_queue[0];
+
+            *out_of_range = out_of_range.into_iter().chain(in_range).collect();
+
+            for 
+        }*/
     }
 
     /// Fetch the ID of the block at the global position `world_pos`
     pub fn block_at_world_pos(&self, world_pos: &BlockWorldPos) -> usize {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
-            if let Some(chunk) = self.chunks.get(&chunk_index) {
-                chunk.get_block(&block_index)
-            } else {
-                0
+            if let Some(chunk) = self.chunks.at_index(&chunk_index) {
+                return chunk.get_block(&block_index)
             }
+            0
         } else {
             0
         }
@@ -83,12 +182,12 @@ impl Terrain {
     /// If a chunk was modified, place its index in
     pub fn set_block(&mut self, block_id: usize, world_pos: &BlockWorldPos) -> usize {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
-            let cur_block_id = if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
+            let cur_block_id = if let Some(chunk) = self.chunks.at_index_mut(&chunk_index) {
                 chunk.set_block(&block_index, block_id)
             } else {
                 let mut new_chunk = Box::new(Chunk::new());
                 new_chunk.set_block(&block_index, block_id);
-                self.chunks.insert(chunk_index, new_chunk);
+                self.chunks.insert(&chunk_index, new_chunk);
                 0
             };
             self.mark_for_update(chunk_index);
@@ -102,11 +201,11 @@ impl Terrain {
         &self,
         chunk_index: &ChunkIndex,
     ) -> Option<Vec<Vertex3D>> {
-        if let Some(chunk) = self.chunks.get(chunk_index) {
-            let x_pos_chunk = self.chunks.get(&(chunk_index + ChunkIndex::new(1, 0)));
-            let x_neg_chunk = self.chunks.get(&(chunk_index + ChunkIndex::new(-1, 0)));
-            let z_pos_chunk = self.chunks.get(&(chunk_index + ChunkIndex::new(0, 1)));
-            let z_neg_chunk = self.chunks.get(&(chunk_index + ChunkIndex::new(0, -1)));
+        if let Some(chunk) = self.chunks.at_index(chunk_index) {
+            let x_pos_chunk = self.chunks.at_index(&(chunk_index + ChunkIndex::new(1, 0)));
+            let x_neg_chunk = self.chunks.at_index(&(chunk_index + ChunkIndex::new(-1, 0)));
+            let z_pos_chunk = self.chunks.at_index(&(chunk_index + ChunkIndex::new(0, 1)));
+            let z_neg_chunk = self.chunks.at_index(&(chunk_index + ChunkIndex::new(0, -1)));
 
             let mut vertices = Vec::new();
             for x in 0..CHUNK_WIDTH {
@@ -403,7 +502,7 @@ impl Terrain {
 
     pub fn collision_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
-            if let Some(chunk) = self.chunks.get(&chunk_index) {
+            if let Some(chunk) = self.chunks.at_index(&chunk_index) {
                 chunk.get_block(&block_index) != 0
             } else {
                 false
@@ -414,21 +513,26 @@ impl Terrain {
     }
 
     pub(crate) fn update_single_chunk_mesh(
-        &self,
+        &mut self,
         chunk_index: &ChunkIndex,
         gl_resources: &mut GLResources,
     ) {
-        if self.chunks.get(chunk_index).is_some() {
+        if self.chunks.at_index(chunk_index).is_some() {
             if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
                 let verts = Box::new(chunk_vertices);
                 gl_resources.update_vao_buffer(name, verts);
+                for p in 0..self.chunks.len() {
+                    if let Some(chunk) = self.chunks[p].get_mut(&chunk_index) {
+                        chunk.needs_mesh_rebuild = false;
+                    }
+                }
             }
         }
     }
 
     pub(crate) fn update_chunk_mesh(
-        &self,
+        &mut self,
         chunk_index: &ChunkIndex,
         gl_resources: &mut GLResources,
     ) {
@@ -455,7 +559,7 @@ impl Terrain {
         for x in -radius..=radius {
             for z in -radius..=radius {
                 let chunk_index_pos = center_chunk + ChunkIndex::new(x, z);
-                if self.chunks.get(&chunk_index_pos).is_none() {
+                if self.chunks.at_index(&chunk_index_pos).is_none() {
                     needs_generation.push(chunk_index_pos);
                     i += 1;
                     if i == max {
@@ -468,14 +572,14 @@ impl Terrain {
     }
 
     pub fn insert_chunk(&mut self, chunk_index: ChunkIndex, chunk: Box<Chunk>) {
-        self.chunks.insert(chunk_index, chunk);
+        self.chunks.insert(&chunk_index, chunk);
     }
 
     pub fn solid_block_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
         BLOCKS[self.block_at_world_pos(world_pos)].solid
     }
 
-    pub fn update_visible_chunks_near(
+    /*pub fn update_visible_chunks_near(
         &mut self,
         render_distance: isize,
         player_chunk: &ChunkIndex,
@@ -488,17 +592,31 @@ impl Terrain {
                 self.player_visible.push(player_chunk + offset);
             }
         }
-    }
+    }*/
 
-    pub fn pending_chunk_updates(&mut self) -> Vec<ChunkIndex> {
+    fn pending_chunk_updates(&mut self) -> Vec<ChunkIndex> {
         let pending_updates = self.chunk_update_queue.clone();
         self.chunk_update_queue.clear();
         pending_updates
     }
 
-    pub fn copy_chunk(&self, chunk_index: &ChunkIndex) -> Option<Box<Chunk>> {
-        self.chunks.get(chunk_index).cloned() //.map(|chunk| chunk.clone())
+    pub fn update_meshes(&mut self, gl_resources: &mut GLResources) {
+        let mut rebuild = Vec::new();
+        for (index, chunk) in self.chunks[0].iter_mut() {
+            if chunk.needs_mesh_rebuild {
+                rebuild.push(index.clone());
+                //let verts = self.generate_chunk_vertices(index);
+            }   
+        }
+
+        for index in rebuild {
+            self.update_chunk_mesh(&index, gl_resources);
+        }
     }
+
+    /*pub fn copy_chunk(&self, chunk_index: &ChunkIndex) -> Option<Box<Chunk>> {
+        self.chunks.copy_chunk(chunk_index).cloned() //.map(|chunk| chunk.clone())
+    }*/
 }
 
 impl GLRenderable for Terrain {
@@ -513,14 +631,14 @@ impl GLRenderable for Terrain {
         let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
         gl_resources.add_shader("terrain", terrain_program);
 
-        for chunk_index in &self.player_visible {
-            if self.chunks.get(chunk_index).is_some() {
-                if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {
-                    let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
-                    let verts = Box::new(chunk_vertices);
-                    gl_resources.create_or_update_vao(name, verts);
-                }
+        for (chunk_index, chunk) in &self.chunks[0] {
+            //if self.chunks.get(chunk_index).is_some() {
+            if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {
+                let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
+                let verts = Box::new(chunk_vertices);
+                gl_resources.create_or_update_vao(name, verts);
             }
+            //}
         }
     }
 
@@ -538,7 +656,7 @@ impl GLRenderable for Terrain {
 
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
-        for chunk_index in &self.player_visible {
+        for (chunk_index, _) in &self.chunks[0] {
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
                 0f32,

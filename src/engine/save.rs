@@ -13,7 +13,7 @@ use crate::{
     terrain::{generation::TerrainGenConfig, Terrain},
 };
 
-use super::{Engine, PlayState};
+use super::{Engine, EngineState, PlayState};
 
 impl Engine {
     pub fn load_from_save(save_path: &str) -> Self {
@@ -48,19 +48,17 @@ impl Engine {
         Self {
             player: Arc::new(RwLock::new(player)),
             terrain: Arc::new(RwLock::new(terrain)),
-            entities,
-            skybox: Skybox,
-
-            elapsed_time: Duration::ZERO,
-            last_update: Instant::now(),
-
-            play_state: PlayState::Paused,
-            input_queue: Vec::new(),
             terrain_config: Arc::new(RwLock::new(terrain_config)),
+            entities,
+            skybox: Arc::new(RwLock::new(Skybox)),
 
-            width: 0,
-            height: 0,
-            render_distance: 8,
+            event_queue: Arc::new(RwLock::new(Vec::new())),
+            engine_state: Arc::new(RwLock::new(EngineState::default())),
+            
+
+            width: 0.into(),
+            height: 0.into(),
+            render_distance: 8.into(),
             gl_resources: Arc::new(RwLock::new(GLResources::new())),
         }
     }

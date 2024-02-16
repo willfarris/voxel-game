@@ -1,7 +1,7 @@
 use std::env;
 
 use glfw::Context;
-use voxel::engine::{Engine, PlayerInput};
+use voxel::engine::{Engine, EngineEvent, PlayerInput};
 use voxel::q_rsqrt;
 
 const WIDTH: i32 = 1920;
@@ -44,7 +44,8 @@ fn main() {
     println!("P - Pause\nO - Save");
 
     voxel_game.init_gl(WIDTH, HEIGHT);
-    voxel_game.start_workers();
+    voxel_game.tick_thread();
+    voxel_game.terrain_thread();
 
     const NUM_AVG_FRAMES: usize = 60;
     let mut averages = [0f32; NUM_AVG_FRAMES];
@@ -77,9 +78,9 @@ fn main() {
         };
         last_time = current_time;
 
-        voxel_game.update();
-        voxel_game.draw();
-        window.swap_buffers();
+        /* ******************************* *
+         * Map GLFW events to player input *
+         * ******************************* */
 
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
@@ -87,21 +88,21 @@ fn main() {
                 glfw::WindowEvent::CursorPos(x, y) => {
                     let delta = (x - WIDTH as f64 / 2.0, y - HEIGHT as f64 / 2.0);
                     window.set_cursor_pos(WIDTH as f64 / 2.0, HEIGHT as f64 / 2.0);
-                    voxel_game.player_input(PlayerInput::Look(
+                    voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Look(
                         0.001 * delta.1 as f32,
                         0.001 * delta.0 as f32,
-                    ));
+                    )));
                 }
                 glfw::WindowEvent::MouseButton(button, state, x) => {
                     match button {
                         glfw::MouseButton::Button1 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Interact(false, true));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Interact(false, true)));
                             }
                         }
                         glfw::MouseButton::Button2 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Interact(true, false));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Interact(true, false)));
                             }
                         }
                         glfw::MouseButton::Button3 => {
@@ -152,47 +153,47 @@ fn main() {
 
                         glfw::Key::Num1 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Inventory(0));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Inventory(0)));
                             }
                         }
                         glfw::Key::Num2 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Inventory(1));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Inventory(1)));
                             }
                         }
                         glfw::Key::Num3 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Inventory(2));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Inventory(2)));
                             }
                         }
                         glfw::Key::Num4 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Inventory(3));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Inventory(3)));
                             }
                         }
                         glfw::Key::Num5 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Inventory(4));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Inventory(4)));
                             }
                         }
                         glfw::Key::Num6 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Inventory(5));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Inventory(5)));
                             }
                         }
                         glfw::Key::Num7 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Inventory(6));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Inventory(6)));
                             }
                         }
                         glfw::Key::Num8 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Inventory(7));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Inventory(7)));
                             }
                         }
                         glfw::Key::Num9 => {
                             if state == glfw::Action::Press {
-                                voxel_game.player_input(PlayerInput::Inventory(8));
+                                voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Inventory(8)));
                             }
                         }
 
@@ -207,7 +208,6 @@ fn main() {
                 _ => println!("{:?}", event),
             }
         }
-
         let mut move_direction = cgmath::Vector3 {
             x: wasd_pressed[3] as i32 as f32 - wasd_pressed[1] as i32 as f32,
             y: 0.0,
@@ -216,17 +216,25 @@ fn main() {
         move_direction *=
             q_rsqrt(move_direction.x * move_direction.x + move_direction.z * move_direction.z);
         if !wasd_pressed[0] && !wasd_pressed[1] && !wasd_pressed[2] && !wasd_pressed[3] {
-            voxel_game.player_input(PlayerInput::Stop);
+            voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Stop));
         } else {
-            voxel_game.player_input(PlayerInput::Walk(
+            voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Walk(
                 move_direction.x,
                 move_direction.y,
                 move_direction.z,
-            ));
+            )));
+        }
+        if jump {
+            voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Jump));
         }
 
-        if jump {
-            voxel_game.player_input(PlayerInput::Jump);
-        }
+        //todo: add 
+        //voxel_game.tick();
+
+        /* *****************
+         * Draw the engine *
+         * *************** */
+        voxel_game.draw();
+        window.swap_buffers();
     }
 }

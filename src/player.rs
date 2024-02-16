@@ -5,6 +5,7 @@ use cgmath::{InnerSpace, Matrix4, Vector2, Vector3};
 
 use camera::Camera;
 
+use crate::engine::EngineEvent;
 use crate::physics::collision::{self, Collider, Rect3};
 use crate::physics::physics_update::PhysicsUpdate;
 use crate::physics::vectormath::{q_rsqrt, Vec3Direction, Y_VECTOR};
@@ -19,6 +20,16 @@ pub(crate) const GRAVITY: Vector3<f32> = Vector3 {
     y: -9.81 * 2.0,
     z: 0.0,
 };
+
+#[derive(Debug)]
+pub enum PlayerInput {
+    Look(f32, f32),
+    Walk(f32, f32, f32),
+    Inventory(usize),
+    Interact(bool, bool),
+    Jump,
+    Stop,
+}
 
 pub(crate) struct Player {
     pub(crate) camera: Camera,
@@ -62,7 +73,32 @@ impl Player {
         }
     }
 
-    pub fn move_direction(&mut self, direction: Vector3<f32>) {
+    pub fn input(&mut self, input: PlayerInput) {
+        match input {
+            PlayerInput::Look(dx, dy) => {
+                self.look_direction(Vector2::new(dx, dy));
+            }
+            PlayerInput::Walk(dx, dy, dz) => {
+                self.move_direction(Vector3::new(dx, dy, dz));
+            }
+            PlayerInput::Jump => {
+                self.jump();
+            }
+            PlayerInput::Stop => {
+                self.stop_move();
+            }
+            PlayerInput::Inventory(selected) => {
+                self.select_inventory(selected);
+            }
+            _ => {}
+        }
+    }
+
+    pub fn camera_pos_and_dir(&self) -> (Vector3<f32>, Vector3<f32>) {
+        (self.camera.position, self.camera.forward)
+    }
+
+    fn move_direction(&mut self, direction: Vector3<f32>) {
         self.walking = true;
         self.velocity.x += direction.x;
         self.velocity.z += direction.z;
@@ -72,12 +108,12 @@ impl Player {
             q_rsqrt(self.velocity.x * self.velocity.x + self.velocity.z * self.velocity.z);
     }
 
-    pub fn look_direction(&mut self, direction: Vector2<f32>) {
+    fn look_direction(&mut self, direction: Vector2<f32>) {
         self.camera.rotate_on_x_axis(direction.x);
         self.camera.rotate_on_y_axis(direction.y);
     }
 
-    pub fn jump(&mut self) {
+    fn jump(&mut self) {
         if self.grounded {
             self.velocity.y += 7f32;
             self.grounded = false;

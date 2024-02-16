@@ -5,8 +5,7 @@ use noise::{NoiseFn, Perlin};
 use splines::Spline;
 
 use super::{
-    chunk::{Chunk, CHUNK_WIDTH},
-    BlockWorldPos, ChunkIndex, Terrain,
+    chunk::{Chunk, CHUNK_WIDTH}, BlockWorldPos, ChunkIndex, ChunkListTrait, Terrain
 };
 
 pub struct TerrainGenConfig {
@@ -327,11 +326,11 @@ impl Terrain {
         for chunk_x in -chunk_radius..chunk_radius {
             for chunk_z in -chunk_radius..chunk_radius {
                 let chunk_index = start_chunk_index + ChunkIndex::new(chunk_x, chunk_z);
-                if self.chunks.get(&chunk_index).is_none() {
+                if self.chunks.at_index(&chunk_index).is_none() {
                     let mut cur_chunk = Box::new(Chunk::new());
                     let placement_queue =
                         terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
-                    self.chunks.insert(chunk_index, cur_chunk);
+                    self.chunks.insert(&chunk_index, cur_chunk);
                     self.place_features(placement_queue);
                 }
             }
@@ -342,15 +341,15 @@ impl Terrain {
         // Update the placement queue with blocks that are part of the new feature
         for (world_pos, block_id) in feature_blocks {
             if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(&world_pos) {
-                if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
+                if let Some(chunk) = self.chunks.at_index_mut(&chunk_index) {
                     // Place the block in the chunk if it exists
                     chunk.set_block(&block_index, block_id);
                 } else {
                     // If the chunk does not yet exist, place the block into the placement queue
-                    if let Some(block_vec) = self.placement_queue.get_mut(&chunk_index) {
+                    if let Some(block_vec) = self.block_placement_queue.get_mut(&chunk_index) {
                         block_vec.push((block_index, block_id));
                     } else {
-                        self.placement_queue
+                        self.block_placement_queue
                             .insert(chunk_index, vec![(block_index, block_id)]);
                     }
                 }
@@ -358,8 +357,8 @@ impl Terrain {
         }
 
         // Place all blocks in the placement queue which have a corresponding chunk
-        self.placement_queue.retain(|key, blocks_queue| {
-            if let Some(chunk) = self.chunks.get_mut(key) {
+        self.block_placement_queue.retain(|key, blocks_queue| {
+            if let Some(chunk) = self.chunks.at_index_mut(key) {
                 for (block_index, block_id) in blocks_queue {
                     chunk.set_block(block_index, *block_id);
                 }

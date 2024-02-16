@@ -29,8 +29,8 @@ impl Engine {
             gl_resources.invalidate_resources();
         }
 
-        self.width = width;
-        self.height = height;
+        self.width.store(width, std::sync::atomic::Ordering::Relaxed);
+        self.height.store(height, std::sync::atomic::Ordering::Relaxed);
         let mut framebuffer_id = 0;
         unsafe {
             gl::Enable(gl::DEPTH_TEST);
@@ -76,10 +76,10 @@ impl Engine {
         let ssao_noise_texture = Texture::from_vector3_array(&ssao_noise, SSAO_NOISE_SIZE as i32, SSAO_NOISE_SIZE as i32);*/
 
         // Deferred rendering pass
-        let gbuffer_position = Texture::empty(self.width, self.height, TextureFormat::Float);
-        let gbuffer_normal = Texture::empty(self.width, self.height, TextureFormat::Float);
-        let gbuffer_albedo = Texture::empty(self.width, self.height, TextureFormat::Color);
-        let gbuffer_depthbuffer = Depthbuffer::new(self.width, self.height);
+        let gbuffer_position = Texture::empty(width, height, TextureFormat::Float);
+        let gbuffer_normal = Texture::empty(width, height, TextureFormat::Float);
+        let gbuffer_albedo = Texture::empty(width, height, TextureFormat::Color);
+        let gbuffer_depthbuffer = Depthbuffer::new(width, height);
         let gbuffer_textures = &[
             ("position", gbuffer_position),
             ("normal", gbuffer_normal),
@@ -89,15 +89,15 @@ impl Engine {
 
         // Lighting pass
         let lighting_program = Shader::new(SCREENQUAD_VERT_SRC, LIGHTING_FRAG_SRC).unwrap();
-        let lighting_color = Texture::empty(self.width, self.height, TextureFormat::Color);
-        let lighting_depthbuffer = Depthbuffer::new(self.width, self.height);
+        let lighting_color = Texture::empty(width, height, TextureFormat::Color);
+        let lighting_depthbuffer = Depthbuffer::new(width, height);
         let lighting_framebuffer =
             Framebuffer::with_textures(&[("color", lighting_color)], Some(lighting_depthbuffer));
 
         // Composite lit scene w/ skybox
         let composite_program = Shader::new(SCREENQUAD_VERT_SRC, COMPOSITE_FRAG_SRC).unwrap();
-        let composite_color = Texture::empty(self.width, self.height, TextureFormat::Color);
-        let composite_depthbuffer = Depthbuffer::new(self.width, self.height);
+        let composite_color = Texture::empty(width, height, TextureFormat::Color);
+        let composite_depthbuffer = Depthbuffer::new(width, height);
         let composite_framebuffer =
             Framebuffer::with_textures(&[("color", composite_color)], Some(composite_depthbuffer));
 
@@ -123,7 +123,7 @@ impl Engine {
                 Box::new(Vec::from(FULLSCREEN_QUAD)),
             );
 
-            self.skybox.init_gl_resources(&mut gl_resources);
+            self.skybox.write().unwrap().init_gl_resources(&mut gl_resources);
 
             self.terrain
                 .write()
@@ -153,6 +153,12 @@ impl Engine {
         }
 
         let gl_resources = self.gl_resources.read().unwrap();
+        let width = self.width.load(std::sync::atomic::Ordering::Relaxed);
+        let height = self.height.load(std::sync::atomic::Ordering::Relaxed);
+        let render_distance = self.render_distance.load(std::sync::atomic::Ordering::Relaxed);
+        let elapsed_time = {
+            self.engine_state.read().unwrap().elapsed_time
+        };
 
         let screenquad = gl_resources.get_vao("screenquad").unwrap();
 
@@ -163,19 +169,19 @@ impl Engine {
         gbuffer_fbo.bind();
 
         unsafe {
-            gl::Viewport(0, 0, self.width, self.height);
+            gl::Viewport(0, 0, width, height);
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
         let perspective_matrix =
-            perspective_matrix(self.width, self.height, self.render_distance as f32);
+            perspective_matrix(width, height, self.render_distance.load(std::sync::atomic::Ordering::Relaxed) as f32);
         let view_matrix = player.camera_view_matrix();
 
         let geometry_uniforms: Vec<(&str, Box<dyn Uniform>)> = vec![
             ("perspective_matrix", Box::new(perspective_matrix)),
             ("view_matrix", Box::new(view_matrix)),
-            ("time", Box::new(self.elapsed_time.as_secs_f32())),
+            ("time", Box::new(elapsed_time.as_secs_f32())),
         ];
 
         terrain.draw(&gl_resources, &geometry_uniforms);
@@ -206,7 +212,7 @@ impl Engine {
         lighting_program.set_texture(unsafe { c_str!("position") }, 2);
         lighting_program.set_texture(unsafe { c_str!("normal") }, 3);
 
-        Vector2::new(self.width as f32, self.height as f32)
+        Vector2::new(width as f32, height as f32)
             .set_as_uniform(lighting_program, "resolution");
 
         screenquad.draw();
@@ -228,17 +234,17 @@ impl Engine {
 
         screenquad.draw();
 
-        gbuffer_fbo.blit_depth_to_fbo(composite_fbo, self.width, self.height);
+        gbuffer_fbo.blit_depth_to_fbo(composite_fbo, width, height);
 
         // Draw skybox
         let skybox_model_matrix = Matrix4::from_translation(player.camera.position)
-            * Matrix4::from_scale(self.render_distance as f32 * 16.0 * 2.0);
+            * Matrix4::from_scale(render_distance as f32 * 16.0 * 2.0);
         let geometry_uniforms: Vec<(&str, Box<dyn Uniform>)> = vec![
             ("model_matrix", Box::new(skybox_model_matrix)),
             ("perspective_matrix", Box::new(perspective_matrix)),
             ("view_matrix", Box::new(view_matrix)),
         ];
-        self.skybox.draw(&gl_resources, &geometry_uniforms);
+        self.skybox.read().unwrap().draw(&gl_resources, &geometry_uniforms);
 
         composite_fbo.unbind();
 
