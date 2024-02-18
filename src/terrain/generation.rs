@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use cgmath::{Vector2, Vector3};
 use noise::{NoiseFn, Perlin};
@@ -330,7 +330,7 @@ impl Terrain {
                     let mut cur_chunk = Box::new(Chunk::new());
                     let placement_queue =
                         terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
-                    self.chunks.insert(&chunk_index, cur_chunk);
+                    self.chunks.insert(&chunk_index, Arc::new(RwLock::new(cur_chunk)));
                     self.place_features(placement_queue);
                 }
             }
@@ -343,6 +343,7 @@ impl Terrain {
             if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(&world_pos) {
                 if let Some(chunk) = self.chunks.at_index_mut(&chunk_index) {
                     // Place the block in the chunk if it exists
+                    let mut chunk = chunk.write().unwrap();
                     chunk.set_block(&block_index, block_id);
                 } else {
                     // If the chunk does not yet exist, place the block into the placement queue
@@ -359,6 +360,7 @@ impl Terrain {
         // Place all blocks in the placement queue which have a corresponding chunk
         self.block_placement_queue.retain(|key, blocks_queue| {
             if let Some(chunk) = self.chunks.at_index_mut(key) {
+                let mut chunk = chunk.write().unwrap();
                 for (block_index, block_id) in blocks_queue {
                     chunk.set_block(block_index, *block_id);
                 }

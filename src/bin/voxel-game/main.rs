@@ -9,6 +9,11 @@ const HEIGHT: i32 = 900;
 const GAME_SAVE_PATH: &str = "blockcraft";
 
 fn main() {
+
+    /* ********************************************** *
+     * Collect arguments and initialize config values *
+     * ********************************************** */
+
     let args: Vec<String> = env::args().collect();
     assert!(args.len() > 1);
 
@@ -17,6 +22,10 @@ fn main() {
         "--new" => Engine::default(),
         _ => Engine::default(),
     };
+
+    /* ********************** *
+     * Initialize game window *
+     * ********************** */
 
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
 
@@ -43,9 +52,17 @@ fn main() {
 
     println!("P - Pause\nO - Save");
 
+    /* ************************ *
+     * Init + start game engine *
+     * ************************ */
+
     voxel_game.init_gl(WIDTH, HEIGHT);
-    voxel_game.tick_thread();
-    voxel_game.terrain_thread();
+    voxel_game.init_engine();
+    voxel_game.start_gameloop();
+
+    /* ********************************************** *
+     * Collect arguments and initialize config values *
+     * ********************************************** */
 
     const NUM_AVG_FRAMES: usize = 60;
     let mut averages = [0f32; NUM_AVG_FRAMES];
@@ -228,12 +245,9 @@ fn main() {
             voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Jump));
         }
 
-        //todo: add 
-        //voxel_game.tick();
-
-        /* *****************
-         * Draw the engine *
-         * *************** */
+        /* *************************** *
+         * Draw the game to the window *
+         * *************************** */
         voxel_game.draw();
         window.swap_buffers();
     }

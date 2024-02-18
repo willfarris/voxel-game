@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, num};
+use std::{collections::HashMap, hash::Hash, num, ops::Deref, sync::{Arc, RwLock}};
 
 use cgmath::{Matrix4, Vector2, Vector3};
 use image::ImageFormat;
@@ -33,9 +33,7 @@ pub enum TerrainEvent {
 }
 
 const NUM_CHUNK_LISTS: usize = 2;
-const CHUNKS_PLAYER_VISIBLE: usize = 0;
-const CHUNKS_IDLE: usize = 1;
-type ChunkList = [HashMap<ChunkIndex, Box<Chunk>>; NUM_CHUNK_LISTS];
+type ChunkList = [HashMap<ChunkIndex, Arc<RwLock<Box<Chunk>>>>; NUM_CHUNK_LISTS];
 
 pub struct Terrain {
     /* Multi-level queue for chunk data
@@ -51,14 +49,14 @@ pub struct Terrain {
 }
 
 trait ChunkListTrait {
-    fn at_index(&self, index: &ChunkIndex) -> Option<&Box<Chunk>>;
-    fn at_index_mut(&mut self, index: &ChunkIndex) -> Option<&mut Box<Chunk>>;
-    fn insert(&mut self, index: &ChunkIndex, chunk: Box<Chunk>);
+    fn at_index(&self, index: &ChunkIndex) -> Option<&Arc<RwLock<Box<Chunk>>>>;
+    fn at_index_mut(&mut self, index: &ChunkIndex) -> Option<&mut Arc<RwLock<Box<Chunk>>>>;
+    fn insert(&mut self, index: &ChunkIndex, chunk: Arc<RwLock<Box<Chunk>>>);
 }
 
 impl ChunkListTrait for ChunkList {
 
-    fn at_index(&self, index: &ChunkIndex) -> Option<&Box<Chunk>> {
+    fn at_index(&self, index: &ChunkIndex) -> Option<&Arc<RwLock<Box<Chunk>>>> {
         let priority_levels = self.len();
         for p in 0..priority_levels {
             if let Some(chunk) = self[p].get(index) {
@@ -68,7 +66,7 @@ impl ChunkListTrait for ChunkList {
         None
     }
 
-    fn at_index_mut<'a>(&'a mut self, index: &ChunkIndex) -> Option<&'a mut Box<Chunk>> {
+    fn at_index_mut<'a>(&'a mut self, index: &ChunkIndex) -> Option<&mut Arc<RwLock<Box<Chunk>>>> {
         let priority_levels = self.len();
         let mut i = priority_levels;
         for p in 0..priority_levels {
@@ -85,7 +83,7 @@ impl ChunkListTrait for ChunkList {
         }
     }
 
-    fn insert(&mut self, index: &ChunkIndex, chunk: Box<Chunk>) {
+    fn insert(&mut self, index: &ChunkIndex, chunk: Arc<RwLock<Box<Chunk>>>) {
         self[0].insert(index.clone(), chunk);
         let priority_levels = self.len();
         for p in 1..priority_levels {
@@ -126,6 +124,7 @@ impl Terrain {
                 TerrainEvent::ModifyBlock(block_world_pos, new_value) => {
                     if let Some((chunk_index, block_index)) = Self::chunk_and_block_index(&block_world_pos) {
                         if let Some(chunk) = self.chunks.at_index_mut(&chunk_index) {
+                            let mut chunk = chunk.write().unwrap();
                             chunk.set_block(&block_index, new_value);
                             chunk.needs_mesh_rebuild = true;
                         }
@@ -148,6 +147,7 @@ impl Terrain {
     pub fn block_at_world_pos(&self, world_pos: &BlockWorldPos) -> usize {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.at_index(&chunk_index) {
+                let chunk = chunk.read().unwrap();
                 return chunk.get_block(&block_index)
             }
             0
@@ -183,10 +183,13 @@ impl Terrain {
     pub fn set_block(&mut self, block_id: usize, world_pos: &BlockWorldPos) -> usize {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             let cur_block_id = if let Some(chunk) = self.chunks.at_index_mut(&chunk_index) {
+                let mut chunk = chunk.write().unwrap();
                 chunk.set_block(&block_index, block_id)
             } else {
-                let mut new_chunk = Box::new(Chunk::new());
-                new_chunk.set_block(&block_index, block_id);
+                let mut new_chunk = Arc::new(RwLock::new(Box::new(Chunk::new())));
+                {
+                    new_chunk.write().unwrap().set_block(&block_index, block_id);
+                }
                 self.chunks.insert(&chunk_index, new_chunk);
                 0
             };
@@ -202,6 +205,7 @@ impl Terrain {
         chunk_index: &ChunkIndex,
     ) -> Option<Vec<Vertex3D>> {
         if let Some(chunk) = self.chunks.at_index(chunk_index) {
+            let chunk = chunk.read().unwrap();
             let x_pos_chunk = self.chunks.at_index(&(chunk_index + ChunkIndex::new(1, 0)));
             let x_neg_chunk = self.chunks.at_index(&(chunk_index + ChunkIndex::new(-1, 0)));
             let z_pos_chunk = self.chunks.at_index(&(chunk_index + ChunkIndex::new(0, 1)));
@@ -288,6 +292,7 @@ impl Terrain {
                                     let x_pos_index = BlockIndex::new(0, y, z);
                                     x_pos_chunk
                                         .map(|adjacent_chunk| {
+                                            let adjacent_chunk = adjacent_chunk.read().unwrap();
                                             (
                                                 Some(
                                                     BLOCKS[adjacent_chunk.get_block(&x_pos_index)],
@@ -320,6 +325,7 @@ impl Terrain {
                                     let x_neg_index = Vector3::new(CHUNK_WIDTH - 1, y, z);
                                     x_neg_chunk
                                         .map(|adjacent_chunk| {
+                                            let adjacent_chunk = adjacent_chunk.read().unwrap();
                                             (
                                                 Some(
                                                     BLOCKS[adjacent_chunk.get_block(&x_neg_index)],
@@ -396,6 +402,7 @@ impl Terrain {
                                     let z_pos_index = Vector3::new(x, y, 0);
                                     z_pos_chunk
                                         .map(|adjacent_chunk| {
+                                            let adjacent_chunk = adjacent_chunk.read().unwrap();
                                             (
                                                 Some(
                                                     BLOCKS[adjacent_chunk.get_block(&z_pos_index)],
@@ -428,6 +435,7 @@ impl Terrain {
                                     let z_neg_index = Vector3::new(x, y, CHUNK_WIDTH - 1);
                                     z_neg_chunk
                                         .map(|adjacent_chunk| {
+                                            let adjacent_chunk = adjacent_chunk.read().unwrap();
                                             (
                                                 Some(
                                                     BLOCKS[adjacent_chunk.get_block(&z_neg_index)],
@@ -503,6 +511,7 @@ impl Terrain {
     pub fn collision_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
             if let Some(chunk) = self.chunks.at_index(&chunk_index) {
+                let chunk = chunk.read().unwrap();
                 chunk.get_block(&block_index) != 0
             } else {
                 false
@@ -524,6 +533,7 @@ impl Terrain {
                 gl_resources.update_vao_buffer(name, verts);
                 for p in 0..self.chunks.len() {
                     if let Some(chunk) = self.chunks[p].get_mut(&chunk_index) {
+                        let mut chunk = chunk.write().unwrap();
                         chunk.needs_mesh_rebuild = false;
                     }
                 }
@@ -571,7 +581,7 @@ impl Terrain {
         needs_generation
     }
 
-    pub fn insert_chunk(&mut self, chunk_index: ChunkIndex, chunk: Box<Chunk>) {
+    pub fn insert_chunk(&mut self, chunk_index: ChunkIndex, chunk: Arc<RwLock<Box<Chunk>>>) {
         self.chunks.insert(&chunk_index, chunk);
     }
 
@@ -603,6 +613,7 @@ impl Terrain {
     pub fn update_meshes(&mut self, gl_resources: &mut GLResources) {
         let mut rebuild = Vec::new();
         for (index, chunk) in self.chunks[0].iter_mut() {
+            let chunk = chunk.read().unwrap();
             if chunk.needs_mesh_rebuild {
                 rebuild.push(index.clone());
                 //let verts = self.generate_chunk_vertices(index);

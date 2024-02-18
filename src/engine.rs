@@ -1,13 +1,10 @@
-use cgmath::{Vector2, Vector3};
+use cgmath::Vector3;
 
-use crate::graphics::mesh::block_drop_vertices;
 use crate::graphics::skybox::Skybox;
-use crate::item::drop::ItemDrop;
 use crate::physics::collision::{check_world_collision_axis, Collider};
 use crate::physics::physics_update::PhysicsUpdate;
 use crate::physics::vectormath::{self, Vec3Direction};
 pub use crate::player::PlayerInput;
-use crate::terrain::block::BLOCKS;
 use crate::terrain::generation::TerrainGenConfig;
 use crate::terrain::{ChunkIndex, TerrainEvent};
 use crate::{entity::EntityTrait, player::Player, terrain::Terrain};
@@ -18,6 +15,8 @@ use std::{
     sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
+
+use self::workers::EngineWorker;
 
 mod graphics;
 mod save;
@@ -95,11 +94,18 @@ impl Default for Engine {
 
 impl Engine {
 
-    pub fn init_threads(&mut self) {
-        self.terrain_thread();
+    pub fn init_engine(&mut self) {
+        {
+            self.terrain.write().unwrap().init_worldgen(
+                &Vector3::new(0.0, 0.0, 0.0),
+                4,
+                &self.terrain_config.read().unwrap(),
+            );
+        }
+        self.terrain.start_thread(self.gl_resources.clone());
     }
 
-    pub fn tick_thread(&mut self) {
+    pub fn start_gameloop(&mut self) {
         let player = self.player.clone();
         let terrain = self.terrain.clone();
         let engine_state = self.engine_state.clone();

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use json::{object, JsonValue};
 
@@ -29,7 +29,7 @@ impl Terrain {
         for (key, chunk_data) in chunks_json.entries() {
             let coords: Vec<isize> = key.split('_').map(|s| s.parse().unwrap()).collect();
             let chunk_index = ChunkIndex::new(coords[0], coords[1]);
-            let chunk = Chunk::from_json_array(chunk_data);
+            let chunk = Arc::new(RwLock::new(Chunk::from_json_array(chunk_data)));
             chunks.insert(chunk_index, chunk);
         }
         Self {
@@ -46,7 +46,7 @@ impl Terrain {
         for p in 0..priority_levels {
             for (chunk_index, chunk) in self.chunks[p].iter() {
                 let key = format!("{}_{}", chunk_index.x, chunk_index.y);
-                let chunk_data = chunk.to_json_array();
+                let chunk_data = chunk.read().unwrap().to_json_array();
                 chunks.insert(key.as_str(), chunk_data).unwrap();
             }
         }
