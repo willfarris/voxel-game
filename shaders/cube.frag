@@ -21,8 +21,9 @@ void main() {
 
     float lighting = min((v_lighting / 16.0) + (1./16.), 1.0);
     lighting = lighting * lighting * lighting;
+    vec3 out_color = 0.8 * lighting * color.rgb + 0.2 * color.rgb;
 
     position = vec4(v_position, 1.0);
     normal = vec4(v_normal, 1.0);
-    albedo = vec4(vec3(lighting * color.rgb), color.a);
+    albedo = vec4(out_color, color.a);
 }

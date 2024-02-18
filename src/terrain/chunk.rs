@@ -39,7 +39,7 @@ impl Chunk {
         Self {
             blocks: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
             metadata: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
-            lighting: [[[255; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
+            lighting: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
             needs_mesh_rebuild: false,
         }
     }

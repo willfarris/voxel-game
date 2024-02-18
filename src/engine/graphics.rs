@@ -244,7 +244,7 @@ impl Engine {
             ("perspective_matrix", Box::new(perspective_matrix)),
             ("view_matrix", Box::new(view_matrix)),
         ];
-        self.skybox.read().unwrap().draw(&gl_resources, &geometry_uniforms);
+        //self.skybox.read().unwrap().draw(&gl_resources, &geometry_uniforms);
 
         composite_fbo.unbind();
 
