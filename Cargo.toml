@@ -1,12 +1,33 @@
 [package]
-name = "voxelgame-desktop"
+name = "voxel-game"
 version = "0.1.0"
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition = "2021"
 
 [dependencies]
-libvoxel = { path = "libvoxel" }
-glfw = "*"
 gl = "*"
+image = "*"
 cgmath = "*"
+rand = "0.7.3"
+noise = "0.8.2"
+splines = "4.1.1"
+json = "*"
+
+jni = { version = "*", default-features = false, optional = true }
+android_log = { version = "*", optional = true }
+log = { version = "*", optional = true }
+egli = { version = "*", optional = true }
+
+glfw = {version = "*", optional = true }
+
+[lib]
+name = "voxel"
+crate-type = ["dylib","lib"]
+required-features = ["android-lib"]
+
+[features]
+desktop = ["glfw"]
+android-lib = ["jni", "android_log", "log", "egli"]
+
+[[bin]]
+name = "voxel-game"
+required-features = ["desktop"]
