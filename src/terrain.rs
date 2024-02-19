@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, num, ops::Deref, sync::{Arc, RwLock}};
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use cgmath::{Matrix4, Vector2, Vector3};
 use image::ImageFormat;
@@ -84,11 +84,7 @@ impl ChunkListTrait for ChunkList {
     }
 
     fn insert(&mut self, index: &ChunkIndex, chunk: Arc<RwLock<Box<Chunk>>>) {
-        self[0].insert(index.clone(), chunk);
-        let priority_levels = self.len();
-        for p in 1..priority_levels {
-            self[1].remove(index);
-        }
+        self[1].insert(index.clone(), chunk);
     }
 }
 
@@ -112,14 +108,25 @@ impl Terrain {
         while let Some(event) = self.event_queue.pop() {
             match event {
                 TerrainEvent::LoadingZones(active_chunks) => {
-                    for chunk in active_chunks {
-                        for x in -1..=1 {
-                            for z in -1..=1 {
-                                //self.player_visible.push(chunk + Vector2::new(x, z));
-                                self.chunk_update_queue.push(chunk + Vector2::new(x, z));
+                    
+                    let [ref mut cur_visible, ref mut backburner] = self.chunks;
+                    backburner.extend(cur_visible.drain());
+
+                    let radius = 3;
+                    assert!(radius > 0);
+                    for chunk_index in active_chunks {
+                        for x in -radius..=radius {
+                            for z in -radius..=radius {
+                                let chunk_index = chunk_index + Vector2::new(x, z);
+                                if let Some(chunk) = backburner.remove(&chunk_index) {
+                                    cur_visible.insert(chunk_index, chunk);
+                                } else {
+                                    self.chunk_update_queue.push(chunk_index);
+                                }
                             }
                         }
                     }
+
                 },
                 TerrainEvent::ModifyBlock(block_world_pos, new_value) => {
                     if let Some((chunk_index, block_index)) = Self::chunk_and_block_index(&block_world_pos) {
@@ -132,15 +139,6 @@ impl Terrain {
                 },
             }
         }
-
-        /*while let Some(chunk_index) = self.chunk_update_queue.pop() {
-            let out_of_range = &mut self.chunks_load_queue[1];
-            let in_range = &mut self.chunks_load_queue[0];
-
-            *out_of_range = out_of_range.into_iter().chain(in_range).collect();
-
-            for 
-        }*/
     }
 
     /// Fetch the ID of the block at the global position `world_pos`
@@ -172,31 +170,6 @@ impl Terrain {
             };
             Some((chunk_index, block_index))
         }
-    }
-
-    pub fn mark_for_update(&mut self, chunk_index: ChunkIndex) {
-        self.chunk_update_queue.push(chunk_index);
-    }
-
-    /// Set a block at index `world_pos` to element `block_id` in self::blocks::BLOCKS.
-    /// If a chunk was modified, place its index in
-    pub fn set_block(&mut self, block_id: usize, world_pos: &BlockWorldPos) -> usize {
-        if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
-            let cur_block_id = if let Some(chunk) = self.chunks.at_index_mut(&chunk_index) {
-                let mut chunk = chunk.write().unwrap();
-                chunk.set_block(&block_index, block_id)
-            } else {
-                let mut new_chunk = Arc::new(RwLock::new(Box::new(Chunk::new())));
-                {
-                    new_chunk.write().unwrap().set_block(&block_index, block_id);
-                }
-                self.chunks.insert(&chunk_index, new_chunk);
-                0
-            };
-            self.mark_for_update(chunk_index);
-            return cur_block_id;
-        }
-        0
     }
 
     /// Generate an array of vertices to pass along to a VBO for drawing
@@ -558,28 +531,6 @@ impl Terrain {
         self.update_single_chunk_mesh(&z_neg, gl_resources);
     }
 
-    pub fn get_indices_to_generate(
-        &self,
-        radius: isize,
-        max: usize,
-        center_chunk: &ChunkIndex,
-    ) -> Vec<ChunkIndex> {
-        let mut needs_generation = Vec::new();
-        let mut i = 0;
-        for x in -radius..=radius {
-            for z in -radius..=radius {
-                let chunk_index_pos = center_chunk + ChunkIndex::new(x, z);
-                if self.chunks.at_index(&chunk_index_pos).is_none() {
-                    needs_generation.push(chunk_index_pos);
-                    i += 1;
-                    if i == max {
-                        return needs_generation;
-                    }
-                }
-            }
-        }
-        needs_generation
-    }
 
     pub fn insert_chunk(&mut self, chunk_index: ChunkIndex, chunk: Arc<RwLock<Box<Chunk>>>) {
         self.chunks.insert(&chunk_index, chunk);
@@ -589,35 +540,18 @@ impl Terrain {
         BLOCKS[self.block_at_world_pos(world_pos)].solid
     }
 
-    /*pub fn update_visible_chunks_near(
-        &mut self,
-        render_distance: isize,
-        player_chunk: &ChunkIndex,
-    ) {
-        self.player_visible.clear();
-
-        for i in -render_distance..=render_distance {
-            for j in -render_distance..=render_distance {
-                let offset = ChunkIndex::new(i, j);
-                self.player_visible.push(player_chunk + offset);
-            }
-        }
-    }*/
-
-    fn pending_chunk_updates(&mut self) -> Vec<ChunkIndex> {
-        let pending_updates = self.chunk_update_queue.clone();
-        self.chunk_update_queue.clear();
-        pending_updates
-    }
-
     pub fn update_meshes(&mut self, gl_resources: &mut GLResources) {
         let mut rebuild = Vec::new();
+        let mut rebuild_count = 0;
         for (index, chunk) in self.chunks[0].iter_mut() {
             let chunk = chunk.read().unwrap();
             if chunk.needs_mesh_rebuild {
                 rebuild.push(index.clone());
-                //let verts = self.generate_chunk_vertices(index);
-            }   
+                rebuild_count += 1;
+            }
+            if rebuild_count > 5 {
+                break;
+            }
         }
 
         for index in rebuild {
@@ -625,9 +559,12 @@ impl Terrain {
         }
     }
 
-    /*pub fn copy_chunk(&self, chunk_index: &ChunkIndex) -> Option<Box<Chunk>> {
-        self.chunks.copy_chunk(chunk_index).cloned() //.map(|chunk| chunk.clone())
-    }*/
+    pub fn needs_regen(&mut self) -> Vec<ChunkIndex> {
+        let queue = self.chunk_update_queue.clone();
+        self.chunk_update_queue.clear();
+        queue
+    }
+
 }
 
 impl GLRenderable for Terrain {
@@ -642,14 +579,12 @@ impl GLRenderable for Terrain {
         let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
         gl_resources.add_shader("terrain", terrain_program);
 
-        for (chunk_index, chunk) in &self.chunks[0] {
-            //if self.chunks.get(chunk_index).is_some() {
+        for (chunk_index, _) in &self.chunks[0] {
             if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
                 let verts = Box::new(chunk_vertices);
                 gl_resources.create_or_update_vao(name, verts);
             }
-            //}
         }
     }
 

@@ -331,13 +331,13 @@ impl Terrain {
                     let placement_queue =
                         terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
                     self.chunks.insert(&chunk_index, Arc::new(RwLock::new(cur_chunk)));
-                    self.place_features(placement_queue);
+                    self.queue_features(placement_queue);
                 }
             }
         }
     }
 
-    pub(crate) fn place_features(&mut self, feature_blocks: Vec<(BlockWorldPos, usize)>) {
+    pub(crate) fn queue_features(&mut self, feature_blocks: Vec<(BlockWorldPos, usize)>) {
         // Update the placement queue with blocks that are part of the new feature
         for (world_pos, block_id) in feature_blocks {
             if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(&world_pos) {
@@ -356,7 +356,9 @@ impl Terrain {
                 }
             }
         }
+    }
 
+    pub(crate) fn place_features(&mut self) {
         // Place all blocks in the placement queue which have a corresponding chunk
         self.block_placement_queue.retain(|key, blocks_queue| {
             if let Some(chunk) = self.chunks.at_index_mut(key) {

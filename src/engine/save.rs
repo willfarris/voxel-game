@@ -1,7 +1,4 @@
-use std::{
-    sync::{Arc, RwLock},
-    time::{Duration, Instant},
-};
+use std::sync::{Arc, RwLock};
 
 use cgmath::Vector3;
 use json::{object, JsonValue};
@@ -13,7 +10,7 @@ use crate::{
     terrain::{generation::TerrainGenConfig, Terrain},
 };
 
-use super::{Engine, EngineState, PlayState};
+use super::{Engine, EngineState};
 
 impl Engine {
     pub fn load_from_save(save_path: &str) -> Self {

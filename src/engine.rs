@@ -5,6 +5,7 @@ use crate::physics::collision::{check_world_collision_axis, Collider};
 use crate::physics::physics_update::PhysicsUpdate;
 use crate::physics::vectormath::{self, Vec3Direction};
 pub use crate::player::PlayerInput;
+use crate::terrain::chunk::CHUNK_WIDTH;
 use crate::terrain::generation::TerrainGenConfig;
 use crate::terrain::{ChunkIndex, TerrainEvent};
 use crate::{entity::EntityTrait, player::Player, terrain::Terrain};
@@ -102,7 +103,7 @@ impl Engine {
                 &self.terrain_config.read().unwrap(),
             );
         }
-        self.terrain.start_thread(self.gl_resources.clone());
+        self.terrain.start_thread(self.gl_resources.clone(), self.terrain_config.clone());
     }
 
     pub fn start_gameloop(&mut self) {
@@ -237,10 +238,10 @@ impl Engine {
                      * Update terrain *
                      ******************/
 
-                    let player_chunk_index = ChunkIndex::new(
-                        player_rw.position.x as isize / 16,
-                        player_rw.position.z as isize / 16,
-                    );
+                    let player_chunk_index = ChunkIndex {
+                        x: (player_rw.position.x as f32 / CHUNK_WIDTH as f32).floor() as isize,
+                        y: (player_rw.position.z as f32 / CHUNK_WIDTH as f32).floor() as isize,
+                    };
                     terrain_rw.event(TerrainEvent::LoadingZones(vec![player_chunk_index]));
                     terrain_rw.tick();
                     //terrain.set_active_chunks(vec![player_chunk_index]);

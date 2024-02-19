@@ -239,7 +239,7 @@ impl Engine {
         // Draw skybox
         let skybox_model_matrix = Matrix4::from_translation(player.camera.position)
             * Matrix4::from_scale(render_distance as f32 * 16.0 * 2.0);
-        let geometry_uniforms: Vec<(&str, Box<dyn Uniform>)> = vec![
+        let _geometry_uniforms: Vec<(&str, Box<dyn Uniform>)> = vec![
             ("model_matrix", Box::new(skybox_model_matrix)),
             ("perspective_matrix", Box::new(perspective_matrix)),
             ("view_matrix", Box::new(view_matrix)),
