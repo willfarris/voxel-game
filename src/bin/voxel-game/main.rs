@@ -58,7 +58,6 @@ fn main() {
 
     voxel_game.init_gl(WIDTH, HEIGHT);
     voxel_game.init_engine();
-    voxel_game.start_gameloop();
 
     /* ********************************************** *
      * Collect arguments and initialize config values *

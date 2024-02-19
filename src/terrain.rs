@@ -68,11 +68,11 @@ impl ChunkListTrait for ChunkList {
         None
     }
 
-    fn at_index_mut<'a>(&'a mut self, index: &ChunkIndex) -> Option<&mut Arc<RwLock<Box<Chunk>>>> {
+    fn at_index_mut(&mut self, index: &ChunkIndex) -> Option<&mut Arc<RwLock<Box<Chunk>>>> {
         let priority_levels = self.len();
         let mut i = priority_levels;
         for p in 0..priority_levels {
-            if !self[p].get_mut(index).is_none() {
+            if self[p].get_mut(index).is_some() {
                 i = p;
             } else {
                 break;
@@ -86,7 +86,7 @@ impl ChunkListTrait for ChunkList {
     }
 
     fn insert(&mut self, index: &ChunkIndex, chunk: Arc<RwLock<Box<Chunk>>>) {
-        self[1].insert(index.clone(), chunk);
+        self[1].insert(*index, chunk);
     }
 }
 
@@ -509,7 +509,7 @@ impl Terrain {
                 let verts = Box::new(chunk_vertices);
                 gl_resources.update_vao_buffer(name, verts);
                 for p in 0..self.chunks.len() {
-                    if let Some(chunk) = self.chunks[p].get_mut(&chunk_index) {
+                    if let Some(chunk) = self.chunks[p].get_mut(chunk_index) {
                         let mut chunk = chunk.write().unwrap();
                         chunk.needs_mesh_rebuild = false;
                     }
@@ -550,7 +550,7 @@ impl Terrain {
         for (index, chunk) in self.chunks[0].iter_mut() {
             let chunk = chunk.read().unwrap();
             if chunk.needs_mesh_rebuild {
-                rebuild.push(index.clone());
+                rebuild.push(*index);
                 rebuild_count += 1;
             }
             if rebuild_count > 5 {
@@ -586,7 +586,7 @@ impl GLRenderable for Terrain {
         let terrain_program = Shader::new(TERRAIN_VERT_SRC, TERRAIN_FRAG_SRC).unwrap();
         gl_resources.add_shader("terrain", terrain_program);
 
-        for (chunk_index, _) in &self.chunks[0] {
+        for chunk_index in self.chunks[0].keys() {
             if let Some(chunk_vertices) = self.generate_chunk_vertices(chunk_index) {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
                 let verts = Box::new(chunk_vertices);
@@ -609,7 +609,7 @@ impl GLRenderable for Terrain {
 
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
-        for (chunk_index, _) in &self.chunks[0] {
+        for chunk_index in self.chunks[0].keys() {
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
                 0f32,

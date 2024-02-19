@@ -167,11 +167,11 @@ impl PhysicsUpdate for Player {
         };
         let delta = delta_time
             * Vector3 {
-                x: (move_speed * self.camera.right.x * self.velocity.x as f32)
-                    + (move_speed * forward.x * self.velocity.z as f32),
-                y: self.velocity.y as f32,
-                z: (move_speed * self.camera.right.z * self.velocity.x as f32)
-                    + (move_speed * forward.z * self.velocity.z as f32),
+                x: (move_speed * self.camera.right.x * self.velocity.x)
+                    + (move_speed * forward.x * self.velocity.z),
+                y: self.velocity.y,
+                z: (move_speed * self.camera.right.z * self.velocity.x)
+                    + (move_speed * forward.z * self.velocity.z),
             };
         self.movement_delta = delta;
     }

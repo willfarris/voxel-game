@@ -103,6 +103,7 @@ impl Engine {
             );
         }
         self.terrain.start_thread(self.gl_resources.clone());
+        self.start_gameloop();
     }
 
     pub fn start_gameloop(&mut self) {
@@ -120,7 +121,6 @@ impl Engine {
                      *******************************************/
 
                     let mut player_rw = player.write().unwrap();
-                    println!("player position: {:?}", player_rw.position);
                     let mut terrain_rw = terrain.write().unwrap();
 
                     /****************************************
@@ -134,7 +134,6 @@ impl Engine {
                         engine_state_rw.elapsed_time += delta_time;
                         delta_time
                     };
-
 
                     /***************************
                      * Process incoming inputs *
@@ -215,7 +214,6 @@ impl Engine {
                                                     diff.y as isize,
                                                     diff.z as isize,
                                                 );
-                                                //terrain.set_block(1, &(world_index + offset));
                                                 terrain_rw.event(TerrainEvent::ModifyBlock(world_index + offset, 1));
                                             }
                                         }
@@ -243,9 +241,6 @@ impl Engine {
                     };
                     terrain_rw.event(TerrainEvent::LoadingZones(vec![player_chunk_index]));
                     terrain_rw.tick();
-                    //terrain.set_active_chunks(vec![player_chunk_index]);
-                    //terrain.update_visible_chunks_near(self.render_distance, &player_chunk_index);
-
 
                     /*****************
                      * Update player *
@@ -275,7 +270,8 @@ impl Engine {
                      * Update entities *
                      *******************/
                     
-                /*
+                    //TODO: Uncomment and re-enable entities
+                    /*
                     for entity in &mut self.entities {
                         let terrain = self.terrain.read().unwrap();
                         entity.update_physics(delta_time.as_secs_f32());
@@ -297,7 +293,7 @@ impl Engine {
                             check_world_collision_axis(Vec3Direction::Z, entity.bounding_box(), &terrain);
                         entity.correct_position_axis(Vec3Direction::Z, overlap_z);
                     }
-                */
+                    */
                 }
 
                 //TODO: Replace the below statement with logic to target ~20tps
@@ -331,10 +327,4 @@ impl Engine {
     pub fn engine_event(&mut self, event: EngineEvent) {
         self.event_queue.write().unwrap().push(event);
     }
-
-    /*pub fn player_input(&mut self, movement: PlayerInput) {
-        if self.play_state == PlayState::Running {
-            self.input_queue.push(movement);
-        }
-    }*/
 }
