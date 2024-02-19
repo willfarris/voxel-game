@@ -3,8 +3,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 use json::{object, JsonValue};
 
 use super::{
-    chunk::{BlockDataArray, Chunk, CHUNK_HEIGHT, CHUNK_WIDTH},
-    ChunkIndex, Terrain,
+    chunk::{BlockDataArray, Chunk, CHUNK_HEIGHT, CHUNK_WIDTH}, generation::TerrainGenConfig, ChunkIndex, Terrain
 };
 
 pub(crate) fn save_chunk_data_to_json<T: Clone + std::convert::Into<json::JsonValue>>(
@@ -23,7 +22,7 @@ pub(crate) fn save_chunk_data_to_json<T: Clone + std::convert::Into<json::JsonVa
 }
 
 impl Terrain {
-    pub fn load_from_json(terrain_json: &JsonValue) -> Self {
+    pub fn load_from_json(terrain_json: &JsonValue, config: TerrainGenConfig) -> Self {
         let mut chunks = HashMap::new();
         let chunks_json = &terrain_json["chunks"];
         for (key, chunk_data) in chunks_json.entries() {
@@ -37,6 +36,7 @@ impl Terrain {
             block_placement_queue: HashMap::new(),
             chunk_update_queue: Vec::new(),
             event_queue: Vec::new(),
+            config
         }
     }
 

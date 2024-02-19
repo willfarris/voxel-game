@@ -53,7 +53,6 @@ impl Default for EngineState {
 pub struct Engine {
     player: Arc<RwLock<Box<Player>>>,
     terrain: Arc<RwLock<Terrain>>,
-    terrain_config: Arc<RwLock<TerrainGenConfig>>,
     entities: Vec<Box<dyn EntityTrait>>,
     skybox: Arc<RwLock<Skybox>>,
 
@@ -69,9 +68,11 @@ pub struct Engine {
 impl Default for Engine {
     fn default() -> Self {
         let player = Box::new(Player::new(Vector3::new(0.0, 64.0, 0.0), Z_VECTOR));
-        let terrain = Terrain::new();
+        
         let mut terrain_config = TerrainGenConfig::default();
         terrain_config.load_features(include_str!("../assets/features/world_features.json"));
+
+        let terrain = Terrain::new(terrain_config);
 
         Self {
             player: Arc::new(RwLock::new(player)),
@@ -81,7 +82,6 @@ impl Default for Engine {
 
             
             event_queue: Arc::new(RwLock::new(Vec::new())),
-            terrain_config: Arc::new(RwLock::new(terrain_config)),
             engine_state: Arc::new(RwLock::new(EngineState::default())),
             
 
@@ -100,10 +100,9 @@ impl Engine {
             self.terrain.write().unwrap().init_worldgen(
                 &Vector3::new(0.0, 0.0, 0.0),
                 4,
-                &self.terrain_config.read().unwrap(),
             );
         }
-        self.terrain.start_thread(self.gl_resources.clone(), self.terrain_config.clone());
+        self.terrain.start_thread(self.gl_resources.clone());
     }
 
     pub fn start_gameloop(&mut self) {

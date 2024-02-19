@@ -316,7 +316,6 @@ impl Terrain {
         &mut self,
         start_position: &Vector3<f32>,
         chunk_radius: isize,
-        noise_config: &TerrainGenConfig,
     ) {
         let start_chunk_index = ChunkIndex::new(
             start_position.x.floor() as isize / CHUNK_WIDTH as isize,
@@ -329,7 +328,7 @@ impl Terrain {
                 if self.chunks.at_index(&chunk_index).is_none() {
                     let mut cur_chunk = Box::new(Chunk::new());
                     let placement_queue =
-                        terraingen::generate_surface(&chunk_index, &mut cur_chunk, noise_config);
+                        terraingen::generate_surface(&chunk_index, &mut cur_chunk, &self.config);
                     self.chunks.insert(&chunk_index, Arc::new(RwLock::new(cur_chunk)));
                     self.queue_features(placement_queue);
                 }

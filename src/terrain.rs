@@ -15,7 +15,7 @@ use crate::graphics::{
 
 use self::{
     block::{MeshType, BLOCKS},
-    chunk::{Chunk, CHUNK_HEIGHT, CHUNK_WIDTH},
+    chunk::{Chunk, CHUNK_HEIGHT, CHUNK_WIDTH}, generation::TerrainGenConfig,
 };
 
 pub(crate) mod block;
@@ -46,6 +46,8 @@ pub struct Terrain {
     chunk_update_queue: Vec<ChunkIndex>,
 
     event_queue: Vec<TerrainEvent>,
+
+    config: TerrainGenConfig,
 }
 
 trait ChunkListTrait {
@@ -90,13 +92,15 @@ impl ChunkListTrait for ChunkList {
 
 
 impl Terrain {
-    pub fn new() -> Self {
+    pub fn new(config: TerrainGenConfig) -> Self {
         Self {
             chunks: [HashMap::new(), HashMap::new()],
 
             block_placement_queue: HashMap::new(),
             chunk_update_queue: Vec::new(),
             event_queue: Vec::new(),
+
+            config,
         }
     }
 
@@ -154,7 +158,7 @@ impl Terrain {
         }
     }
 
-    /// Convert from world coordinates to chunkn indices, and the block index within the chunk
+    /// Convert from world coordinates to chunk indices, and the block index within the chunk
     pub fn chunk_and_block_index(world_pos: &BlockWorldPos) -> Option<(ChunkIndex, BlockIndex)> {
         if world_pos.y > (CHUNK_HEIGHT - 1) as isize {
             None
@@ -565,6 +569,9 @@ impl Terrain {
         queue
     }
 
+    pub fn terrain_config(&self) -> &TerrainGenConfig {
+        &self.config
+    }
 }
 
 impl GLRenderable for Terrain {

@@ -36,7 +36,7 @@ impl Engine {
         let player = Box::new(Player::new(player_position, player_direction));
 
         let terrain_json = &save_json["terrain"];
-        let terrain = Terrain::load_from_json(terrain_json);
+        let terrain = Terrain::load_from_json(terrain_json, TerrainGenConfig::default());
 
         let entities: Vec<Box<dyn EntityTrait>> = Vec::new();
         let mut terrain_config: TerrainGenConfig = TerrainGenConfig::default();
@@ -45,7 +45,7 @@ impl Engine {
         Self {
             player: Arc::new(RwLock::new(player)),
             terrain: Arc::new(RwLock::new(terrain)),
-            terrain_config: Arc::new(RwLock::new(terrain_config)),
+            //terrain_config: Arc::new(RwLock::new(terrain_config)),
             entities,
             skybox: Arc::new(RwLock::new(Skybox)),
 

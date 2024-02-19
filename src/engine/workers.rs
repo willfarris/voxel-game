@@ -3,11 +3,11 @@ use crate::{graphics::resources::GLResources, terrain::{chunk::Chunk, generation
 
 
 pub trait EngineWorker {
-    fn start_thread(&self, gl_resources: Arc<RwLock<GLResources>>, terrain_config: Arc<RwLock<TerrainGenConfig>>);
+    fn start_thread(&self, gl_resources: Arc<RwLock<GLResources>>);
 }
 
 impl EngineWorker for Arc<RwLock<Terrain>> {
-    fn start_thread(&self, gl_resources: Arc<RwLock<GLResources>>, terrain_config: Arc<RwLock<TerrainGenConfig>>) {
+    fn start_thread(&self, gl_resources: Arc<RwLock<GLResources>>) {
         let terrain = self.clone();
         std::thread::spawn(move || {
             loop {
@@ -18,7 +18,7 @@ impl EngineWorker for Arc<RwLock<Terrain>> {
                         let placement_queue = terraingen::generate_surface(
                             &chunk_index,
                             &mut chunk,
-                            &terrain_config.read().unwrap(),
+                            &terrain.read().unwrap().terrain_config(),
                         );
                         {
                             let mut terrain = terrain.write().unwrap();
