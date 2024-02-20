@@ -116,7 +116,7 @@ impl Terrain {
                     let [ref mut cur_visible, ref mut backburner] = self.chunks;
                     backburner.extend(cur_visible.drain());
 
-                    let radius = 3;
+                    let radius = 6;
                     assert!(radius > 0);
                     for chunk_index in active_chunks {
                         for x in -radius..=radius {
@@ -508,11 +508,9 @@ impl Terrain {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
                 let verts = Box::new(chunk_vertices);
                 gl_resources.update_vao_buffer(name, verts);
-                for p in 0..self.chunks.len() {
-                    if let Some(chunk) = self.chunks[p].get_mut(chunk_index) {
-                        let mut chunk = chunk.write().unwrap();
-                        chunk.needs_mesh_rebuild = false;
-                    }
+                if let Some(chunk) = self.chunks.at_index_mut(chunk_index) {
+                    let mut chunk = chunk.write().unwrap();
+                    chunk.needs_mesh_rebuild = false;
                 }
             }
         }
@@ -523,16 +521,16 @@ impl Terrain {
         chunk_index: &ChunkIndex,
         gl_resources: &mut GLResources,
     ) {
-        let x_pos = chunk_index + ChunkIndex::new(1, 0);
-        let x_neg = chunk_index + ChunkIndex::new(-1, 0);
-        let z_pos = chunk_index + ChunkIndex::new(0, 1);
-        let z_neg = chunk_index + ChunkIndex::new(0, -1);
-
+        let adjacent_chunks = [
+            chunk_index + ChunkIndex::new(1, 0),  //x_pos
+            chunk_index + ChunkIndex::new(-1, 0), //x_neg
+            chunk_index + ChunkIndex::new(0, 1),  //z_pos
+            chunk_index + ChunkIndex::new(0, -1), //z_neg
+        ];
         self.update_single_chunk_mesh(chunk_index, gl_resources);
-        self.update_single_chunk_mesh(&x_pos, gl_resources);
-        self.update_single_chunk_mesh(&x_neg, gl_resources);
-        self.update_single_chunk_mesh(&z_pos, gl_resources);
-        self.update_single_chunk_mesh(&z_neg, gl_resources);
+        for chunk_index in adjacent_chunks {
+            self.update_single_chunk_mesh(&chunk_index, gl_resources);
+        }
     }
 
 
@@ -546,15 +544,10 @@ impl Terrain {
 
     pub fn update_meshes(&mut self, gl_resources: &mut GLResources) {
         let mut rebuild = Vec::new();
-        let mut rebuild_count = 0;
         for (index, chunk) in self.chunks[0].iter_mut() {
             let chunk = chunk.read().unwrap();
             if chunk.needs_mesh_rebuild {
                 rebuild.push(*index);
-                rebuild_count += 1;
-            }
-            if rebuild_count > 5 {
-                break;
             }
         }
 

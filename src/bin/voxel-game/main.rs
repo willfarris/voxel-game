@@ -69,6 +69,7 @@ fn main() {
 
     let mut wasd_pressed = [false; 4];
     let mut jump = false;
+    let mut sprint = false;
     let start_time = glfw.get_time() as f32;
     let mut last_time = start_time;
 
@@ -146,6 +147,20 @@ fn main() {
                                 jump = true;
                             } else if state == glfw::Action::Release {
                                 jump = false;
+                            }
+                        }
+                        glfw::Key::Space => {
+                            if state == glfw::Action::Press {
+                                jump = true;
+                            } else if state == glfw::Action::Release {
+                                jump = false;
+                            }
+                        }
+                        glfw::Key::LeftControl => {
+                            if state == glfw::Action::Press {
+                                sprint = true;
+                            } else if state == glfw::Action::Release {
+                                sprint = false;
                             }
                         }
 
@@ -242,6 +257,9 @@ fn main() {
         }
         if jump {
             voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Jump));
+        }
+        if sprint {
+            voxel_game.engine_event(EngineEvent::UserInput(PlayerInput::Sprint));
         }
 
         /* *************************** *
