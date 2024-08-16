@@ -12,7 +12,6 @@ use crate::physics::vectormath::{q_rsqrt, Vec3Direction, Y_VECTOR};
 
 use self::inventory::Inventory;
 
-const SPEED_MODIFIER: f32 = 1.0;
 const GRAVITY_MODIFIER: f32 = 1.0;
 
 pub(crate) const GRAVITY: Vector3<f32> = Vector3 {
@@ -28,6 +27,7 @@ pub enum PlayerInput {
     Inventory(usize),
     Interact(bool, bool),
     Jump,
+    Sprint,
     Stop,
 }
 
@@ -39,6 +39,7 @@ pub(crate) struct Player {
     movement_delta: Vector3<f32>,
 
     move_speed: f32,
+    speed_multiplier: f32,
     pub grounded: bool,
     walking: bool,
     time_walking: f32,
@@ -60,7 +61,8 @@ impl Player {
             acceleration: Vector3::new(0f32, 0f32, 0f32),
             movement_delta: Vector3::new(0f32, 0f32, 0f32),
 
-            move_speed: 4.0 * SPEED_MODIFIER,
+            move_speed: 4.0,
+            speed_multiplier: 2.0,
             running: false,
             grounded: false,
             walking: false,
@@ -89,6 +91,10 @@ impl Player {
             }
             PlayerInput::Inventory(selected) => {
                 self.select_inventory(selected);
+            }
+            PlayerInput::Sprint => {
+                self.running = true;
+                self.speed_multiplier = 2.0;
             }
             _ => {}
         }
@@ -123,6 +129,8 @@ impl Player {
     pub fn stop_move(&mut self) {
         self.walking = false;
         self.time_walking %= 2.0 * std::f32::consts::PI / 10.0;
+        self.running = false;
+        self.speed_multiplier = 1.0;
     }
 
     pub fn camera_view_matrix(&self) -> Matrix4<f32> {
@@ -134,7 +142,7 @@ impl Player {
         self.inventory.print_inventory();
     }
 
-    pub fn add_to_inventory(&mut self, block_id: usize) {
+    pub fn _add_to_inventory(&mut self, block_id: usize) {
         self.inventory.add_to_inventory(block_id);
     }
 }
@@ -161,7 +169,7 @@ impl PhysicsUpdate for Player {
 
         let forward = Vector3::new(self.camera.forward.x, 0.0, self.camera.forward.z).normalize();
         let move_speed = if self.running {
-            self.move_speed * 2.0
+            self.move_speed * self.speed_multiplier
         } else {
             self.move_speed
         };

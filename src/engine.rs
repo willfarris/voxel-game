@@ -96,12 +96,6 @@ impl Default for Engine {
 impl Engine {
 
     pub fn init_engine(&mut self) {
-        {
-            self.terrain.write().unwrap().init_worldgen(
-                &Vector3::new(0.0, 0.0, 0.0),
-                4,
-            );
-        }
         self.terrain.start_thread(self.gl_resources.clone());
         self.start_gameloop();
     }

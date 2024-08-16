@@ -25,7 +25,6 @@ impl EngineWorker for Arc<RwLock<Terrain>> {
                             terrain.insert_chunk(chunk_index, Arc::new(RwLock::new(chunk)));
                             terrain.queue_features(placement_queue);
                         }
-                        std::thread::sleep(Duration::from_millis(1));
                     }
                 }
 
@@ -53,7 +52,7 @@ impl EngineWorker for Arc<RwLock<Terrain>> {
                     terrain.update_meshes(&mut gl_resources.write().unwrap());
                 }
 
-                std::thread::sleep(Duration::from_millis(100));
+                std::thread::sleep(Duration::from_millis(1));
             }
         });
     }
