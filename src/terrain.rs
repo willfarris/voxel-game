@@ -137,7 +137,6 @@ impl Terrain {
                         if let Some(chunk) = self.chunks.at_index_mut(&chunk_index) {
                             let mut chunk = chunk.write().unwrap();
                             chunk.set_block(&block_index, new_value);
-                            chunk.needs_mesh_rebuild = true;
                         }
                     }
                 },
