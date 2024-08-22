@@ -8,6 +8,7 @@ use super::{
     chunk::{Chunk, CHUNK_WIDTH}, BlockWorldPos, ChunkIndex, ChunkListTrait, Terrain
 };
 
+#[derive(Clone)]
 pub struct TerrainGenConfig {
     perlin: Perlin,
     continentalness_scale: Vector2<f64>,
@@ -141,11 +142,9 @@ pub(crate) mod terraingen {
         chunk_index: &ChunkIndex,
         chunk: &mut Chunk,
         noise_config: &TerrainGenConfig,
-    ) -> Vec<(BlockWorldPos, usize)> {
+    ) {
         shape_terrain(chunk_index, chunk, noise_config);
         place_biomes(chunk_index, chunk, noise_config);
-
-        enqueue_features(chunk_index, noise_config)
     }
 
     fn shape_terrain(chunk_index: &ChunkIndex, chunk: &mut Chunk, noise_config: &TerrainGenConfig) {
@@ -327,10 +326,8 @@ impl Terrain {
                 let chunk_index = start_chunk_index + ChunkIndex::new(chunk_x, chunk_z);
                 if self.chunks.at_index(&chunk_index).is_none() {
                     let mut cur_chunk = Box::new(Chunk::new());
-                    let placement_queue =
-                        terraingen::generate_surface(&chunk_index, &mut cur_chunk, &self.config);
+                    terraingen::generate_surface(&chunk_index, &mut cur_chunk, &self.config);
                     self.chunks.insert(&chunk_index, Arc::new(RwLock::new(cur_chunk)));
-                    self.queue_features(placement_queue);
                 }
             }
         }

@@ -1,7 +1,9 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use cgmath::{Matrix4, Vector2, Vector3};
+use chunk::{ChunkUpdate, ChunkUpdateInner};
 use image::ImageFormat;
+use lockfree::queue::Queue;
 
 use crate::graphics::{
     mesh::push_face,
@@ -43,7 +45,8 @@ pub struct Terrain {
     chunks: ChunkList,
 
     block_placement_queue: HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>,
-    chunk_update_queue: Vec<ChunkIndex>,
+    
+    pub chunk_generation_queue: Arc<Queue<ChunkIndex>>,
 
     event_queue: Vec<TerrainEvent>,
 
@@ -97,7 +100,7 @@ impl Terrain {
             chunks: [HashMap::new(), HashMap::new()],
 
             block_placement_queue: HashMap::new(),
-            chunk_update_queue: Vec::new(),
+            chunk_generation_queue: Arc::new(Queue::new()),
             event_queue: Vec::new(),
 
             config,
@@ -125,7 +128,7 @@ impl Terrain {
                                 if let Some(chunk) = backburner.remove(&chunk_index) {
                                     cur_visible.insert(chunk_index, chunk);
                                 } else {
-                                    self.chunk_update_queue.push(chunk_index);
+                                    self.chunk_generation_queue.push(chunk_index);
                                 }
                             }
                         }
@@ -137,6 +140,7 @@ impl Terrain {
                         if let Some(chunk) = self.chunks.at_index_mut(&chunk_index) {
                             let mut chunk = chunk.write().unwrap();
                             chunk.set_block(&block_index, new_value);
+                            chunk.next_update = ChunkUpdate::BlockUpdate(ChunkUpdateInner::new(chunk_index, block_index, new_value));
                         }
                     }
                 },
@@ -509,7 +513,7 @@ impl Terrain {
                 gl_resources.update_vao_buffer(name, verts);
                 if let Some(chunk) = self.chunks.at_index_mut(chunk_index) {
                     let mut chunk = chunk.write().unwrap();
-                    chunk.needs_mesh_rebuild = false;
+                    chunk.next_update = ChunkUpdate::NoUpdate;
                 }
             }
         }
@@ -527,9 +531,6 @@ impl Terrain {
             chunk_index + ChunkIndex::new(0, -1), //z_neg
         ];
         self.update_single_chunk_mesh(chunk_index, gl_resources);
-        for chunk_index in adjacent_chunks {
-            self.update_single_chunk_mesh(&chunk_index, gl_resources);
-        }
     }
 
 
@@ -545,8 +546,11 @@ impl Terrain {
         let mut rebuild = Vec::new();
         for (index, chunk) in self.chunks[0].iter_mut() {
             let chunk = chunk.read().unwrap();
-            if chunk.needs_mesh_rebuild {
-                rebuild.push(*index);
+            match chunk.next_update {
+                ChunkUpdate::NoUpdate => {}
+                _ => {
+                    rebuild.push(*index);
+                }
             }
         }
 
@@ -555,14 +559,9 @@ impl Terrain {
         }
     }
 
-    pub fn needs_regen(&mut self) -> Vec<ChunkIndex> {
-        let queue = self.chunk_update_queue.clone();
-        self.chunk_update_queue.clear();
-        queue
-    }
 
-    pub fn terrain_config(&self) -> &TerrainGenConfig {
-        &self.config
+    pub fn terrain_config(&self) -> TerrainGenConfig {
+        self.config.clone()
     }
 }
 

@@ -1,5 +1,5 @@
 use std::{sync::{Arc, RwLock}, time::Duration};
-use crate::{graphics::resources::GLResources, terrain::{chunk::Chunk, generation::{terraingen, TerrainGenConfig}, Terrain}};
+use crate::{graphics::resources::GLResources, terrain::{chunk::{self, Chunk, ChunkUpdate}, generation::{terraingen, TerrainGenConfig}, Terrain}};
 
 
 pub trait EngineWorker {
@@ -9,21 +9,28 @@ pub trait EngineWorker {
 impl EngineWorker for Arc<RwLock<Terrain>> {
     fn start_thread(&self, gl_resources: Arc<RwLock<GLResources>>) {
         let terrain = self.clone();
+        
         std::thread::spawn(move || {
+            let terrain_config  = {
+                terrain.read().unwrap().terrain_config()
+            };
+            let gen_queue = {
+                terrain.read().unwrap().chunk_generation_queue.clone()
+            };
             loop {
                 {
-                    let gen_queue = { terrain.write().unwrap().needs_regen() };
-                    for chunk_index in gen_queue {
+                    if let Some(chunk_index) = gen_queue.pop() {
+                        println!("Generating {:?}", chunk_index);
                         let mut chunk = Box::new(Chunk::new());
-                        let placement_queue = terraingen::generate_surface(
+                        chunk.next_update = ChunkUpdate::Generated;
+                        terraingen::generate_surface(
                             &chunk_index,
                             &mut chunk,
-                            &terrain.read().unwrap().terrain_config(),
+                            &terrain_config,
                         );
                         {
                             let mut terrain = terrain.write().unwrap();
                             terrain.insert_chunk(chunk_index, Arc::new(RwLock::new(chunk)));
-                            terrain.queue_features(placement_queue);
                         }
                     }
                 }
@@ -48,7 +55,6 @@ impl EngineWorker for Arc<RwLock<Terrain>> {
 
                 {
                     let mut terrain = terrain.write().unwrap();
-                    terrain.place_features();
                     terrain.update_meshes(&mut gl_resources.write().unwrap());
                 }
 

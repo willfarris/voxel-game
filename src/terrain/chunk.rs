@@ -10,19 +10,30 @@ pub(crate) const CHUNK_HEIGHT: usize = 256;
 
 pub(crate) type BlockDataArray<T> = [[[T; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
 
+
+#[derive(Copy, Clone)]
+pub(crate) struct ChunkUpdateInner {
+    updated_chunk: ChunkIndex,
+    updated_block: BlockIndex,
+    new_block_id: usize,
+}
+
+impl ChunkUpdateInner {
+    pub fn new(updated_chunk: ChunkIndex, updated_block: BlockIndex, new_block_id: usize) -> Self {
+        Self {
+            updated_chunk,
+            updated_block,
+            new_block_id,
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub enum ChunkUpdate {
-    // 0: Index of chunk updated
-    // 1: Index of block updated
-    // 2: New value of block at index
-    BlockUpdate(ChunkIndex, BlockIndex, usize),
-
-    // 0: Index of chunk updated
-    // 1: Index of neighbor chunk updated
-    // 2: Index of block that triggered the update
-    // 3: Index of neighbor affected by the update
-    // 4: value of block that triggered the update 
-    NeighborChanged(ChunkIndex, ChunkIndex, BlockIndex, BlockIndex, usize),
+    BlockUpdate(ChunkUpdateInner),
+    NeighborChanged(ChunkUpdateInner),
+    Generated,
+    NoUpdate,
 }
 
 #[derive(Clone)]
@@ -31,7 +42,7 @@ pub struct Chunk {
     metadata: BlockDataArray<usize>,
     lighting: BlockDataArray<usize>,
 
-    pub needs_mesh_rebuild: bool,
+    pub next_update: ChunkUpdate,
 }
 
 impl Chunk {
@@ -40,7 +51,7 @@ impl Chunk {
             blocks: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
             metadata: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
             lighting: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
-            needs_mesh_rebuild: false,
+            next_update: ChunkUpdate::NoUpdate,
         }
     }
 
@@ -55,7 +66,6 @@ impl Chunk {
     pub fn set_block(&mut self, block_index: &BlockIndex, block_id: usize) -> usize {
         let prev_block_id = self.blocks[block_index.x][block_index.y][block_index.z];
         self.blocks[block_index.x][block_index.y][block_index.z] = block_id;
-        self.needs_mesh_rebuild = true;
         prev_block_id
     }
 

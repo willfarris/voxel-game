@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use json::{object, JsonValue};
+use lockfree::queue::Queue;
 
 use super::{
     chunk::{BlockDataArray, Chunk, CHUNK_HEIGHT, CHUNK_WIDTH}, generation::TerrainGenConfig, ChunkIndex, Terrain
@@ -34,7 +35,7 @@ impl Terrain {
         Self {
             chunks: [HashMap::new(), chunks],
             block_placement_queue: HashMap::new(),
-            chunk_update_queue: Vec::new(),
+            chunk_generation_queue: Arc::new(Queue::new()),
             event_queue: Vec::new(),
             config
         }

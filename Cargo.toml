@@ -11,6 +11,7 @@ rand = "0.7.3"
 noise = "0.8.2"
 splines = "4.1.1"
 json = "*"
+lockfree = "*"
 
 jni = { version = "*", default-features = false, optional = true }
 android_log = { version = "*", optional = true }
