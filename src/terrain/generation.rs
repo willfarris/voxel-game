@@ -1,12 +1,10 @@
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::collections::HashMap;
 
-use cgmath::{Vector2, Vector3};
+use cgmath::Vector2;
 use noise::{NoiseFn, Perlin};
 use splines::Spline;
 
-use super::{
-    chunk::{Chunk, CHUNK_WIDTH}, BlockWorldPos, ChunkIndex, ChunkListTrait, Terrain
-};
+use super::Terrain;
 
 #[derive(Clone)]
 pub struct TerrainGenConfig {
@@ -191,7 +189,7 @@ pub(crate) mod terraingen {
         }
     }
 
-    fn enqueue_features(
+    /* fn enqueue_features(
         chunk_index: &ChunkIndex,
         terrain_config: &TerrainGenConfig,
     ) -> Vec<(BlockWorldPos, usize)> {
@@ -283,9 +281,9 @@ pub(crate) mod terraingen {
         }
 
         placement_queue
-    }
+    } */
 
-    fn instantiate_feature(
+    /* fn instantiate_feature(
         world_position: &BlockWorldPos,
         feature_name: &str,
         terrain_config: &TerrainGenConfig,
@@ -307,11 +305,11 @@ pub(crate) mod terraingen {
                 }
             }
         }
-    }
+    } */
 }
 
 impl Terrain {
-    pub(crate) fn init_worldgen(
+    /* pub(crate) fn init_worldgen(
         &mut self,
         start_position: &Vector3<f32>,
         chunk_radius: isize,
@@ -331,9 +329,9 @@ impl Terrain {
                 }
             }
         }
-    }
+    } */
 
-    pub(crate) fn queue_features(&mut self, feature_blocks: Vec<(BlockWorldPos, usize)>) {
+    /* pub(crate) fn queue_features(&mut self, feature_blocks: Vec<(BlockWorldPos, usize)>) {
         // Update the placement queue with blocks that are part of the new feature
         for (world_pos, block_id) in feature_blocks {
             if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(&world_pos) {
@@ -367,5 +365,5 @@ impl Terrain {
                 true
             }
         });
-    }
+    } */
 }

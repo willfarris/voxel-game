@@ -94,7 +94,7 @@ impl Player {
             }
             PlayerInput::Sprint => {
                 self.running = true;
-                self.speed_multiplier = 2.0;
+                self.speed_multiplier = 10.0;
             }
             _ => {}
         }
@@ -158,7 +158,6 @@ impl PhysicsUpdate for Player {
         if !self.walking {
             self.velocity.x *= 1.0 - 10.0 * delta_time;
             self.velocity.z *= 1.0 - 10.0 * delta_time;
-            //self.time_walking *= 1.0 - 10.0 * delta_time;
         } else {
             self.time_walking += delta_time;
         }

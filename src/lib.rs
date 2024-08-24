@@ -27,7 +27,8 @@ pub struct EngineLock {
 impl EngineLock {
     pub fn load_from_save(save_path: &str) -> Self {
         Self {
-            engine: std::sync::Mutex::new(engine::Engine::load_from_save(save_path)),
+            //engine: std::sync::Mutex::new(engine::Engine::load_from_save(save_path)),
+            engine: std::sync::Mutex::new(engine::Engine::default()),
         }
     }
 }

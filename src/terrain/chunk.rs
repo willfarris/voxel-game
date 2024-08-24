@@ -1,9 +1,4 @@
-use std::{collections::HashMap, slice::SliceIndex};
-
-use cgmath::Vector3;
-use json::{object, JsonValue};
-
-use super::{block::BLOCKS, save::save_chunk_data_to_json, BlockIndex, ChunkIndex};
+use super::{BlockIndex, ChunkIndex};
 
 pub(crate) const CHUNK_WIDTH: usize = 16;
 pub(crate) const CHUNK_HEIGHT: usize = 256;
@@ -11,7 +6,7 @@ pub(crate) const CHUNK_HEIGHT: usize = 256;
 pub(crate) type BlockDataArray<T> = [[[T; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH];
 
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct ChunkUpdateInner {
     updated_chunk: ChunkIndex,
     updated_block: BlockIndex,
@@ -28,7 +23,7 @@ impl ChunkUpdateInner {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum ChunkUpdate {
     BlockUpdate(ChunkUpdateInner),
     NeighborChanged(ChunkUpdateInner),
@@ -232,7 +227,7 @@ impl Chunk {
         HashMap::new()
     }*/
 
-    pub fn from_json_array(chunk_json: &JsonValue) -> Box<Self> {
+    /* pub fn from_json_array(chunk_json: &JsonValue) -> Box<Self> {
         let mut chunk = Box::new(Self::new());
 
         let chunk_blocks = &chunk_json["blocks"];
@@ -263,5 +258,5 @@ impl Chunk {
             "blocks": save_chunk_data_to_json(&self.blocks),
             "lighting": save_chunk_data_to_json(&self.lighting)
         }
-    }
+    } */
 }

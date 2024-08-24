@@ -4,8 +4,8 @@ use glfw::Context;
 use voxel::engine::{Engine, EngineEvent, PlayerInput};
 use voxel::q_rsqrt;
 
-const WIDTH: i32 = 1920;
-const HEIGHT: i32 = 900;
+const WIDTH: i32 = 800;
+const HEIGHT: i32 = 450;
 const GAME_SAVE_PATH: &str = "blockcraft";
 
 fn main() {
@@ -16,11 +16,14 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     assert!(args.len() > 1);
-
-    let mut voxel_game = match args[1].as_str() {
-        "--restore" => Engine::load_from_save(GAME_SAVE_PATH),
-        "--new" => Engine::default(),
-        _ => Engine::default(),
+    let mut voxel_game = if args.len() > 1 {
+        match args[1].as_str() {
+            //"--restore" => Engine::load_from_save(GAME_SAVE_PATH),
+            "--new" => Engine::default(),
+            _ => Engine::default(),
+        }
+    } else {
+        Engine::default()
     };
 
     /* ********************** *
@@ -167,7 +170,7 @@ fn main() {
                         glfw::Key::O => {
                             if state == glfw::Action::Release {
                                 voxel_game.pause();
-                                voxel_game.save_to_file(GAME_SAVE_PATH);
+                                //voxel_game.save_to_file(GAME_SAVE_PATH);
                                 voxel_game.resume();
                             }
                         }
