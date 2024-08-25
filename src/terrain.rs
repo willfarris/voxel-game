@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::{collections::HashMap, sync::{atomic::AtomicPtr, Arc, Mutex, RwLock}};
 
 use cgmath::{Matrix4, Vector2, Vector3, Zero};
 use chunk::{ChunkUpdate, ChunkUpdateInner};
@@ -41,11 +41,12 @@ pub struct Terrain {
      * 0: chunks in view to be actively updated/drawn each tick/frame
      * 1: chunks in RAM but inactive, out of render distance
      */
-    chunks: ChunkList,
+    pub chunks: Arc<Mutex<ChunkList>>,
 
     //block_placement_queue: HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>,
     
-    pub chunk_generation_queue: Arc<Queue<ChunkIndex>>,
+    //pub chunk_generation_queue: Arc<Queue<ChunkIndex>>,
+    pub active_chunk: Arc<RwLock<ChunkIndex>>,
     pub mesh_rebuild_queue: Arc<Queue<ChunkIndex>>,
 
     event_queue: Vec<TerrainEvent>,
@@ -53,14 +54,12 @@ pub struct Terrain {
     config: TerrainGenConfig,
 }
 
-
 impl Terrain {
     pub fn new(config: TerrainGenConfig) -> Self {
         Self {
-            chunks: HashMap::new(),
+            chunks: Arc::new(Mutex::new(ChunkList::new())),
 
-            //block_placement_queue: HashMap::new(),
-            chunk_generation_queue: Arc::new(Queue::new()),
+            active_chunk: Arc::new(RwLock::new(ChunkIndex::zero())),
             mesh_rebuild_queue: Arc::new(Queue::new()),
             event_queue: Vec::new(),
 
@@ -76,26 +75,13 @@ impl Terrain {
         while let Some(event) = self.event_queue.pop() {
             match event {
                 TerrainEvent::LoadingZones(active_chunks) => {
-                    
-                    let radius = 2;
-                    assert!(radius > 0);
-                    for chunk_index in active_chunks {
-                        for x in -radius..=radius {
-                            for z in -radius..=radius {
-                                let chunk_index = chunk_index + Vector2::new(x, z);
-                                if self.chunks.get(&chunk_index).is_none() {
-                                    self.chunk_generation_queue.push(chunk_index);
-                                }
-                            }
-                        }
-                    }
+                    *self.active_chunk.write().unwrap() = active_chunks[0];
                 },
                 TerrainEvent::ModifyBlock(block_world_pos, new_value) => {
                     if let Some((chunk_index, block_index)) = Self::chunk_and_block_index(&block_world_pos) {
-                        if let Some(chunk) = self.chunks.get_mut(&chunk_index) {
-                            let mut chunk = chunk.write().unwrap();
-                            chunk.set_block(&block_index, new_value);
-                            chunk.next_update = ChunkUpdate::BlockUpdate(ChunkUpdateInner::new(chunk_index, block_index, new_value));
+                        if let Some(chunk) = self.chunks.lock().unwrap().get(&chunk_index) {
+                            chunk.write().unwrap().set_block(&block_index, new_value);
+                            chunk.write().unwrap().next_update = ChunkUpdate::BlockUpdate(ChunkUpdateInner::new(chunk_index, block_index, new_value));
                         }
                     }
                 },
@@ -106,7 +92,7 @@ impl Terrain {
     /// Fetch the ID of the block at the global position `world_pos`
     pub fn block_at_world_pos(&self, world_pos: &BlockWorldPos) -> usize {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
-            if let Some(chunk) = self.chunks.get(&chunk_index) {
+            if let Some(chunk) = self.chunks.lock().unwrap().get(&chunk_index) {
                 let chunk = chunk.read().unwrap();
                 return chunk.get_block(&block_index)
             }
@@ -441,7 +427,7 @@ impl Terrain {
 
     pub fn collision_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
         if let Some((chunk_index, block_index)) = Terrain::chunk_and_block_index(world_pos) {
-            if let Some(chunk) = self.chunks.get(&chunk_index) {
+            if let Some(chunk) = self.chunks.lock().unwrap().get(&chunk_index) {
                 let chunk = chunk.read().unwrap();
                 chunk.get_block(&block_index) != 0
             } else {
@@ -457,7 +443,7 @@ impl Terrain {
         chunk_index: &ChunkIndex,
         gl_resources: &mut GLResources,
     ) {
-        let chunk = self.chunks.get(chunk_index).cloned();
+        let chunk = self.chunks.lock().unwrap().get(chunk_index).cloned();
         if let Some(chunk) = chunk {
             let adjacent_chunks = [
                 chunk_index + ChunkIndex::new(1, 0),  //x_pos
@@ -470,9 +456,11 @@ impl Terrain {
                 x_neg_chunk,
                 z_pos_chunk,
                 z_neg_chunk
-            ] = adjacent_chunks.map(|i| self.chunks.get(&i));
+            ] = adjacent_chunks.map(|i| {
+                self.chunks.lock().unwrap().get(&i).cloned()
+            });
 
-            let verts = Terrain::generate_chunk_vertices(chunk.clone(), x_pos_chunk, x_neg_chunk, z_pos_chunk, z_neg_chunk);
+            let verts = Terrain::generate_chunk_vertices(chunk.clone(), x_pos_chunk.as_ref(), x_neg_chunk.as_ref(), z_pos_chunk.as_ref(), z_neg_chunk.as_ref());
             
             if let Some(chunk_vertices) = verts {
                 let name = format!("chunk_{}_{}", chunk_index.x, chunk_index.y);
@@ -486,9 +474,11 @@ impl Terrain {
         }
     }
 
-    pub fn insert_chunk(&mut self, chunk_index: ChunkIndex, chunk: Arc<RwLock<Box<Chunk>>>) {
-        self.chunks.insert(chunk_index, chunk);
-    }
+    /* pub fn insert_chunk(&mut self, chunk_index: ChunkIndex, chunk: Arc<RwLock<Box<Chunk>>>) {
+        let mut chunks = self.chunks.write().unwrap();
+        if chunks.get(&chunk_index).is_some(){return}
+        chunks.insert(chunk_index, chunk);
+    } */
 
     pub fn solid_block_at_world_pos(&self, world_pos: &BlockWorldPos) -> bool {
         BLOCKS[self.block_at_world_pos(world_pos)].solid
@@ -496,7 +486,7 @@ impl Terrain {
 
     pub fn update_meshes(&mut self, gl_resources: &mut GLResources) {
 
-        for (index, chunk) in self.chunks.iter_mut() {
+        for (index, chunk) in self.chunks.lock().unwrap().iter_mut() {
             let chunk = chunk.write().unwrap();
             match chunk.next_update {
                 ChunkUpdate::Generated | ChunkUpdate::BlockUpdate(_) | ChunkUpdate::NeighborChanged(_) => {
@@ -509,7 +499,11 @@ impl Terrain {
 
         let mut temp = vec![];
         while let Some(index) = self.mesh_rebuild_queue.pop() {
-            if let Some(chunk) = self.chunks.get_mut(&index) {
+            let chunk = {
+                let chunks = self.chunks.lock().unwrap();
+                chunks.get(&index).cloned()  
+            };
+            if let Some(chunk) = chunk {
                 let chunk = chunk.clone();
                 println!("rebuilding mesh for {:?}", index);
                 {
@@ -524,7 +518,7 @@ impl Terrain {
                                 index + ChunkIndex::new(0, -1), //z_neg
                             ];
                             for index in adjacent_chunks {
-                                if let Some(adjacent_chunk) = self.chunks.get_mut(&index) {
+                                if let Some(adjacent_chunk) = self.chunks.lock().unwrap().get_mut(&index) {
                                     let mut adjacent_chunk = adjacent_chunk.write().unwrap();
                                     adjacent_chunk.next_update = ChunkUpdate::NeighborChanged(ChunkUpdateInner::new(index, Vector3::zero(), 0))
                                 }
@@ -535,7 +529,7 @@ impl Terrain {
                 self.update_single_chunk_mesh(&index, gl_resources);
             } else {
                 temp.push(index);
-            }
+            };
         }
         self.mesh_rebuild_queue.extend(temp);
         
@@ -591,7 +585,7 @@ impl GLRenderable for Terrain {
 
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
-        for chunk_index in self.chunks.keys() {
+        for chunk_index in self.chunks.lock().unwrap().keys() {
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
                 0f32,

@@ -1,5 +1,7 @@
 use std::{sync::{Arc, RwLock}, time::Duration};
-use crate::{graphics::resources::GLResources, terrain::{chunk::{self, Chunk, ChunkUpdate}, generation::{terraingen, TerrainGenConfig}, Terrain}};
+use cgmath::Vector2;
+
+use crate::{graphics::resources::GLResources, terrain::{chunk::{Chunk, ChunkUpdate}, generation::terraingen, Terrain}};
 
 
 pub trait EngineWorker {
@@ -14,23 +16,34 @@ impl EngineWorker for Arc<RwLock<Terrain>> {
             let terrain_config  = {
                 terrain.read().unwrap().terrain_config()
             };
-            let gen_queue = {
-                terrain.read().unwrap().chunk_generation_queue.clone()
+            let active_chunk = {
+                terrain.read().unwrap().active_chunk.clone()
+            };
+            let chunks = {
+                terrain.read().unwrap().chunks.clone()
             };
             loop {
                 {
-                    if let Some(chunk_index) = gen_queue.pop() {
-                        println!("Generating {:?}", chunk_index);
-                        let mut chunk = Box::new(Chunk::new());
-                        chunk.next_update = ChunkUpdate::Generated;
-                        terraingen::generate_surface(
-                            &chunk_index,
-                            &mut chunk,
-                            &terrain_config,
-                        );
-                        {
-                            let mut terrain = terrain.write().unwrap();
-                            terrain.insert_chunk(chunk_index, Arc::new(RwLock::new(chunk)));
+                    let radius = 6;
+                    
+                    let chunk_index = active_chunk.read().unwrap().clone();
+                    for x in -radius..=radius {
+                        for z in -radius..=radius {
+                            let chunk_index = chunk_index + Vector2::new(x, z);
+                            let chunk = chunks.lock().unwrap().get(&chunk_index).cloned();
+                            if chunk.is_none() {
+                                println!("Generating {:?}", chunk_index);
+                                let mut chunk = Box::new(Chunk::new());
+                                chunk.next_update = ChunkUpdate::Generated;
+                                terraingen::generate_surface(
+                                    &chunk_index,
+                                    &mut chunk,
+                                    &terrain_config,
+                                );
+                                {
+                                    chunks.lock().unwrap().insert(chunk_index, Arc::new(RwLock::new(chunk)));
+                                }
+                            }
                         }
                     }
                 }
@@ -57,6 +70,12 @@ impl EngineWorker for Arc<RwLock<Terrain>> {
                     let mut terrain = terrain.write().unwrap();
                     terrain.update_meshes(&mut gl_resources.write().unwrap());
                 }
+
+                {
+                    let mut terrain = terrain.write().unwrap();
+                    terrain.update_meshes(&mut gl_resources.write().unwrap());
+                }
+
 
                 std::thread::sleep(Duration::from_millis(1));
             }
