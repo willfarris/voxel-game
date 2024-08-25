@@ -82,6 +82,7 @@ impl Terrain {
                         if let Some(chunk) = self.chunks.lock().unwrap().get(&chunk_index) {
                             chunk.write().unwrap().set_block(&block_index, new_value);
                             chunk.write().unwrap().next_update = ChunkUpdate::BlockUpdate(ChunkUpdateInner::new(chunk_index, block_index, new_value));
+                            //println!("Marked {:?} as BlockUpdate", chunk_index);
                         }
                     }
                 },
@@ -460,6 +461,11 @@ impl Terrain {
                 self.chunks.lock().unwrap().get(&i).cloned()
             });
 
+            /* println!("Generating {:?}: x_pos exists: {}", chunk_index, x_pos_chunk.is_some());
+            println!("Generating {:?}: x_neg exists: {}", chunk_index, x_neg_chunk.is_some());
+            println!("Generating {:?}: z_pos exists: {}", chunk_index, z_pos_chunk.is_some());
+            println!("Generating {:?}: z_pos exists: {}", chunk_index, z_neg_chunk.is_some());
+ */
             let verts = Terrain::generate_chunk_vertices(chunk.clone(), x_pos_chunk.as_ref(), x_neg_chunk.as_ref(), z_pos_chunk.as_ref(), z_neg_chunk.as_ref());
             
             if let Some(chunk_vertices) = verts {
@@ -469,6 +475,7 @@ impl Terrain {
                 {
                     let mut chunk = chunk.write().unwrap();
                     chunk.next_update = ChunkUpdate::NoUpdate;
+                    //println!("marked {:?} as NoUpdate", chunk_index);
                 }
             }
         }
@@ -503,9 +510,8 @@ impl Terrain {
                 let chunks = self.chunks.lock().unwrap();
                 chunks.get(&index).cloned()  
             };
-            if let Some(chunk) = chunk {
-                let chunk = chunk.clone();
-                println!("rebuilding mesh for {:?}", index);
+            if let Some(_) = chunk {
+                /* let chunk = chunk.clone();
                 {
                     let chunk = chunk.write().unwrap();
                     match chunk.next_update {
@@ -525,7 +531,8 @@ impl Terrain {
                             }
                         }
                     }
-                }
+                } */
+                println!("rebuilding mesh for {:?}", index);
                 self.update_single_chunk_mesh(&index, gl_resources);
             } else {
                 temp.push(index);

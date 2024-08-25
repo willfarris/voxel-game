@@ -105,7 +105,7 @@ impl GLResources {
         name: String,
         buffer_contents: Box<dyn VertexBufferContents + Send + Sync>,
     ) {
-        self.vao_update_queue.push_front((name, buffer_contents));
+        self.vao_update_queue.push_back((name, buffer_contents));
     }
 
     pub fn process_vao_buffer_updates(&mut self, num_per_frame: usize) {

@@ -1,7 +1,7 @@
 use std::{sync::{Arc, RwLock}, time::Duration};
-use cgmath::Vector2;
+use cgmath::{Vector2, Vector3, Zero};
 
-use crate::{graphics::resources::GLResources, terrain::{chunk::{Chunk, ChunkUpdate}, generation::terraingen, Terrain}};
+use crate::{graphics::resources::GLResources, terrain::{chunk::{Chunk, ChunkUpdate, ChunkUpdateInner}, generation::terraingen, ChunkIndex, Terrain}};
 
 
 pub trait EngineWorker {
@@ -41,7 +41,27 @@ impl EngineWorker for Arc<RwLock<Terrain>> {
                                     &terrain_config,
                                 );
                                 {
-                                    chunks.lock().unwrap().insert(chunk_index, Arc::new(RwLock::new(chunk)));
+                                    let mut chunks = chunks.lock().unwrap();
+                                    chunks.insert(chunk_index, Arc::new(RwLock::new(chunk)));
+                                    let adjacent_chunks = [
+                                        chunk_index + ChunkIndex::new(1, 0),  //x_pos
+                                        chunk_index + ChunkIndex::new(-1, 0), //x_neg
+                                        chunk_index + ChunkIndex::new(0, 1),  //z_pos
+                                        chunk_index + ChunkIndex::new(0, -1), //z_neg
+                                    ];
+                                    for index in adjacent_chunks {
+                                        if let Some(adjacent_chunk) = chunks.get_mut(&index) {
+                                            let mut adjacent_chunk = adjacent_chunk.write().unwrap();
+                                            match adjacent_chunk.next_update {
+                                                ChunkUpdate::NoUpdate => {
+                                                    adjacent_chunk.next_update = ChunkUpdate::NeighborChanged(ChunkUpdateInner::new(index, Vector3::zero(), 0));
+                                                    println!("Marked {:?} as NeighborChanged", index);
+                                                },
+                                                _ => {},
+                                            }
+                                            
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -65,11 +85,6 @@ impl EngineWorker for Arc<RwLock<Terrain>> {
                  *     ... flood fill? ...
                  *     ... rebuild chunk mesh data ...
                  */
-
-                {
-                    let mut terrain = terrain.write().unwrap();
-                    terrain.update_meshes(&mut gl_resources.write().unwrap());
-                }
 
                 {
                     let mut terrain = terrain.write().unwrap();
