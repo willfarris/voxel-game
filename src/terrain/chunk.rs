@@ -33,9 +33,9 @@ pub enum ChunkUpdate {
 
 #[derive(Clone)]
 pub struct Chunk {
-    blocks: BlockDataArray<usize>,
-    metadata: BlockDataArray<usize>,
-    lighting: BlockDataArray<usize>,
+    blocks: BlockDataArray<u8>,
+    //metadata: BlockDataArray<usize>,
+    lighting: BlockDataArray<u8>,
 
     pub next_update: ChunkUpdate,
 }
@@ -44,29 +44,29 @@ impl Chunk {
     pub const fn new() -> Self {
         Self {
             blocks: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
-            metadata: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
+            //metadata: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
             lighting: [[[0; CHUNK_WIDTH]; CHUNK_HEIGHT]; CHUNK_WIDTH],
             next_update: ChunkUpdate::NoUpdate,
         }
     }
 
     pub fn get_lighting(&self, block_index: &BlockIndex) -> usize {
-        self.lighting[block_index.x][block_index.y][block_index.z]
+        self.lighting[block_index.x][block_index.y][block_index.z] as usize
     }
 
     pub fn get_block(&self, block_index: &BlockIndex) -> usize {
-        self.blocks[block_index.x][block_index.y][block_index.z]
+        self.blocks[block_index.x][block_index.y][block_index.z] as usize
     }
 
     pub fn set_block(&mut self, block_index: &BlockIndex, block_id: usize) -> usize {
         let prev_block_id = self.blocks[block_index.x][block_index.y][block_index.z];
-        self.blocks[block_index.x][block_index.y][block_index.z] = block_id;
-        prev_block_id
+        self.blocks[block_index.x][block_index.y][block_index.z] = block_id as u8;
+        prev_block_id as usize
     }
 
-    pub fn get_metadata(&self, block_index: &BlockIndex) -> usize {
+    /*pub fn get_metadata(&self, block_index: &BlockIndex) -> usize {
         self.metadata[block_index.x][block_index.y][block_index.z]
-    }
+    }*/
 
     /*pub fn update_lighting(&mut self, pending_lights: Vec<(BlockIndex, usize)>) -> HashMap<ChunkIndex, Vec<(BlockIndex, usize)>>{
         // Reset lighting

@@ -34,7 +34,51 @@ pub enum TerrainEvent {
     ModifyBlock(BlockWorldPos, usize),
 }
 
-type ChunkList = HashMap<ChunkIndex, Arc<RwLock<Box<Chunk>>>>;
+// TODO: only render small subset of total generated chunks and cache to disk
+type ChunkMap = HashMap<ChunkIndex, Arc<RwLock<Box<Chunk>>>>;
+pub struct ChunkList {
+    visible: ChunkMap,
+    memory: ChunkMap,
+    disk: (),
+}
+
+impl ChunkList {
+    pub fn new() -> Self {
+        Self {
+            visible: ChunkMap::new(),
+            memory: ChunkMap::new(),
+            disk: (),
+        }
+    }
+
+    pub fn get(&self, chunk_index: &ChunkIndex) ->  Option<&Arc<RwLock<Box<Chunk>>>> {
+        let v = self.visible.get(chunk_index);
+        if v.is_some() {return v}
+        self.memory.get(chunk_index)
+    }
+
+    pub fn get_mut(&mut self, chunk_index: &ChunkIndex) -> Option<&mut Arc<RwLock<Box<Chunk>>>> {
+        let v = self.visible.get_mut(chunk_index);
+        if v.is_some() {return v}
+        self.memory.get_mut(chunk_index)
+    }
+
+    pub fn insert(&mut self, chunk_index: ChunkIndex, chunk: Arc<RwLock<Box<Chunk>>>) {
+        self.memory.insert(chunk_index, chunk);
+    }
+
+    pub fn visible_keys(&self) -> std::collections::hash_map::Keys<'_, Vector2<isize>, Arc<RwLock<Box<Chunk>>>> {
+        self.memory.keys()
+    }
+
+    pub fn visible(&self) -> &ChunkMap {
+        &self.memory
+    }
+
+    /* pub fn iter_mut(&mut self) -> {
+
+    } */
+}
 
 pub struct Terrain {
     /* Multi-level queue for chunk data
@@ -79,9 +123,29 @@ impl Terrain {
                 },
                 TerrainEvent::ModifyBlock(block_world_pos, new_value) => {
                     if let Some((chunk_index, block_index)) = Self::chunk_and_block_index(&block_world_pos) {
-                        if let Some(chunk) = self.chunks.lock().unwrap().get(&chunk_index) {
+                        let mut chunks = self.chunks.lock().unwrap();
+                        if let Some(chunk) = chunks.get(&chunk_index) {
                             chunk.write().unwrap().set_block(&block_index, new_value);
                             chunk.write().unwrap().next_update = ChunkUpdate::BlockUpdate(ChunkUpdateInner::new(chunk_index, block_index, new_value));
+                            let adjacent_chunks = [
+                                chunk_index + ChunkIndex::new(1, 0),  //x_pos
+                                chunk_index + ChunkIndex::new(-1, 0), //x_neg
+                                chunk_index + ChunkIndex::new(0, 1),  //z_pos
+                                chunk_index + ChunkIndex::new(0, -1), //z_neg
+                            ];
+                            for index in adjacent_chunks {
+                                if let Some(adjacent_chunk) = chunks.get_mut(&index) {
+                                    let mut adjacent_chunk = adjacent_chunk.write().unwrap();
+                                    match adjacent_chunk.next_update {
+                                        ChunkUpdate::NoUpdate => {
+                                            adjacent_chunk.next_update = ChunkUpdate::NeighborChanged(ChunkUpdateInner::new(index, Vector3::zero(), 0));
+                                            println!("Marked {:?} as NeighborChanged", index);
+                                        },
+                                        _ => {},
+                                    }
+                                    
+                                }
+                            }
                             //println!("Marked {:?} as BlockUpdate", chunk_index);
                         }
                     }
@@ -186,12 +250,12 @@ impl Terrain {
                                     coords[3] = (*x_top, *y_top);
                                     coords[4] = (*x_side, *y_side);
                                     //let active = chunk.metadata[x][y][z] == 1;
-                                    let active = chunk.get_metadata(&block_index) == 1;
+                                    /*let active = chunk.get_metadata(&block_index) == 1;
                                     coords[5] = if active {
                                         (*x_front_active, *y_front_active)
                                     } else {
                                         (*x_front_inactive, *y_front_inactive)
-                                    };
+                                    };*/
                                 }
                             }
                             coords
@@ -493,7 +557,7 @@ impl Terrain {
 
     pub fn update_meshes(&mut self, gl_resources: &mut GLResources) {
 
-        for (index, chunk) in self.chunks.lock().unwrap().iter_mut() {
+        for (index, chunk) in self.chunks.lock().unwrap().visible() {
             let chunk = chunk.write().unwrap();
             match chunk.next_update {
                 ChunkUpdate::Generated | ChunkUpdate::BlockUpdate(_) | ChunkUpdate::NeighborChanged(_) => {
@@ -592,7 +656,7 @@ impl GLRenderable for Terrain {
 
         shader.set_texture(unsafe { c_str!("texture_map") }, 0);
 
-        for chunk_index in self.chunks.lock().unwrap().keys() {
+        for chunk_index in self.chunks.lock().unwrap().visible_keys() {
             let model_matrix = Matrix4::from_translation(Vector3::new(
                 (chunk_index.x * CHUNK_WIDTH as isize) as f32,
                 0f32,
